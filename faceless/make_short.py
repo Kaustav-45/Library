@@ -66,12 +66,31 @@ def load_wav(path):
     nz = np.where(np.abs(a) > 0.01)[0]          # trim silence at both ends
     return a[max(nz[0] - 800, 0): nz[-1] + 1600] if len(nz) else a
 
+_kokoro = None
 def tts(text, voice, speed, path):
+    """voice "kokoro:<name>" uses the Kokoro neural voice (natural sounding, speed is a
+    multiplier like 1.0); any other voice name uses espeak-ng (speed in words per minute)."""
+    global _kokoro
+    if voice.startswith('kokoro:'):
+        if _kokoro is None:
+            from kokoro_onnx import Kokoro
+            d = os.environ.get('KOKORO_DIR', '/root/tts')
+            _kokoro = Kokoro(os.path.join(d, 'kokoro-v1.0.onnx'), os.path.join(d, 'voices-v1.0.bin'))
+        import soundfile as sf
+        a, sr = _kokoro.create(text, voice=voice.split(':', 1)[1], speed=float(speed), lang='en-us')
+        sf.write(path, a, sr)
+        return
     # -g adds a short gap between words, which makes the synthetic voice easier to follow
     try:
         subprocess.run(['espeak-ng', '-v', voice, '-s', str(speed), '-g', '3', '-w', path, text], check=True, capture_output=True)
     except subprocess.CalledProcessError:   # MBROLA voice missing: fall back to the plain voice
         subprocess.run(['espeak-ng', '-v', 'en-us', '-s', str(speed), '-g', '3', '-w', path, text], check=True)
+
+# speech clean-up: the robotic voice needs strong EQ; the neural voice only a gentle polish
+VOICE_FX_ROBOT = ('highpass=f=100,equalizer=f=250:t=q:w=1:g=-3,equalizer=f=2800:t=q:w=1.2:g=5,'
+                  'equalizer=f=5500:t=q:w=1:g=3,acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=2')
+VOICE_FX_NEURAL = ('highpass=f=80,equalizer=f=3500:t=q:w=1.5:g=1.5,'
+                   'acompressor=threshold=-18dB:ratio=2:attack=10:release=150:makeup=1.5')
 
 def envelope(a, win):
     """Moving average of |a| over win samples (fast, via cumulative sum)."""
@@ -302,8 +321,7 @@ def main(script_path, out_path):
     vin, vout = os.path.join(tmp, 'voice.f32'), os.path.join(tmp, 'voice_fx.f32')
     voice_track.tofile(vin)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', vin,
-                    '-af', 'highpass=f=100,equalizer=f=250:t=q:w=1:g=-3,equalizer=f=2800:t=q:w=1.2:g=5,'
-                           'equalizer=f=5500:t=q:w=1:g=3,acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=2',
+                    '-af', VOICE_FX_NEURAL if voice.startswith('kokoro:') else VOICE_FX_ROBOT,
                     '-f', 'f32le', '-ar', str(SR), '-ac', '1', vout], check=True)
     voice_track = np.fromfile(vout, np.float32)[:n]
     voice_track = np.pad(voice_track, (0, n - len(voice_track)))

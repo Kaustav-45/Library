@@ -1,0 +1,25 @@
+{
+  "title": "The Great Emu War",
+  "voice": "mb-us2",
+  "speed": 148,
+  "scenes": [
+    {"say": "In 1932, Australia went to war against birds. And the birds won.",
+     "kicker": "TRUE STORY", "big": "1932", "sub": "AUSTRALIA vs EMUS", "visual": "standoff"},
+    {"say": "After World War One, veterans were given farmland in Western Australia to grow wheat.",
+     "kicker": "WESTERN AUSTRALIA", "big": "WHEAT", "sub": "farms for returning soldiers", "visual": "wheat"},
+    {"say": "Then around twenty thousand emus showed up, eating and trampling the crops.",
+     "kicker": "THE INVASION", "big": "20,000", "sub": "hungry emus", "visual": "flock"},
+    {"say": "So the government sent in soldiers, two machine guns, and ten thousand rounds of ammunition.",
+     "kicker": "THE RESPONSE", "big": "2 GUNS", "sub": "10,000 rounds", "visual": "ammo"},
+    {"say": "But the emus split into small groups, and ran at up to fifty kilometres an hour.",
+     "kicker": "THE TACTICS", "big": "50 KM/H", "sub": "top speed of an emu", "visual": "run"},
+    {"say": "In one ambush, a gun jammed after only about a dozen birds.",
+     "kicker": "THE AMBUSH", "big": "JAMMED", "sub": "after about 12 birds", "visual": "jam"},
+    {"say": "By December, the army had fired nearly ten thousand rounds. That is about ten bullets per emu.",
+     "kicker": "THE RESULT", "big": "10", "sub": "bullets per emu", "visual": "ratio"},
+    {"say": "The soldiers went home. The emus stayed.",
+     "kicker": "FINAL SCORE", "big": "EMUS WIN", "sub": "December 1932", "visual": "standoff"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow"}
+  ]
+}

@@ -373,6 +373,6 @@ def main(script_path, out_path):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    if '--scale' in args:                       # --scale 1 = 1080p, 2 = 4K (default)
-        i = args.index('--scale'); S = float(args[i + 1]); del args[i:i + 2]
+    if '--scale' in args:                       # --scale 1 = 1080p, 2 = 4K (default); whole numbers only
+        i = args.index('--scale'); S = int(args[i + 1]); del args[i:i + 2]
     main(args[0], args[1])

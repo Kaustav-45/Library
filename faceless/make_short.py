@@ -19,6 +19,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BG0, BG1 = (27, 22, 17), (48, 37, 26)
 CREAM, GOLD, RED, INK = (243, 230, 200), (242, 177, 52), (217, 72, 59), (20, 16, 12)
 EMU_C, EMU_D = (92, 74, 58), (60, 47, 37)
+LINE, LIQ, STEEL = (90, 72, 52), (176, 104, 34), (120, 138, 158)   # ground line, liquid, metal
+
+def set_palette(pal):
+    """Override colours from the script's "palette": bg0, bg1, text, headline, accent, ink, line, liquid, steel."""
+    global BG0, BG1, CREAM, GOLD, RED, INK, LINE, LIQ, STEEL
+    t = lambda k, d: tuple(pal.get(k, d))
+    BG0, BG1, CREAM, GOLD, RED = t('bg0', BG0), t('bg1', BG1), t('text', CREAM), t('headline', GOLD), t('accent', RED)
+    INK, LINE, LIQ, STEEL = t('ink', INK), t('line', LINE), t('liquid', LIQ), t('steel', STEEL)
 
 S = 2   # render scale: layout is in 1080x1920 units, output is (1080*S)x(1920*S); 2 = 4K
 
@@ -134,8 +142,8 @@ def base_frames(k=6):
         out.append(Image.fromarray(np.clip(img + n, 0, 255).astype(np.uint8)).convert('RGBA'))
     return out
 
-def text_c(d, xy, s, f, fill, anchor='mm', stroke=0, sfill=INK):
-    d.text(xy, s, font=f, fill=fill, anchor=anchor, stroke_width=stroke, stroke_fill=sfill)
+def text_c(d, xy, s, f, fill, anchor='mm', stroke=0, sfill=None):
+    d.text(xy, s, font=f, fill=fill, anchor=anchor, stroke_width=stroke, stroke_fill=sfill or INK)
 
 def emu(d, x, y, s, phase=0.0, face=1, col=EMU_C, run=False):
     """A simple emu silhouette standing on (x, y), about 300*s px tall."""
@@ -177,11 +185,64 @@ def gun(d, x, y, s, col=(70, 70, 70)):
     d.line([(x + 60 * s, y + 30 * s), (x + 140 * s, y + 160 * s)], fill=col, width=int(16 * s))
     d.polygon([(x - 200 * s, y - 20 * s), (x - 320 * s, y + 10 * s), (x - 320 * s, y + 50 * s), (x - 200 * s, y + 30 * s)], fill=(110, 80, 50))
 
+def shade(c, k): return tuple(max(0, min(255, int(v * k))) for v in c)
+
+def tank(d, x, ground, w, h, level=1.0, shake=0.0, crack=0.0):
+    """A riveted storage tank standing on the ground; level 0..1 is how full it is."""
+    x += shake
+    x0, x1, y0 = x - w / 2, x + w / 2, ground - h
+    d.ellipse([x0, y0 - 40, x1, y0 + 40], fill=shade(STEEL, 1.15))
+    d.rectangle([x0, y0, x1, ground], fill=STEEL)
+    ly = ground - (h - 20) * level
+    d.rectangle([x0 + 14, ly, x1 - 14, ground - 8], fill=LIQ)
+    for i in range(1, 5):
+        yy = y0 + h * i / 5
+        d.line([(x0, yy), (x1, yy)], fill=shade(STEEL, 0.7), width=5)
+        for k in range(9):
+            rx = x0 + 20 + k * (w - 40) / 8
+            d.ellipse([rx - 4, yy - 16, rx + 4, yy - 8], fill=shade(STEEL, 0.6))
+    if crack > 0:
+        rng = random.Random(5); pts = [(x + 20, y0 + 30)]
+        for i in range(int(9 * crack)):
+            px, py = pts[-1]; pts.append((px + rng.uniform(-45, 45), py + h / 10))
+        if len(pts) > 1:
+            d.line(pts, fill=INK, width=9, joint='curve'); d.line(pts, fill=LIQ, width=4, joint='curve')
+
+def buildings(d, x0, ground, n=5, seed=2, scale=1.0, tilt=0.0):
+    rng = random.Random(seed); x = x0
+    for i in range(n):
+        bw, bh = rng.uniform(90, 140) * scale, rng.uniform(170, 330) * scale
+        col = shade(STEEL, rng.uniform(0.35, 0.55)); lean = tilt * (i + 1) * 9
+        d.polygon([(x, ground), (x + lean, ground - bh), (x + bw + lean, ground - bh), (x + bw, ground)], fill=col)
+        for r in range(int(bh // 60)):
+            for c in range(int(bw // 40)):
+                wx, wy = x + 14 + c * 40 + lean * (r * 60 + 40) / bh, ground - bh + 22 + r * 60
+                d.rectangle([wx, wy, wx + 16, wy + 26], fill=shade(GOLD, 0.85) if rng.random() > 0.35 else shade(col, 0.6))
+        x += bw + 10 * scale
+
+def wave(d, front, ground, height, t, left=-100):
+    """A wall of liquid from the left edge up to x=front, with a curling crest."""
+    pts = [(left, ground)]
+    for i in range(41):
+        u = i / 40; x = left + (front - left) * u
+        y = ground - height * (0.45 + 0.55 * u ** 1.6) + math.sin(u * 9 + t * 5) * 14
+        pts.append((x, y))
+    pts += [(front + 70, ground - height * 0.55), (front + 40, ground - height * 0.15), (front + 90, ground)]
+    d.polygon(pts, fill=LIQ)
+    d.line(pts[1:42], fill=shade(LIQ, 1.45), width=10, joint='curve')
+    for i in range(6):
+        bx = left + (front - left) * ((i * 0.17 + t * 0.2) % 1); by = ground - height * 0.2 - (i * 37 % 90)
+        d.ellipse([bx - 12, by - 12, bx + 12, by + 12], fill=shade(LIQ, 1.3))
+
+def person(d, x, y, s, col):
+    d.ellipse([x - 13 * s, y - 62 * s, x + 13 * s, y - 36 * s], fill=col)
+    d.rounded_rectangle([x - 18 * s, y - 32 * s, x + 18 * s, y + 22 * s], 12 * s, fill=col)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img):
     cx, ground = W / 2, VY1 - 40
-    d.line([(60, ground), (W - 60, ground)], fill=(90, 72, 52), width=4)
+    d.line([(60, ground), (W - 60, ground)], fill=LINE, width=4)
     if kind == 'standoff':
         emu(d, cx + 170, ground, 1.35, t * 0.8, face=-1)
         p = back(t / 0.5)
@@ -240,6 +301,49 @@ def visual(d, kind, t, dur, img):
             bullet(d, 110 + i * 62, VY0 + 150, 1.5)
         text_c(d, (cx, VY0 + 320), '=', font('anton', 200), CREAM)
         if t > 1.2: emu(d, cx, ground, 0.7, t, face=-1)
+    elif kind == 'tank':
+        buildings(d, 80, ground, n=2, seed=3, scale=0.8); buildings(d, W - 330, ground, n=2, seed=6, scale=0.8)
+        tank(d, cx, ground, 380, 500, level=ease(t / max(dur * 0.7, 0.5)))
+    elif kind == 'crack':
+        k = ease((t - 0.8) / 1.6); sh = math.sin(t * 55) * 9 * (t > 0.8)
+        tank(d, cx, ground, 400, 520, level=0.95, shake=sh, crack=k)
+        for i in range(int(8 * k)):                                  # leaks
+            dx = cx - 170 + i * 48; dy = (t * 260 + i * 70) % 300
+            d.ellipse([dx - 8, ground - 300 + dy - 12, dx + 8, ground - 300 + dy + 12], fill=LIQ)
+    elif kind == 'wave':
+        p = ease(t / max(dur * 0.9, 1)); front = -60 + p * 760
+        buildings(d, 470, ground, n=5, seed=2, tilt=max(0, p - 0.45) * 1.2)
+        wave(d, front, ground, 420, t)
+    elif kind == 'speed':
+        gx, gy, r = cx, VY0 + 330, 250
+        d.arc([gx - r, gy - r, gx + r, gy + r], 150, 390, fill=CREAM, width=18)
+        for i in range(9):
+            a = math.radians(150 + 240 * i / 8)
+            d.line([(gx + math.cos(a) * r * 0.82, gy + math.sin(a) * r * 0.82), (gx + math.cos(a) * r * 0.95, gy + math.sin(a) * r * 0.95)], fill=CREAM, width=8)
+        a = math.radians(150 + 240 * 0.7 * back(t / 1.3))
+        d.line([(gx, gy), (gx + math.cos(a) * r * 0.78, gy + math.sin(a) * r * 0.78)], fill=RED, width=18)
+        d.ellipse([gx - 26, gy - 26, gx + 26, gy + 26], fill=RED)
+        wave(d, (t * 700) % (W + 500) - 150, ground, 150, t, left=-400)
+    elif kind == 'toll':
+        n = int(21 * ease(t / max(dur * 0.6, 0.5)))
+        for i in range(n):
+            r, c = divmod(i, 7)
+            person(d, 180 + c * 120, VY0 + 190 + r * 170, 1.5, CREAM)
+        d.rectangle([60, ground - 46, W - 60, ground], fill=LIQ)
+    elif kind == 'law':
+        buildings(d, 90, ground, n=3, seed=8, scale=0.7)
+        d.rectangle([60, ground - 30 * (1 - ease(t / max(dur, 1))), W - 60, ground], fill=LIQ)   # the mess draining away
+        d.rounded_rectangle([cx + 40, VY0 + 110, cx + 420, ground - 60], 14, fill=CREAM)
+        for i in range(7):
+            d.line([(cx + 80, VY0 + 180 + i * 56), (cx + (380 if i % 3 else 300), VY0 + 180 + i * 56)], fill=shade(STEEL, 0.8), width=9)
+        if t > 0.9:
+            img.alpha_composite(stamp('SAFETY', back((t - 0.9) / 0.35)), (int((cx - 250) * S), int((VY0 + 330) * S)))
+    elif kind == 'follow_wave':
+        p = 1 + 0.06 * math.sin(t * 6)
+        bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 250 - bh / 2, cx + bw / 2, VY0 + 250 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 250), 'FOLLOW', font('anton', 96 * p), CREAM)
+        wave(d, (t * 420) % (W + 500) - 150, ground, 170, t, left=-400)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -297,6 +401,7 @@ def caption(d, words, times, t):
 # ---------- main ----------
 def main(script_path, out_path):
     spec = json.load(open(script_path))
+    set_palette(spec.get('palette', {}))
     tmp = tempfile.mkdtemp()
     voice, speed = spec.get('voice', 'mb-us2'), spec.get('speed', 150)
     scenes, clips = [], []

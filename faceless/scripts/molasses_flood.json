@@ -1,0 +1,27 @@
+{
+  "title": "The Great Molasses Flood",
+  "voice": "kokoro:af_heart",
+  "speed": 0.98,
+  "palette": {
+    "bg0": [8, 20, 38], "bg1": [16, 46, 76], "text": [236, 244, 250], "headline": [94, 234, 212],
+    "accent": [255, 99, 125], "ink": [4, 10, 20], "line": [52, 84, 116], "liquid": [214, 132, 44], "steel": [120, 138, 158]
+  },
+  "scenes": [
+    {"say": "In 1919, a giant wave of syrup tore through Boston at thirty five miles an hour.",
+     "kicker": "TRUE STORY", "big": "1919", "sub": "BOSTON, USA", "visual": "wave"},
+    {"say": "A huge steel tank stood in the North End, holding over two million gallons of molasses.",
+     "kicker": "THE TANK", "big": "2,300,000", "sub": "gallons of molasses", "visual": "tank"},
+    {"say": "It had leaked from the start. Then, on January fifteenth, it burst.",
+     "kicker": "JANUARY 15", "big": "IT BURST", "sub": "around half past noon", "visual": "crack"},
+    {"say": "A wave about twenty five feet high crushed buildings and bent the steel of an elevated railway.",
+     "kicker": "THE WAVE", "big": "25 FT", "sub": "a wall of molasses", "visual": "wave"},
+    {"say": "It moved at thirty five miles an hour. Nobody could outrun it.",
+     "kicker": "THE SPEED", "big": "35 MPH", "sub": "faster than anyone could run", "visual": "speed"},
+    {"say": "Twenty one people died, and about one hundred and fifty were hurt.",
+     "kicker": "THE COST", "big": "21", "sub": "lives lost, about 150 injured", "visual": "toll"},
+    {"say": "The cleanup took weeks, and the disaster led to stricter building rules across America.",
+     "kicker": "THE AFTERMATH", "big": "WEEKS", "sub": "to clean the streets", "visual": "law"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_wave"}
+  ]
+}

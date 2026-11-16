@@ -440,6 +440,100 @@ def draisine(d, x, ground, t, col):
     d.ellipse([sh[0] - 4, sh[1] - 66, sh[0] + 52, sh[1] - 10], fill=col)
     d.rectangle([sh[0] - 8, sh[1] - 92, sh[0] + 56, sh[1] - 62], fill=INK); d.rectangle([sh[0] - 22, sh[1] - 66, sh[0] + 70, sh[1] - 56], fill=INK)   # top hat
 
+# ----- drawings for the "sense of time" facts -----
+SAND, STONE = (232, 190, 110), (206, 186, 156)
+
+def pyramid(d, cx, ground, w, h, k=1.0, col=None, n=9):
+    """A stepped pyramid built row by row; k 0..1 is how much of it stands."""
+    col = col or SAND
+    for i in range(n):
+        if i / n >= k: break
+        y0, y1 = ground - h * i / n, ground - h * (i + 1) / n
+        a, b = w / 2 * (1 - i / n), w / 2 * (1 - (i + 1) / n)
+        d.polygon([(cx - a, y0), (cx - b, y1), (cx, y1), (cx, y0)], fill=col)
+        d.polygon([(cx, y0), (cx, y1), (cx + b, y1), (cx + a, y0)], fill=shade(col, 0.72))
+        d.line([(cx - a, y0), (cx + a, y0)], fill=shade(col, 0.55), width=3)
+
+def queen(d, x, y, s):
+    """A simple Egyptian queen: gold striped headdress, collar and robe. (x, y) is the feet."""
+    hy = y - 250 * s
+    d.polygon([(x - 62 * s, hy - 40 * s), (x + 62 * s, hy - 40 * s), (x + 78 * s, hy + 110 * s), (x - 78 * s, hy + 110 * s)], fill=GOLD)
+    for i in range(5):
+        yy = hy - 26 * s + i * 30 * s
+        d.line([(x - (64 + i * 3) * s, yy), (x + (64 + i * 3) * s, yy)], fill=(30, 90, 150), width=max(2, int(9 * s)))
+    d.ellipse([x - 42 * s, hy - 34 * s, x + 42 * s, hy + 56 * s], fill=(204, 148, 100))
+    d.rounded_rectangle([x - 66 * s, hy + 80 * s, x + 66 * s, y], 26 * s, fill=CREAM)
+    d.pieslice([x - 66 * s, hy + 40 * s, x + 66 * s, hy + 150 * s], 0, 180, fill=GOLD)
+    d.ellipse([x - 9 * s, hy - 62 * s, x + 9 * s, hy - 36 * s], fill=RED)
+
+def mammoth(d, x, ground, s, t):
+    """A woolly mammoth facing right, feet on the ground at x."""
+    fur, dark = (128, 82, 50), (92, 58, 36); bob = math.sin(t * 3) * 6 * s
+    for i, lx in enumerate((-120, -60, 60, 120)):
+        sw = math.sin(t * 3 + i * 1.6) * 16 * s
+        d.rounded_rectangle([x + lx * s - 26 * s + sw, ground - 150 * s, x + lx * s + 26 * s + sw, ground], 16 * s, fill=dark if i % 2 else fur)
+    d.ellipse([x - 190 * s, ground - 330 * s + bob, x + 150 * s, ground - 90 * s + bob], fill=fur)
+    d.ellipse([x + 20 * s, ground - 390 * s + bob, x + 200 * s, ground - 190 * s + bob], fill=fur)          # shoulder hump
+    hx, hy = x + 215 * s, ground - 290 * s + bob
+    d.ellipse([hx - 80 * s, hy - 90 * s, hx + 70 * s, hy + 80 * s], fill=fur)                              # head
+    d.ellipse([hx - 60 * s, hy - 120 * s, hx + 30 * s, hy - 50 * s], fill=fur)
+    d.ellipse([hx - 78 * s, hy - 40 * s, hx - 20 * s, hy + 50 * s], fill=dark)                              # ear
+    tr = [(hx + 50 * s, hy + 20 * s), (hx + 78 * s, hy + 120 * s), (hx + 70 * s, hy + 210 * s + math.sin(t * 2) * 10 * s), (hx + 110 * s, hy + 240 * s + math.sin(t * 2) * 14 * s)]
+    d.line(tr, fill=fur, width=max(4, int(38 * s)), joint='curve')
+    d.arc([hx - 10 * s, hy - 40 * s, hx + 230 * s, hy + 170 * s], 20, 165, fill=SNOW, width=max(3, int(17 * s)))   # tusk
+    d.ellipse([hx + 14 * s, hy - 26 * s, hx + 30 * s, hy - 10 * s], fill=INK)
+    for i in range(9):                                                                                    # shaggy belly
+        fx = x - 150 * s + i * 34 * s
+        d.polygon([(fx, ground - 120 * s + bob), (fx + 34 * s, ground - 120 * s + bob), (fx + 17 * s, ground - 78 * s + bob)], fill=dark)
+    d.line([(x - 185 * s, ground - 230 * s + bob), (x - 215 * s, ground - 150 * s + bob)], fill=dark, width=max(3, int(11 * s)))
+
+def lander(d, x, ground, s):
+    d.line([(x - 60 * s, ground - 70 * s), (x - 110 * s, ground)], fill=STEEL, width=max(3, int(9 * s))); d.line([(x + 60 * s, ground - 70 * s), (x + 110 * s, ground)], fill=STEEL, width=max(3, int(9 * s)))
+    for fx in (-110, 110): d.ellipse([x + fx * s - 22 * s, ground - 8 * s, x + fx * s + 22 * s, ground + 8 * s], fill=STEEL)
+    d.rectangle([x - 78 * s, ground - 130 * s, x + 78 * s, ground - 62 * s], fill=(214, 168, 62))
+    d.polygon([(x - 54 * s, ground - 130 * s), (x - 36 * s, ground - 220 * s), (x + 36 * s, ground - 220 * s), (x + 54 * s, ground - 130 * s)], fill=shade(STONE, 0.9))
+    d.rectangle([x - 14 * s, ground - 196 * s, x + 14 * s, ground - 160 * s], fill=INK)
+    d.line([(x + 30 * s, ground - 220 * s), (x + 70 * s, ground - 270 * s)], fill=STEEL, width=max(2, int(6 * s))); d.ellipse([x + 54 * s, ground - 296 * s, x + 98 * s, ground - 252 * s], fill=CREAM)
+
+def tower(d, x, ground, w=230, h=430):
+    """A gothic college tower."""
+    c = STONE
+    d.rectangle([x - w / 2, ground - h, x + w / 2, ground], fill=c)
+    d.rectangle([x, ground - h, x + w / 2, ground], fill=shade(c, 0.86))
+    for i in range(7):
+        bx = x - w / 2 + i * w / 6.5
+        if i % 2 == 0: d.rectangle([bx, ground - h - 26, bx + w / 13 * 1.6, ground - h], fill=c)
+    for sx in (-w / 2, w / 2):
+        d.polygon([(sx + x - 16, ground - h), (sx + x, ground - h - 120), (sx + x + 16, ground - h)], fill=shade(c, 0.8))
+    for row in range(3):
+        for col_ in (-1, 1):
+            wx, wy = x + col_ * w * 0.22, ground - h + 60 + row * 118
+            d.rectangle([wx - 20, wy + 20, wx + 20, wy + 80], fill=(60, 80, 110)); d.pieslice([wx - 20, wy, wx + 20, wy + 40], 180, 360, fill=(60, 80, 110))
+    d.rectangle([x - 30, ground - 76, x + 30, ground], fill=(96, 62, 40)); d.pieslice([x - 30, ground - 106, x + 30, ground - 46], 180, 360, fill=(96, 62, 40))
+
+def temple(d, x, ground, w=400, h=330):
+    """A stepped Mesoamerican temple with a central stair and a shrine on top."""
+    c = (196, 112, 72); n = 5
+    for i in range(n):
+        a = w / 2 * (1 - i * 0.16); y0, y1 = ground - h * 0.8 * i / n, ground - h * 0.8 * (i + 1) / n
+        d.rectangle([x - a, y1, x + a, y0], fill=c if i % 2 == 0 else shade(c, 0.88))
+    d.polygon([(x - 46, ground), (x - 30, ground - h * 0.8), (x + 30, ground - h * 0.8), (x + 46, ground)], fill=shade(c, 0.7))
+    for i in range(12): d.line([(x - 44 + i * 0.4, ground - i * h * 0.8 / 12), (x + 44 - i * 0.4, ground - i * h * 0.8 / 12)], fill=shade(c, 0.5), width=3)
+    d.rectangle([x - 62, ground - h, x + 62, ground - h * 0.8], fill=shade(c, 0.8)); d.rectangle([x - 18, ground - h + 16, x + 18, ground - h * 0.8], fill=INK)
+    d.rectangle([x - 74, ground - h - 16, x + 74, ground - h], fill=GOLD)
+
+def hourglass(d, cx, cy, hw, hh, t, period=6.0):
+    k = (t / period) % 1
+    d.rounded_rectangle([cx - hw - 26, cy - hh - 30, cx + hw + 26, cy - hh], 12, fill=GOLD); d.rounded_rectangle([cx - hw - 26, cy + hh, cx + hw + 26, cy + hh + 30], 12, fill=GOLD)
+    glass = mix(BG1, CREAM, 0.22)
+    d.polygon([(cx - hw, cy - hh), (cx + hw, cy - hh), (cx + 14, cy), (cx - 14, cy)], fill=glass); d.polygon([(cx - 14, cy), (cx + 14, cy), (cx + hw, cy + hh), (cx - hw, cy + hh)], fill=glass)
+    a = (1 - k) ** 0.5; ty = cy - hh * a                                             # sand left in the top
+    d.polygon([(cx - (hw - 8) * a - 6, ty), (cx + (hw - 8) * a + 6, ty), (cx + 10, cy - 4), (cx - 10, cy - 4)], fill=SAND)
+    b = k ** 0.5; by = cy + hh - 6                                                   # pile at the bottom
+    d.polygon([(cx - (hw - 10) * b - 8, by), (cx + (hw - 10) * b + 8, by), (cx, by - hh * 0.72 * b)], fill=SAND)
+    d.line([(cx, cy - 4), (cx, by)], fill=SAND, width=7)
+    for sx in (-1, 1): d.line([(cx + sx * (hw + 10), cy - hh), (cx + sx * (hw + 10), cy + hh)], fill=shade(GOLD, 0.8), width=10)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -862,6 +956,78 @@ def visual(d, kind, t, dur, img, sc=None):
         p = 1 + 0.06 * math.sin(t * 6); bw, bh = 640 * p, 150 * p
         d.rounded_rectangle([cx - bw / 2, VY0 + 120 - bh / 2, cx + bw / 2, VY0 + 120 + bh / 2], int(bh / 2), fill=(230, 40, 40))
         text_c(d, (cx, VY0 + 120), 'SUBSCRIBE', font('anton', 96 * p), SNOW)
+    elif kind == 'hourglass':
+        sparkles(d, t)
+        hourglass(d, cx, VY0 + 350, 170, 250, t)
+    elif kind == 'timebar':
+        y = VY0 + 330; x0, x1 = 100, 980; px = (x1 - x0) / 4529.0; xc = x0 + 2491 * px
+        k = ease(t / 1.6); d.line([(x0, y), (x0 + (x1 - x0) * k, y)], fill=CREAM, width=10)
+        for i, (x, lab) in enumerate(((x0, '2560 BC'), (xc, '69 BC'), (x1, '1969'))):
+            p = back((t - 0.2 - i * 0.6) / 0.4)
+            if p <= 0.02: continue
+            r = 26 * p; d.ellipse([x - r, y - r, x + r, y + r], fill=POP[i % len(POP)])
+            text_c(d, (x, y + 70), lab, font('anton', 50 * min(p, 1)), CREAM, stroke=4)
+            if i == 0: pyramid(d, x + 40, y - 50, 230 * p, 170 * p)
+            elif i == 1: queen(d, x, y - 46, 0.62 * p)
+            else:
+                d.ellipse([x - 110 * p, y - 250 * p, x + 10 * p, y - 130 * p], fill=shade(STONE, 1.05)); d.ellipse([x - 80 * p, y - 220 * p, x - 56 * p, y - 196 * p], fill=shade(STONE, 0.85))
+                lander(d, x - 40, y - 46, 0.42 * p)
+        for i, (xa, xb, lab) in enumerate(((x0, xc, '2,500 YEARS'), (xc, x1, '2,000 YEARS'))):
+            p = ease((t - 2.2 - i * 0.9) / 0.6)
+            if p <= 0: continue
+            yy = y + 170 + i * 0; col = POP[i % len(POP)] if i == 0 else POP[2 % len(POP)]
+            d.rounded_rectangle([xa + 8, yy, xa + 8 + (xb - xa - 16) * p, yy + 26], 13, fill=col)
+            if p > 0.6: text_c(d, ((xa + xb) / 2, yy + 80), lab, font('anton', 62), col, stroke=5)
+    elif kind == 'pyramid':
+        d.ellipse([W - 330, VY0 + 60, W - 130, VY0 + 260], fill=HOT)
+        d.polygon([(0, ground + 40), (0, ground - 40), (260, ground - 90), (560, ground - 30), (820, ground - 80), (W, ground - 30), (W, ground + 40)], fill=shade(SAND, 0.62))
+        k = ease(t / max(dur * 0.75, 1.2))
+        pyramid(d, cx + 250, ground - 40, 330, 250, k=1.0, col=shade(SAND, 0.82)); pyramid(d, cx - 60, ground, 640, 480, k=k, n=12)
+        for i in range(3): person(d, 120 + i * 60, ground - 26, 0.95, shade(SAND, 0.45))
+    elif kind == 'moonwalk':
+        sparkles(d, t, 30)
+        ex, ey = 210, VY0 + 170
+        d.ellipse([ex - 90, ey - 90, ex + 90, ey + 90], fill=(44, 110, 190))
+        for bx, by, bw, bh in ((-30, -30, 60, 50), (30, 20, 50, 60), (-40, 40, 40, 30)): d.ellipse([ex + bx - bw / 2, ey + by - bh / 2, ex + bx + bw / 2, ey + by + bh / 2], fill=LEAF)
+        d.ellipse([-260, ground - 110, W + 260, ground + 700], fill=shade(STONE, 0.78))
+        for cx_, cy_, r in ((200, ground + 10, 70), (640, ground - 50, 44), (900, ground + 30, 90), (420, ground + 60, 36)):
+            d.ellipse([cx_ - r, cy_ - r * 0.36, cx_ + r, cy_ + r * 0.36], fill=shade(STONE, 0.6))
+        lander(d, 720, ground - 84, 1.25)
+        d.line([(430, ground - 70), (430, ground - 330)], fill=CREAM, width=8); d.polygon([(434, ground - 330), (560, ground - 310 + math.sin(t * 2) * 5), (434, ground - 250)], fill=RED)
+        hop = abs(math.sin(t * 1.5)) * 90
+        person(d, 250 + math.sin(t * 0.75) * 60, ground - 110 - hop, 2.2, SNOW)
+    elif kind == 'mammoth':
+        isl = (sc or {}).get('island', False)
+        if isl:
+            d.rectangle([0, ground - 10, W, ground + 40], fill=(40, 96, 150))
+            d.polygon([(90, ground + 40), (150, ground - 40), (400, ground - 70), (760, ground - 60), (950, ground - 30), (1000, ground + 40)], fill=SNOW)
+            mammoth(d, 360 + math.sin(t * 0.5) * 30, ground - 56, 0.8, t); mammoth(d, 700 + math.sin(t * 0.4 + 1) * 24, ground - 50, 0.55, t + 1)
+        else:
+            d.polygon([(0, ground + 40), (0, ground - 20), (300, ground - 44), (700, ground - 14), (W, ground - 40), (W, ground + 40)], fill=SNOW)
+            mammoth(d, cx - 110 + math.sin(t * 0.5) * 40, ground - 22, 1.3, t)
+            p = back((t - 1.0) / 0.4)
+            if p > 0.02:                                                             # meanwhile, far away
+                x0, y0, wd, hg = W - 380, VY0 + 20, 340 * p, 250 * p
+                d.rounded_rectangle([x0, y0, x0 + wd, y0 + hg], 22, fill=shade(SAND, 0.5))
+                if p > 0.9:
+                    pyramid(d, x0 + wd / 2, y0 + hg - 56, 210, 140, k=ease((t - 1.4) / 2.5))
+                    text_c(d, (x0 + wd / 2, y0 + hg - 26), 'MEANWHILE IN EGYPT', font('inter', 25), CREAM)
+        snowfall(d, t, 46)
+    elif kind == 'versus':
+        tower(d, 270, ground); temple(d, 790, ground)
+        for i, (x, yy, lab, sub_) in enumerate(((270, ground - 620, '1096', 'OXFORD'), (790, ground - 500, '1325', 'AZTEC CAPITAL'))):
+            p = back((t - 0.5 - i * 1.3) / 0.4)
+            if p <= 0.02: continue
+            col = POP[i * 2 % len(POP)]
+            text_c(d, (x, yy), lab, font('anton', 120 * p), col, stroke=7)
+            if p > 0.8: text_c(d, (x, yy + 86), sub_, font('inter', 34), CREAM)
+        sparkles(d, t, 14)
+    elif kind == 'follow_time':
+        sparkles(d, t)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 110 - bh / 2, cx + bw / 2, VY0 + 110 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 110), 'FOLLOW', font('anton', 96 * p), CREAM)
+        hourglass(d, cx, VY0 + 460, 110, 160, t, period=3.0)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

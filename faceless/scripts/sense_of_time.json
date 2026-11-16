@@ -1,0 +1,30 @@
+{
+  "title": "3 Facts That Break Your Sense of Time",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "palette": {
+    "bg0": [4, 24, 30], "bg1": [10, 78, 70], "text": [246, 248, 240], "headline": [255, 196, 64],
+    "accent": [240, 84, 96], "ink": [2, 12, 16], "line": [40, 120, 110], "steel": [150, 160, 170], "glow": [40, 210, 170],
+    "pop": [[255, 196, 64], [240, 84, 96], [110, 220, 255], [170, 240, 150], [255, 150, 90]]
+  },
+  "scenes": [
+    {"say": "Three history facts that will break your sense of time.",
+     "kicker": "3 TRUE FACTS", "big": "TIME", "sub": "is not what you think", "visual": "hourglass"},
+    {"say": "One. Cleopatra lived closer to the Moon landing than to the building of the Great Pyramid.",
+     "kicker": "FACT 1", "big": "CLEOPATRA", "sub": "closer to the Moon than the pyramid", "visual": "timebar"},
+    {"say": "The pyramid was already about two thousand five hundred years old when she was born.",
+     "kicker": "FACT 1", "big": "2,500", "sub": "years before Cleopatra", "visual": "pyramid"},
+    {"say": "The Moon landing came only about two thousand years after her.",
+     "kicker": "FACT 1", "big": "2,000", "sub": "years after Cleopatra", "visual": "moonwalk"},
+    {"say": "Two. Woolly mammoths were still alive when the pyramids were built.",
+     "kicker": "FACT 2", "big": "MAMMOTHS", "sub": "were alive in the age of the pyramids", "visual": "mammoth"},
+    {"say": "The last herd survived on a remote Arctic island until about four thousand years ago.",
+     "kicker": "FACT 2", "big": "4,000", "sub": "years ago, on Wrangel Island", "visual": "mammoth", "island": true},
+    {"say": "Three. Oxford University is older than the Aztec Empire.",
+     "kicker": "FACT 3", "big": "OXFORD", "sub": "is older than the Aztecs", "visual": "versus"},
+    {"say": "People were teaching at Oxford by 1096. The Aztec capital was founded in 1325.",
+     "kicker": "FACT 3", "big": "229 YEARS", "sub": "older than the Aztec capital", "visual": "versus"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_time"}
+  ]
+}

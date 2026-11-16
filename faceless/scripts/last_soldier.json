@@ -1,0 +1,33 @@
+{
+  "title": "The Soldier Who Fought for 29 More Years",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 4.0,
+  "palette": {
+    "bg0": [22, 12, 52], "bg1": [232, 108, 58], "text": [255, 246, 226], "headline": [255, 226, 120],
+    "accent": [214, 44, 52], "ink": [10, 6, 20], "line": [14, 8, 22], "glow": [255, 190, 90],
+    "pop": [[255, 226, 120], [255, 246, 226], [255, 160, 90], [255, 200, 150], [240, 120, 100]]
+  },
+  "scenes": [
+    {"say": "This soldier kept fighting World War Two for twenty nine years after it ended.",
+     "kicker": "TRUE STORY", "big": "29 YEARS", "sub": "after the war ended", "visual": "jungle_soldier"},
+    {"say": "In 1944, Japanese officer Hiroo Onoda was sent to a small island in the Philippines.",
+     "kicker": "DECEMBER 1944", "big": "LUBANG", "sub": "an island in the Philippines", "visual": "island"},
+    {"say": "His orders were simple. Never surrender. We will come back for you.",
+     "kicker": "HIS ORDERS", "big": "HOLD ON", "sub": "\"we will come back for you\"", "visual": "orders"},
+    {"say": "In 1945, the war ended. Leaflets fell from the sky telling him so. He decided they were a trick.",
+     "kicker": "AUGUST 1945", "big": "A TRICK", "sub": "is what he thought the leaflets were", "visual": "leaflets"},
+    {"say": "So he stayed in the jungle. For years. Then for decades.",
+     "kicker": "THE JUNGLE", "big": "HIDDEN", "sub": "year after year", "visual": "years"},
+    {"say": "His three companions were lost, one by one, until he was alone.",
+     "kicker": "ONE BY ONE", "big": "ALONE", "sub": "the last of four", "visual": "alone"},
+    {"say": "In 1974, a young traveler went looking for him, and found him.",
+     "kicker": "FEBRUARY 1974", "big": "FOUND", "sub": "by a young traveler", "visual": "found"},
+    {"say": "But Onoda refused to leave, until his old commander flew in and ordered him to stop.",
+     "kicker": "ONE CONDITION", "big": "AN ORDER", "sub": "from his old commander", "visual": "relieved"},
+    {"say": "He handed over his sword, twenty nine years late.",
+     "kicker": "MARCH 1974", "big": "IT'S OVER", "sub": "his war finally ends", "visual": "sword"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_jungle"}
+  ]
+}

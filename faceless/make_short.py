@@ -534,6 +534,55 @@ def hourglass(d, cx, cy, hw, hh, t, period=6.0):
     d.line([(cx, cy - 4), (cx, by)], fill=SAND, width=7)
     for sx in (-1, 1): d.line([(cx + sx * (hw + 10), cy - hh), (cx + sx * (hw + 10), cy + hh)], fill=shade(GOLD, 0.8), width=10)
 
+# ----- silhouette drawings for the jungle soldier story -----
+SIL = (14, 8, 22)
+
+def sun_disc(d, x, y, r, col=(255, 214, 120)):
+    d.ellipse([x - r * 1.18, y - r * 1.18, x + r * 1.18, y + r * 1.18], fill=mix(BG1, col, 0.35))
+    d.ellipse([x - r, y - r, x + r, y + r], fill=col)
+
+def palm(d, x, ground, s, lean=0.3, t=0.0, col=None):
+    col = col or SIL
+    pts = [(x + lean * (j / 6) ** 2 * 260 * s, ground - j * 78 * s) for j in range(7)]
+    d.line(pts, fill=col, width=max(3, int(24 * s)), joint='curve')
+    xt, yt = pts[-1]
+    for i, a in enumerate((-172, -140, -108, -74, -40, -8, 24, 156)):
+        a = math.radians(a + math.sin(t * 1.3 + i) * 4); L = 250 * s
+        fr = [(xt + math.cos(a) * L * k / 6, yt + math.sin(a) * L * k / 6 + (k / 6) ** 2 * 120 * s) for k in range(7)]
+        d.line(fr, fill=col, width=max(2, int(15 * s)), joint='curve')
+        for k in range(1, 7):                                           # leaflets hanging off the frond
+            fx, fy = fr[k]; d.line([(fx, fy), (fx - math.cos(a) * 14 * s, fy + 44 * s * (1 - k / 9))], fill=col, width=max(2, int(7 * s)))
+
+def jungle_floor(d, ground, col=None, seed=5):
+    col = col or SIL; rng = random.Random(seed)
+    pts = [(0, ground + 44)] + [(x, ground - 14 - rng.uniform(0, 26)) for x in range(0, W + 1, 54)] + [(W, ground + 44)]
+    d.polygon(pts, fill=col)
+    for i in range(60):
+        gx = rng.uniform(0, W); h = rng.uniform(26, 74)
+        d.polygon([(gx - 7, ground - 12), (gx + rng.uniform(-18, 18), ground - 12 - h), (gx + 7, ground - 12)], fill=col)
+
+def soldier(d, x, ground, s, pose='stand', f=1, q=1.0, col=None, rifle=True, cap=True, pack=True):
+    """A silhouette soldier, feet at (x, ground). f = 1 faces right, -1 left. q < 1 crouches."""
+    col = col or SIL; Y = lambda v: ground - v * s * q
+    for sg in (-1, 1): d.line([(x, Y(160)), (x + sg * (30 + (1 - q) * 70) * s, Y(78)), (x + sg * 30 * s, ground)], fill=col, width=max(3, int(30 * s)), joint='curve')
+    if pack: d.rounded_rectangle([x - f * 70 * s if f > 0 else x + 30 * s, Y(290), x - f * 30 * s if f > 0 else x + 70 * s, Y(170)], 10 * s, fill=col)
+    d.rounded_rectangle([x - 38 * s, Y(300), x + 38 * s, Y(140)], 16 * s, fill=col)
+    hy = Y(342); d.ellipse([x - 34 * s, hy - 34 * s, x + 34 * s, hy + 34 * s], fill=col)
+    if cap:
+        d.pieslice([x - 38 * s, hy - 46 * s, x + 38 * s, hy + 20 * s], 180, 360, fill=col)
+        d.rectangle([x, hy - 16 * s, x + f * 58 * s, hy - 6 * s] if f > 0 else [x - 58 * s, hy - 16 * s, x, hy - 6 * s], fill=col)
+        d.polygon([(x - f * 34 * s, hy - 10 * s), (x - f * 44 * s, hy + 40 * s), (x - f * 20 * s, hy + 30 * s)], fill=col)
+    sh = (x + f * 30 * s, Y(280))
+    if pose == 'salute': d.line([sh, (x + f * 84 * s, Y(300)), (x + f * 34 * s, hy - 8 * s)], fill=col, width=max(3, int(20 * s)), joint='curve')
+    elif pose == 'point': d.line([sh, (x + f * 150 * s, Y(300))], fill=col, width=max(3, int(20 * s)))
+    elif pose == 'offer': d.line([sh, (x + f * 110 * s, Y(230))], fill=col, width=max(3, int(20 * s)))
+    else: d.line([sh, (x + f * 44 * s, Y(170))], fill=col, width=max(3, int(20 * s)))
+    if rifle: d.line([(x - f * 14 * s, Y(120)), (x - f * 60 * s, Y(440))], fill=col, width=max(3, int(11 * s)))
+
+def paper(d, x, y, w, h, ang, col):
+    c, s_ = math.cos(ang), math.sin(ang)
+    d.polygon([(x + (dx * c - dy * s_), y + (dx * s_ + dy * c)) for dx, dy in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2))], fill=col)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -1028,6 +1077,90 @@ def visual(d, kind, t, dur, img, sc=None):
         d.rounded_rectangle([cx - bw / 2, VY0 + 110 - bh / 2, cx + bw / 2, VY0 + 110 + bh / 2], int(bh / 2), fill=RED)
         text_c(d, (cx, VY0 + 110), 'FOLLOW', font('anton', 96 * p), CREAM)
         hourglass(d, cx, VY0 + 460, 110, 160, t, period=3.0)
+    elif kind == 'jungle_soldier':
+        sun_disc(d, cx, VY0 + 330, 250)
+        palm(d, 120, ground, 1.05, 0.35, t); palm(d, 960, ground, 0.9, -0.3, t); palm(d, 330, ground, 0.6, -0.2, t)
+        jungle_floor(d, ground)
+        soldier(d, cx + 20, ground - 14, 1.25 + 0.02 * math.sin(t * 2))
+    elif kind == 'island':
+        sun_disc(d, 820, VY0 + 170, 110)
+        for i in range(6):                                                      # waves
+            yy = ground - 150 + i * 34; off = math.sin(t * 1.4 + i) * 30
+            d.line([(60 + off, yy), (W - 60 + off, yy)], fill=mix(BG1, SIL, 0.35 + i * 0.08), width=8)
+        pts = [(170, ground - 120), (300, ground - 250), (470, ground - 300), (640, ground - 262), (790, ground - 200), (900, ground - 120)]
+        d.polygon(pts + [(900, ground - 100), (170, ground - 100)], fill=SIL)
+        palm(d, 420, ground - 290, 0.55, 0.3, t); palm(d, 600, ground - 266, 0.45, -0.3, t)
+        p = back((t - 0.7) / 0.4)
+        if p > 0.02:
+            px_, py_ = 520, ground - 420 - 60 * (1 - min(p, 1))
+            d.ellipse([px_ - 44 * p, py_ - 44 * p, px_ + 44 * p, py_ + 44 * p], fill=RED); d.polygon([(px_ - 30 * p, py_ + 30 * p), (px_ + 30 * p, py_ + 30 * p), (px_, py_ + 100 * p)], fill=RED)
+            d.ellipse([px_ - 16 * p, py_ - 16 * p, px_ + 16 * p, py_ + 16 * p], fill=CREAM)
+    elif kind == 'orders':
+        sun_disc(d, 230, VY0 + 300, 190); jungle_floor(d, ground)
+        soldier(d, 250, ground - 14, 1.3, pose='point', rifle=False, pack=False)
+        lines = (sc or {}).get('lines', ['NEVER', 'SURRENDER'])
+        for i, ln in enumerate(lines):
+            p = back((t - 0.6 - i * 0.7) / 0.4)
+            if p <= 0.02: continue
+            yy = VY0 + 190 + i * 170
+            d.rounded_rectangle([cx - 20, yy - 70 * p, W - 50, yy + 70 * p], 18, fill=CREAM)
+            text_c(d, ((cx - 20 + W - 50) / 2, yy), ln, font('anton', 86 * min(p, 1)), RED if i == len(lines) - 1 else SIL)
+    elif kind == 'leaflets':
+        sun_disc(d, 800, VY0 + 250, 150)
+        px_ = (t * 260) % (W + 500) - 250; py_ = VY0 + 90                       # a plane crossing
+        d.ellipse([px_ - 120, py_ - 20, px_ + 120, py_ + 20], fill=SIL); d.polygon([(px_ - 20, py_), (px_ - 70, py_ - 80), (px_ + 30, py_)], fill=SIL); d.polygon([(px_ - 20, py_), (px_ - 70, py_ + 80), (px_ + 30, py_)], fill=SIL)
+        d.polygon([(px_ - 120, py_), (px_ - 150, py_ - 50), (px_ - 96, py_)], fill=SIL)
+        palm(d, 130, ground, 1.0, 0.35, t); palm(d, 300, ground, 0.7, -0.2, t)
+        jungle_floor(d, ground); soldier(d, 220, ground - 14, 1.0, q=0.62)
+        rng = random.Random(12)
+        for i in range(16):
+            x = rng.uniform(380, W - 60) + math.sin(t * 2 + i) * 40
+            y = VY0 + 120 + (t * rng.uniform(90, 150) + rng.uniform(0, 560)) % 560
+            paper(d, x, y, 58, 76, t * rng.uniform(1, 2.4) + i, mix(CREAM, BG1, 0.1 + 0.25 * (i % 3) / 2))
+    elif kind == 'years':
+        k = ease(t / max(dur * 0.85, 1.5)); yr = 1945 + int(round(29 * k))
+        a = (t * 1.6) % math.pi; sun_disc(d, cx - math.cos(a) * 460, VY0 + 420 - math.sin(a) * 330, 80)       # days racing by
+        palm(d, 60, ground, 0.8, 0.2, t); palm(d, 1020, ground, 0.8, -0.2, t)
+        jungle_floor(d, ground); soldier(d, cx - 30, ground - 14, 1.0, q=0.62)
+        text_c(d, (cx, VY0 + 230), str(yr), font('anton', 300), CREAM, stroke=12)
+    elif kind == 'alone':
+        sun_disc(d, cx, VY0 + 330, 230); jungle_floor(d, ground)
+        for i, x in enumerate((180, 420, 660, 900)):
+            k = ease((t - 0.9 - (i if i < 1 else i - 1) * 0.9) / 0.7) if i != 1 else 0.0
+            if k >= 1: continue
+            soldier(d, x, ground - 14 + k * 30, 1.05, col=mix(SIL, mix(BG1, (255, 214, 120), 0.4), k))
+    elif kind == 'found':
+        sparkles(d, t, 18)
+        palm(d, 980, ground, 1.0, -0.35, t); jungle_floor(d, ground)
+        d.polygon([(70, ground - 10), (230, ground - 290), (390, ground - 10)], fill=SIL); d.polygon([(190, ground - 10), (230, ground - 150), (270, ground - 10)], fill=mix(BG1, (255, 214, 120), 0.5))
+        fk = 1 + 0.2 * math.sin(t * 15) * math.sin(t * 4)                                             # campfire
+        d.polygon([(cx - 46, ground - 14), (cx - 16, ground - 130 * fk), (cx, ground - 70), (cx + 22, ground - 160 * fk), (cx + 50, ground - 14)], fill=FIRE)
+        d.polygon([(cx - 22, ground - 14), (cx + 4, ground - 84 * fk), (cx + 26, ground - 14)], fill=HOT)
+        d.line([(cx - 70, ground - 8), (cx + 70, ground - 24)], fill=SIL, width=16); d.line([(cx - 70, ground - 24), (cx + 70, ground - 8)], fill=SIL, width=16)
+        soldier(d, 380, ground - 14, 1.0, f=1, rifle=False, cap=False)
+        soldier(d, min(900, 1200 - ease(t / 2.0) * 430), ground - 14, 1.05, f=-1)
+    elif kind == 'relieved':
+        sun_disc(d, cx, VY0 + 330, 250); jungle_floor(d, ground)
+        soldier(d, 330, ground - 14, 1.2, pose='offer', f=1, rifle=False, cap=False, pack=False)
+        d.rectangle([286, ground - 14 - 470, 374, ground - 14 - 452], fill=SIL); d.rectangle([302, ground - 14 - 510, 358, ground - 14 - 460], fill=SIL)      # a civilian hat
+        b = math.sin(t * 2) * 4
+        d.rounded_rectangle([430, ground - 370 + b, 560, ground - 210 + b], 8, fill=CREAM)
+        for i in range(4): d.line([(448, ground - 340 + i * 34 + b), (542, ground - 340 + i * 34 + b)], fill=SIL, width=6)
+        soldier(d, 760, ground - 14, 1.2, pose='salute' if t > 1.0 else 'stand', f=-1)
+    elif kind == 'sword':
+        sun_disc(d, cx, VY0 + 330, 270); jungle_floor(d, ground)
+        soldier(d, 300, ground - 14, 1.2, pose='offer', f=1, rifle=False, cap=False, pack=False)
+        d.rectangle([256, ground - 14 - 470, 344, ground - 14 - 452], fill=SIL); d.rectangle([272, ground - 14 - 510, 328, ground - 14 - 460], fill=SIL)
+        soldier(d, 790, ground - 14, 1.2, pose='offer', f=-1, rifle=False)
+        k = ease(t / 1.6); sx = 760 - 190 * k; sy_ = ground - 14 - 276
+        d.line([(sx - 150, sy_ - 10), (sx + 90, sy_ + 4)], fill=CREAM, width=10); d.line([(sx + 90, sy_ + 4), (sx + 160, sy_ + 8)], fill=SIL, width=16); d.line([(sx + 86, sy_ - 22), (sx + 92, sy_ + 30)], fill=(255, 214, 120), width=8)
+    elif kind == 'follow_jungle':
+        sun_disc(d, cx, VY0 + 400, 200)
+        palm(d, 120, ground, 1.0, 0.35, t); palm(d, 960, ground, 0.95, -0.3, t); jungle_floor(d, ground)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 110 - bh / 2, cx + bw / 2, VY0 + 110 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 110), 'FOLLOW', font('anton', 96 * p), CREAM)
+        soldier(d, cx, ground - 14, 0.9, pose='salute')
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

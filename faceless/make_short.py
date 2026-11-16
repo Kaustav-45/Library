@@ -800,7 +800,7 @@ def visual(d, kind, t, dur, img, sc=None):
             d.rounded_rectangle([cx - bw / 2 + 26, y - bh / 2 + 22, cx + bw / 2 + 26, y + bh / 2 + 22], 14, fill=CREAM)
             cov = tuple((sc or {}).get('cover', [120, 28, 44]))
             d.rounded_rectangle([cx - bw / 2, y - bh / 2, cx + bw / 2, y + bh / 2], 14, fill=cov)
-            d.rounded_rectangle([cx - bw / 2 + 22, y - bh / 2 + 22, cx + bw / 2 - 22, y + bh / 2 - 22], 8, outline=HOT, width=5)
+            if bw > 120: d.rounded_rectangle([cx - bw / 2 + 22, y - bh / 2 + 22, cx + bw / 2 - 22, y + bh / 2 - 22], 8, outline=HOT, width=5)
             title = (sc or {}).get('title', 'BOOK'); words_ = title.split()
             fs = min(86, 500 / max(len(w_) for w_ in words_)) * p
             for i, w_ in enumerate(words_):

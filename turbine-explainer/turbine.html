@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a Turbine Works</title>
+<style>
+  :root { --bg:#0b1526; --ink:#f4f7fb; --muted:#9fb3c8; --accent:#ffc94d; }
+  html,body { margin:0; height:100%; background:var(--bg); overflow:hidden;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); }
+  #stage { position:fixed; inset:0; }
+  canvas { display:block; }
+  #caption { position:absolute; left:50%; bottom:6%; transform:translateX(-50%);
+    width:min(86%, 1000px); text-align:center; }
+  #step { display:inline-block; background:var(--accent); color:#1b1b1b; font-weight:700;
+    border-radius:999px; padding:4px 14px; font-size:clamp(12px,1.6vw,20px); letter-spacing:.5px; }
+  #title { font-size:clamp(20px,3.4vw,44px); font-weight:800; margin:10px 0 6px;
+    text-shadow:0 2px 12px rgba(0,0,0,.6); }
+  #sub { font-size:clamp(14px,2vw,26px); color:#dfe8f2; text-shadow:0 2px 10px rgba(0,0,0,.7); }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:38%; pointer-events:none;
+    background:linear-gradient(to top, rgba(8,14,26,.85), rgba(8,14,26,0)); }
+  .label { position:absolute; transform:translate(-50%,-50%); background:rgba(10,20,36,.85);
+    border:2px solid var(--accent); color:var(--ink); border-radius:8px; padding:3px 10px;
+    font-weight:700; font-size:clamp(11px,1.5vw,19px); white-space:nowrap; pointer-events:none; }
+  #bar { position:absolute; left:0; bottom:0; height:5px; background:var(--accent); width:0; }
+  #flow { position:absolute; top:5%; left:50%; transform:translateX(-50%); display:flex; gap:8px;
+    align-items:center; font-weight:700; font-size:clamp(9px,1.25vw,17px); white-space:nowrap; justify-content:center; }
+  #flow span.box { background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.25);
+    border-radius:8px; padding:4px 10px; }
+  #flow span.on { background:var(--accent); color:#1b1b1b; border-color:var(--accent); }
+  #replay { position:absolute; top:14px; right:14px; background:var(--accent); border:0; color:#1b1b1b;
+    font-weight:700; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:15px; }
+  body.capture #replay { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="flow"></div>
+<div id="shade"></div>
+<div id="caption"><span id="step"></span><div id="title"></div><div id="sub"></div></div>
+<div id="labels"></div>
+<div id="bar"></div>
+<button id="replay">↻ Replay</button>
+<script src="three.min.js"></script>
+<script>
+(function(){
+const DURATION = 54;
+const W = () => window.innerWidth, H = () => window.innerHeight;
+
+// ---------- story ----------
+const SCENES = [
+  { t:0,  step:"",        title:"How a Turbine Works", sub:"A simple 3D explanation" },
+  { t:6,  step:"STEP 1",  title:"Something is moving", sub:"Wind, flowing water or hot steam rushes toward the turbine. Moving things carry energy." },
+  { t:15, step:"STEP 2",  title:"It pushes the blades", sub:"The blades are tilted, so the push makes them turn — just like blowing on a pinwheel." },
+  { t:25, step:"STEP 3",  title:"The blades spin a shaft", sub:"The blades are fixed to a long rod called a shaft. When they turn, the shaft turns too." },
+  { t:34, step:"STEP 4",  title:"The generator makes electricity", sub:"The shaft spins magnets past coils of copper wire. A moving magnet pushes electricity through the wire." },
+  { t:44, step:"STEP 5",  title:"Electricity goes to our homes", sub:"Wires carry the electricity away to light up houses, schools and cities." },
+  { t:50, step:"SUMMARY", title:"Moving flow → spinning blades → electricity", sub:"A turbine turns motion into power!" },
+];
+const FLOW = ["Moving flow","Blades turn","Shaft spins","Generator","Electricity"];
+const CAMS = [ // [time, pos, target]
+  [0,  [11,5,15],  [0,-0.5,0]],
+  [5,  [-3,4,17],  [0,-0.5,0]],
+  [8,  [-12,3,11], [-5,0,0]],
+  [17, [-10,1.5,5],[-2,0,0]],
+  [27, [0.5,2.6,6.5],[1,0,0]],
+  [36, [6.4,1.5,2.6],[2.7,0,0]],
+  [46, [5,4,17],   [4,-2,2]],
+  [51, [-2,5,19],  [2,-1,1]],
+];
+
+// ---------- helpers ----------
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const smooth=(a,b,x)=>{const k=clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+function rnd(seed){ let s=seed; return ()=>{ s=(s*16807)%2147483647; return (s-1)/2147483646; }; }
+
+// ---------- three setup ----------
+const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(W(),H());
+renderer.outputEncoding = THREE.sRGBEncoding;
+document.getElementById('stage').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1526);
+scene.fog = new THREE.Fog(0x0b1526, 28, 60);
+const camera = new THREE.PerspectiveCamera(45, W()/H(), 0.1, 200);
+
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x1a2233, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(6,12,10); scene.add(sun);
+const fill = new THREE.DirectionalLight(0x88aaff, 0.35); fill.position.set(-10,4,-6); scene.add(fill);
+
+// ground
+const ground = new THREE.Mesh(new THREE.CircleGeometry(40,64),
+  new THREE.MeshStandardMaterial({color:0x173a2a, roughness:1}));
+ground.rotation.x=-Math.PI/2; ground.position.y=-5; scene.add(ground);
+const grid = new THREE.GridHelper(60,60,0x2b5a44,0x1f4634); grid.position.y=-4.99; scene.add(grid);
+
+const metal = new THREE.MeshStandardMaterial({color:0xe8edf2, metalness:0.3, roughness:0.45});
+const dark  = new THREE.MeshStandardMaterial({color:0x5c6b7a, metalness:0.6, roughness:0.4});
+
+// tower
+const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.6,4.2,24), metal);
+tower.position.set(1.2,-2.9,0); scene.add(tower);
+
+// nacelle (housing) - becomes see-through
+const housingMat = new THREE.MeshStandardMaterial({color:0xdfe6ee, metalness:0.2, roughness:0.4, transparent:true, opacity:1, depthWrite:true, side:THREE.DoubleSide});
+const housing = new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.15,5.6,40,1,true), housingMat);
+housing.rotation.z=Math.PI/2; housing.position.set(1.4,0,0); scene.add(housing);
+const capMat = housingMat;
+const backCap = new THREE.Mesh(new THREE.SphereGeometry(1.15,32,16,0,Math.PI*2,0,Math.PI/2), capMat);
+backCap.rotation.z=-Math.PI/2; backCap.position.set(4.2,0,0); scene.add(backCap);
+const frontCap = new THREE.Mesh(new THREE.CircleGeometry(1.15,40), housingMat); frontCap.rotation.y=-Math.PI/2; frontCap.position.set(-1.4,0,0); scene.add(frontCap);
+
+// shaft
+const shaftMat = new THREE.MeshStandardMaterial({color:0xb0bcc8, metalness:0.8, roughness:0.3, emissive:0xffb000, emissiveIntensity:0});
+const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,6.4,20), shaftMat);
+shaft.rotation.z=Math.PI/2; shaft.position.set(1.0,0,0); scene.add(shaft);
+// stripes on shaft to show spin
+const shaftGroup = new THREE.Group(); shaftGroup.position.set(1.0,0,0); scene.add(shaftGroup);
+for(let i=0;i<6;i++){
+  const s=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.06,0.34), new THREE.MeshStandardMaterial({color:0xff7a2f}));
+  s.position.set(-2.2+i*0.75,0.15,0); shaftGroup.add(s);
+}
+
+// rotor
+const rotor = new THREE.Group(); rotor.position.set(-2.2,0,0); scene.add(rotor);
+const hub = new THREE.Mesh(new THREE.SphereGeometry(0.55,32,16), metal); hub.scale.set(1.4,1,1); rotor.add(hub);
+const nose = new THREE.Mesh(new THREE.ConeGeometry(0.5,1.1,32), metal); nose.rotation.z=Math.PI/2; nose.position.x=-0.95; rotor.add(nose);
+const bladeMat = new THREE.MeshStandardMaterial({color:0xf7f9fb, metalness:0.15, roughness:0.35, emissive:0x3388ff, emissiveIntensity:0});
+const NB=3;
+for(let i=0;i<NB;i++){
+  const arm=new THREE.Group(); arm.rotation.x=i*Math.PI*2/NB; rotor.add(arm);
+  const shape=new THREE.Shape(); // blade outline (wide root, narrow tip)
+  shape.moveTo(-0.28,0); shape.lineTo(0.38,0); shape.quadraticCurveTo(0.45,1.6,0.12,3.6);
+  shape.lineTo(-0.06,3.6); shape.quadraticCurveTo(-0.3,1.5,-0.28,0);
+  const g=new THREE.ExtrudeGeometry(shape,{depth:0.08,bevelEnabled:true,bevelSize:0.03,bevelThickness:0.03,bevelSegments:2});
+  const b=new THREE.Mesh(g,bladeMat);
+  // blade lies in the y-z plane, pitched so the flow (+x) pushes it around
+  b.rotation.y=Math.PI/2 - 0.55; b.position.y=0.45;
+  arm.add(b);
+}
+
+// generator (inside housing)
+const gen = new THREE.Group(); gen.position.set(2.9,0,0); scene.add(gen);
+const coilMat = new THREE.MeshStandardMaterial({color:0xc8743a, metalness:0.7, roughness:0.35, emissive:0xffa040, emissiveIntensity:0});
+const coils=[];
+for(let i=0;i<6;i++){
+  const a=i*Math.PI/3;
+  for(let k=0;k<5;k++){
+    const rr=0.62+k*0.065;
+    const w=new THREE.Mesh(new THREE.TorusGeometry(0.2,0.045,8,24), coilMat);
+    w.position.set(0, Math.cos(a)*rr, Math.sin(a)*rr);
+    w.lookAt(new THREE.Vector3(2.9,0,0)); // torus axis points at the shaft (world coords)
+    gen.add(w); coils.push(w);
+  }
+  const core=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.4,12), dark);
+  core.position.set(0,Math.cos(a)*0.78,Math.sin(a)*0.78); core.rotation.x=a; gen.add(core);
+}
+const stator=new THREE.Mesh(new THREE.TorusGeometry(1.02,0.06,10,48), dark); stator.rotation.y=Math.PI/2; gen.add(stator);
+const magnet = new THREE.Group(); gen.add(magnet);
+const mN = new THREE.Mesh(new THREE.BoxGeometry(1.0,0.4,0.42), new THREE.MeshStandardMaterial({color:0xe0383b, roughness:0.5}));
+mN.position.y=0.2; magnet.add(mN);
+const mS = new THREE.Mesh(new THREE.BoxGeometry(1.0,0.4,0.42), new THREE.MeshStandardMaterial({color:0x2d6be0, roughness:0.5}));
+mS.position.y=-0.2; magnet.add(mS);
+
+// power line to a house
+const wirePts=[ [3.0,-0.6,0.4],[2.4,-1.3,0.4],[1.6,-1.6,0.4],[1.6,-4.85,0.4],[2.5,-4.9,1.2],[6,-4.9,2.6],[9.2,-4.9,3.4],[9.6,-4.0,3.4] ]
+  .map(p=>new THREE.Vector3(...p));
+const wireCurve = new THREE.CatmullRomCurve3(wirePts,false,'catmullrom',0.1);
+const wireMat = new THREE.MeshStandardMaterial({color:0x222831, emissive:0xffcc33, emissiveIntensity:0});
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(wireCurve,200,0.05,8,false), wireMat));
+const sparks=[]; const sparkMat=new THREE.MeshBasicMaterial({color:0xffe066, transparent:true, opacity:0});
+for(let i=0;i<26;i++){ const s=new THREE.Mesh(new THREE.SphereGeometry(0.09,10,8), sparkMat); scene.add(s); sparks.push(s); }
+
+// house
+const house=new THREE.Group(); house.position.set(10.6,-5,3.6); house.rotation.y=-0.5; scene.add(house);
+const wallMat=new THREE.MeshStandardMaterial({color:0xf0e2c8, roughness:0.9});
+const walls=new THREE.Mesh(new THREE.BoxGeometry(2.6,1.8,2.2), wallMat); walls.position.y=0.9; house.add(walls);
+const roof=new THREE.Mesh(new THREE.ConeGeometry(2.1,1.2,4), new THREE.MeshStandardMaterial({color:0xb5453a})); roof.position.y=2.4; roof.rotation.y=Math.PI/4; house.add(roof);
+const winMat=new THREE.MeshStandardMaterial({color:0x223044, emissive:0xffd25a, emissiveIntensity:0});
+[[-0.6,1.0],[0.6,1.0]].forEach(([x,y])=>{ const w=new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.55),winMat); w.position.set(x,y,1.11); house.add(w); });
+const door=new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.9),new THREE.MeshStandardMaterial({color:0x6b4a2f})); door.position.set(0,0.45,1.111); house.add(door);
+const houseLight=new THREE.PointLight(0xffd25a,0,8); houseLight.position.set(0,1.2,2); house.add(houseLight);
+
+// flow particles (wind / water / steam)
+const NP=700, r=rnd(7);
+const pData=[]; for(let i=0;i<NP;i++){ const rad=Math.sqrt(r())*3.6; pData.push({ph:r()*30, rad, ang:r()*Math.PI*2, sp:3.4+r()*1.8}); }
+const pGeom=new THREE.BufferGeometry(); const pPos=new Float32Array(NP*3); const pCol=new Float32Array(NP*3);
+pGeom.setAttribute('position',new THREE.BufferAttribute(pPos,3)); pGeom.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+const pMat=new THREE.PointsMaterial({size:0.11, vertexColors:true, transparent:true, opacity:0, depthWrite:false});
+scene.add(new THREE.Points(pGeom,pMat));
+// flow arrows
+const arrows=[]; const arrowMat=new THREE.MeshBasicMaterial({color:0x7fd3ff, transparent:true, opacity:0});
+for(let i=0;i<3;i++){ const a=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,1.6,10),arrowMat); body.rotation.z=Math.PI/2; a.add(body);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.5,14),arrowMat); head.rotation.z=-Math.PI/2; head.position.x=1.0; a.add(head);
+  a.position.set(-9,(i-1)*1.8,0); scene.add(a); arrows.push(a); }
+
+// rotating-direction ring arrow
+const ringMat=new THREE.MeshBasicMaterial({color:0xffc94d, transparent:true, opacity:0});
+const RING_MAX=0.75;
+const ring=new THREE.Mesh(new THREE.TorusGeometry(4.0,0.06,8,80,Math.PI*1.4),ringMat); ring.rotation.y=Math.PI/2; ring.position.set(-2.5,0,0); scene.add(ring);
+const ringHead=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.6,14),ringMat); scene.add(ringHead);
+
+// ---------- labels ----------
+const labelsEl=document.getElementById('labels');
+const LABELS=[
+  {text:"Blades", p:new THREE.Vector3(-2.4,-1.4,1.6), from:16, to:25},
+  {text:"Wind / water / steam", p:new THREE.Vector3(-9,2.6,0), from:8, to:15},
+  {text:"Shaft", p:new THREE.Vector3(0.2,0.55,0), from:28, to:34},
+  {text:"Generator", p:new THREE.Vector3(2.9,1.35,-0.6), from:35, to:44},
+  {text:"Magnet", p:new THREE.Vector3(3.5,-0.25,0), from:37.5, to:44},
+  {text:"Copper coils", p:new THREE.Vector3(2.9,0.75,0.75), from:39, to:44},
+  {text:"Power line", p:new THREE.Vector3(6,-4.4,2.6), from:46, to:50},
+  {text:"Home", p:new THREE.Vector3(10.6,-1.6,3.6), from:46.5, to:54},
+].map(l=>{ const d=document.createElement('div'); d.className='label'; d.textContent=l.text; labelsEl.appendChild(d); return {...l, el:d}; });
+
+const flowEl=document.getElementById('flow');
+const flowBoxes=FLOW.map((f,i)=>{ if(i){ const ar=document.createElement('span'); ar.textContent='→'; flowEl.appendChild(ar);} const s=document.createElement('span'); s.className='box'; s.textContent=f; flowEl.appendChild(s); return s; });
+
+// ---------- animation ----------
+const omegaMax=2.6;
+const omega=t=>omegaMax*smooth(16,22,t);
+function angleAt(t){ let a=0, n=400, dt=t/n; for(let i=0;i<n;i++) a+=omega((i+0.5)*dt)*dt; return a; }
+const v3=new THREE.Vector3(), tv=new THREE.Vector3();
+function camAt(t){
+  let i=0; while(i<CAMS.length-1 && t>=CAMS[i+1][0]) i++;
+  const A=CAMS[i], B=CAMS[Math.min(i+1,CAMS.length-1)];
+  // move toward next key during the 3s before it, hold otherwise (with slow drift)
+  const tr=3.0; const k=(B===A)?0:smooth(B[0]-tr,B[0],t);
+  const p=A[1].map((x,j)=>lerp(x,B[1][j],k)), g=A[2].map((x,j)=>lerp(x,B[2][j],k));
+  const drift=Math.sin(t*0.25)*0.6;
+  camera.position.set(p[0]+drift, p[1], p[2]); camera.lookAt(g[0],g[1],g[2]);
+}
+const capStep=document.getElementById('step'), capTitle=document.getElementById('title'), capSub=document.getElementById('sub'), cap=document.getElementById('caption');
+let lastScene=-1;
+function renderAt(t){
+  t=clamp(t,0,DURATION);
+  camAt(t);
+  const ang=angleAt(t), w=omega(t);
+  rotor.rotation.x=ang; shaftGroup.rotation.x=ang; magnet.rotation.x=ang;
+  bladeMat.emissiveIntensity=0.35*smooth(16,18,t)*(1-smooth(24,26,t));
+
+  // housing see-through from step 3
+  const see=smooth(26,28.5,t);
+  housingMat.opacity=lerp(1,0.14,see); housingMat.depthWrite=see<0.5;
+  shaftMat.emissiveIntensity=0.5*smooth(27,29,t)*(1-smooth(33.5,35,t));
+
+  // generator glow
+  const gen=smooth(38.5,41,t)*(w/omegaMax);
+  coilMat.emissiveIntensity=0.45*gen*(0.75+0.25*Math.sin(t*14));
+  if(t<38.5) coilMat.emissiveIntensity=0.0;
+  // electricity in wire
+  const elec=smooth(40,42,t);
+  wireMat.emissiveIntensity=0.35*elec;
+  sparkMat.opacity=elec;
+  sparks.forEach((s,i)=>{ const u=((t*0.13)+i/sparks.length)%1; wireCurve.getPointAt(u,s.position); });
+  const lit=smooth(45,46.5,t);
+  winMat.emissiveIntensity=1.6*lit; houseLight.intensity=1.4*lit;
+
+  // particles
+  const pv=smooth(6.5,9,t);
+  pMat.opacity=0.85*pv;
+  for(let i=0;i<NP;i++){
+    const d=pData[i]; const L=20;
+    const x=-16+((d.ph+t*d.sp)%L);
+    let a=d.ang, rr=d.rad, c=[0.55,0.85,1.0];
+    if(x>-2.6){ // past the blades: flow swirls with rotor and slows
+      const past=x+2.6; a+=past*0.35*(w/omegaMax); rr=d.rad*(1+past*0.05);
+      const f=1-clamp(past/6,0,1); c=[0.55*f+0.2,0.85*f+0.2,1.0*f+0.3];
+    }
+    pPos[i*3]=x; pPos[i*3+1]=Math.cos(a)*rr; pPos[i*3+2]=Math.sin(a)*rr;
+    pCol[i*3]=c[0]; pCol[i*3+1]=c[1]; pCol[i*3+2]=c[2];
+  }
+  pGeom.attributes.position.needsUpdate=true; pGeom.attributes.color.needsUpdate=true;
+  const av=smooth(8,9.5,t)*(1-smooth(14,16,t));
+  arrowMat.opacity=av; arrows.forEach((a,i)=>{ a.position.x=-11+((t*2.5+i*0.7)%4); });
+
+  // rotation direction ring
+  const rv=smooth(18,19.5,t)*(1-smooth(24,25.5,t));
+  ringMat.opacity=rv*RING_MAX; ring.rotation.x=ang*0.5;
+  { // place head at end of arc in ring's local space
+    const local=new THREE.Vector3(4*Math.cos(Math.PI*1.4),4*Math.sin(Math.PI*1.4),0);
+    ring.updateMatrixWorld(); ringHead.position.copy(local.applyMatrix4(ring.matrixWorld));
+    const tan=new THREE.Vector3(-Math.sin(Math.PI*1.4),Math.cos(Math.PI*1.4),0).transformDirection(ring.matrixWorld);
+    ringHead.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tan);
+  }
+
+  renderer.render(scene,camera);
+
+  // captions
+  let si=0; SCENES.forEach((s,i)=>{ if(t>=s.t) si=i; });
+  const S=SCENES[si];
+  if(si!==lastScene){ capStep.textContent=S.step; capStep.style.display=S.step?'inline-block':'none'; capTitle.textContent=S.title; capSub.textContent=S.sub; lastScene=si; }
+  const next=SCENES[si+1]?SCENES[si+1].t:DURATION+1;
+  cap.style.opacity = Math.min(smooth(S.t,S.t+0.7,t), 1-smooth(next-0.5,next,t));
+  const fstep=[6,15,25,34,44];
+  flowBoxes.forEach((b,i)=>b.classList.toggle('on', t>=fstep[i]));
+  flowEl.style.opacity=smooth(5.5,6.5,t);
+  document.getElementById('bar').style.width=(t/DURATION*100)+'%';
+
+  // labels
+  const cw=W(), ch=H();
+  LABELS.forEach(l=>{
+    const o=smooth(l.from,l.from+0.6,t)*(1-smooth(l.to-0.5,l.to,t));
+    v3.copy(l.p).project(camera);
+    l.el.style.opacity=o; l.el.style.display=o>0.01&&v3.z<1?'block':'none';
+    l.el.style.left=((v3.x+1)/2*cw)+'px'; l.el.style.top=((1-v3.y)/2*ch)+'px';
+  });
+}
+window.renderAt=renderAt; window.DURATION=DURATION;
+
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize);
+
+if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }
+else {
+  let start=performance.now();
+  document.getElementById('replay').onclick=()=>{ start=performance.now(); };
+  (function loop(){ renderAt(Math.min((performance.now()-start)/1000, DURATION)); requestAnimationFrame(loop); })();
+}
+})();
+</script>
+</body>
+</html>

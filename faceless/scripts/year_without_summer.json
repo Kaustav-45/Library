@@ -2,7 +2,8 @@
  "title": "The Year Without a Summer",
  "layout": "wide",
  "grain": 2.5,
- "crf": 19,
+ "crf": 21,
+ "maxrate": "5800k",
  "voice": "kokoro:af_heart",
  "speed": 0.96,
  "palette": {

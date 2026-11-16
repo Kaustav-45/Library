@@ -28,6 +28,7 @@ def set_layout(name, spec):
         LAYOUT.update(vox=30, voy=-490, tx=1510, ky=250, by=440, sy=600, cx=960, cy=975, cw=1500, cn=7, cap=74,
                       glow=(0.3, 0.5, 0.3, 0.42))
     LAYOUT['grain'] = spec.get('grain', LAYOUT['grain']); LAYOUT['crf'] = spec.get('crf', LAYOUT['crf'])
+    LAYOUT['maxrate'] = spec.get('maxrate')        # e.g. "5800k" caps the video bitrate (and so the file size)
 HERE = os.path.dirname(os.path.abspath(__file__))
 BG0, BG1 = (27, 22, 17), (48, 37, 26)
 CREAM, GOLD, RED, INK = (243, 230, 200), (242, 177, 52), (217, 72, 59), (20, 16, 12)
@@ -833,7 +834,7 @@ def visual(d, kind, t, dur, img, sc=None):
             for i in range(4): d.line([(cx - 70 + i * 10, hz + 22 + i * 22), (cx + 70 - i * 10, hz + 22 + i * 22)], fill=(250, 124, 40), width=6)
     elif kind == 'bike':
         for i in range(4):
-            x = (i * 330 - t * 230) % (W + 240) - 120; tree(d, x, ground, 1.0, bare=False)
+            x = (i * 280 - t * 230) % 1120 - 120; tree(d, x, ground, 1.0, bare=False)      # stay inside the visual area
         x = cx - 40 + math.sin(t * 0.5) * 130                      # the rider stays in view; the trees roll past
         draisine(d, x, ground, t, POP[0])
         for i in range(3): d.line([(x - 240 - i * 50, ground - 60 - i * 40), (x - 320 - i * 50, ground - 60 - i * 40)], fill=mix(CREAM, BG1, 0.5), width=5)
@@ -986,7 +987,8 @@ def main(script_path, out_path):
     enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{FW * S}x{FH * S}', '-r', str(FPS), '-i', '-',
                             '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', wav,
                             '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11',
-                            '-c:v', 'libx264', '-preset', 'medium', '-crf', str(LAYOUT['crf']), '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+                            '-c:v', 'libx264', '-preset', 'medium', '-crf', str(LAYOUT['crf']),
+                            *(['-maxrate', LAYOUT['maxrate'], '-bufsize', '12M'] if LAYOUT.get('maxrate') else []), '-profile:v', 'high', '-pix_fmt', 'yuv420p',
                             '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-shortest', '-movflags', '+faststart', out_path],
                            stdin=subprocess.PIPE)
     nf = int(total * FPS)

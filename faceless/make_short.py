@@ -15,6 +15,19 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 W, H, FPS, SR = 1080, 1920, 30, 44100
 GAP = 0.35                       # pause after each scene, seconds
+# W x H is the 1080x1920 design space the visuals are drawn in. FW x FH is the output frame:
+# the same for vertical Shorts, 1920x1080 for the "wide" layout (visual left, headline right).
+FW, FH = W, H
+LAYOUT = dict(vox=0, voy=0, tx=W / 2, ky=190, by=390, sy=560, cx=W / 2, cy=1470, cw=930, cn=4, cap=92,
+              glow=(0.5, 0.53, 0.48, 0.2), grain=7.0, crf=18)
+
+def set_layout(name, spec):
+    global FW, FH
+    if name == 'wide':
+        FW, FH = 1920, 1080
+        LAYOUT.update(vox=30, voy=-490, tx=1510, ky=250, by=440, sy=600, cx=960, cy=975, cw=1500, cn=7, cap=74,
+                      glow=(0.3, 0.5, 0.3, 0.42))
+    LAYOUT['grain'] = spec.get('grain', LAYOUT['grain']); LAYOUT['crf'] = spec.get('crf', LAYOUT['crf'])
 HERE = os.path.dirname(os.path.abspath(__file__))
 BG0, BG1 = (27, 22, 17), (48, 37, 26)
 CREAM, GOLD, RED, INK = (243, 230, 200), (242, 177, 52), (217, 72, 59), (20, 16, 12)
@@ -36,9 +49,11 @@ S = 2   # render scale: layout is in 1080x1920 units, output is (1080*S)x(1920*S
 
 class SD:
     """ImageDraw wrapper: takes coordinates in 1080x1920 layout units, draws at S times the size."""
-    def __init__(self, d): self.d = d
-    @staticmethod
-    def p(xy): return [(v[0] * S, v[1] * S) if isinstance(v, (tuple, list)) else v * S for v in xy]
+    def __init__(self, d, ox=0, oy=0): self.d, self.ox, self.oy = d, ox, oy
+    def p(self, xy):
+        ox, oy = self.ox, self.oy
+        if xy and isinstance(xy[0], (tuple, list)): return [((v[0] + ox) * S, (v[1] + oy) * S) for v in xy]
+        return [(v + (oy if i % 2 else ox)) * S for i, v in enumerate(xy)]
     @staticmethod
     def w(width): return max(1, round(width * S))
     def line(self, xy, fill=None, width=1, joint=None): self.d.line(self.p(xy), fill=fill, width=self.w(width), joint=joint)
@@ -50,7 +65,7 @@ class SD:
     def rounded_rectangle(self, xy, radius=0, fill=None, outline=None, width=1):
         self.d.rounded_rectangle(self.p(xy), radius * S, fill=fill, outline=outline, width=self.w(width))
     def text(self, xy, s, font=None, fill=None, anchor=None, stroke_width=0, stroke_fill=None):
-        self.d.text((xy[0] * S, xy[1] * S), s, font=font, fill=fill, anchor=anchor, stroke_width=round(stroke_width * S), stroke_fill=stroke_fill)
+        self.d.text(((xy[0] + self.ox) * S, (xy[1] + self.oy) * S), s, font=font, fill=fill, anchor=anchor, stroke_width=round(stroke_width * S), stroke_fill=stroke_fill)
     def textlength(self, s, font=None): return self.d.textlength(s, font=font) / S
 
 _fonts = {}
@@ -133,19 +148,20 @@ def whoosh(n_len=int(0.35 * SR)):
 # ---------- drawing helpers ----------
 def base_frames(k=6):
     """Background gradient + vignette + film grain, pre-rendered at full output size."""
-    RW, RH = W * S, H * S
+    RW, RH = FW * S, FH * S
     y = np.linspace(0, 1, RH)[:, None, None]
     img = (np.array(BG0) * (1 - y) + np.array(BG1) * y) * np.ones((1, RW, 1))
     yy, xx = np.mgrid[0:RH, 0:RW]
     v = 1 - 0.55 * (((xx - RW / 2) / (RW * 0.75)) ** 2 + ((yy - RH / 2) / (RH * 0.62)) ** 2)
     img = (img * np.clip(v, 0.25, 1)[:, :, None]).astype(np.float32)
     if GLOW:                                    # soft coloured light behind the visual area
-        gl = np.exp(-(((xx - RW / 2) / (RW * 0.48)) ** 2 + ((yy - RH * 0.53) / (RH * 0.2)) ** 2))
+        gx, gy, gw, gh = LAYOUT['glow']
+        gl = np.exp(-(((xx - RW * gx) / (RW * gw)) ** 2 + ((yy - RH * gy) / (RH * gh)) ** 2))
         img += (np.array(GLOW, np.float32) * 0.42) * gl[:, :, None].astype(np.float32)
     rng = np.random.default_rng(1); g = 2 * S
     out = []
     for _ in range(k):
-        n = rng.normal(0, 7, (RH // g, RW // g, 1)).astype(np.float32).repeat(g, 0).repeat(g, 1)
+        n = rng.normal(0, LAYOUT['grain'], (RH // g, RW // g, 1)).astype(np.float32).repeat(g, 0).repeat(g, 1)
         out.append(Image.fromarray(np.clip(img + n, 0, 255).astype(np.uint8)).convert('RGBA'))
     return out
 
@@ -290,6 +306,138 @@ def sparkles(d, t, n=26):
         c = mix(BG1, POP[i % len(POP)], 0.25 + 0.45 * tw)
         d.ellipse([x - r, y - r, x + r, y + r], fill=c)
 
+# ----- drawings for the long-form "wide" stories -----
+FIRE, HOT, ASH, SNOW, LEAF = (255, 120, 30), (255, 214, 90), (86, 80, 90), (236, 244, 250), (92, 150, 90)
+
+def volcano(d, cx, ground, w=760, h=500, top=0.13, shake=0.0, crater=False):
+    cx += shake; col = STEEL; ty = ground - h
+    d.polygon([(cx - w / 2, ground), (cx - w * top, ty), (cx + w * top, ty), (cx + w / 2, ground)], fill=col)
+    d.polygon([(cx - w * top, ty), (cx - w * 0.03, ty + h * 0.42), (cx + w * top * 0.5, ty)], fill=shade(col, 0.78))
+    d.polygon([(cx + w * top, ty), (cx + w * 0.2, ty + h * 0.5), (cx + w * 0.33, ty + h * 0.52), (cx + w / 2, ground), (cx + w * 0.3, ground)], fill=shade(col, 0.86))
+    if crater: d.ellipse([cx - w * top, ty - 16, cx + w * top, ty + 22], fill=shade(col, 0.5))
+    return ty
+
+def plume(d, cx, y0, t, power=1.0, n=34):
+    rng = random.Random(4); puffs = []
+    for i in range(n):
+        age = (t * 0.33 + i / n) % 1
+        x = cx + math.sin(i * 12.9 + t * 0.6) * age * 240 * power + rng.uniform(-30, 30) * age
+        puffs.append((age, x, y0 - age * 540 * power, (26 + age * 115) * power))
+    for age, x, y, r in sorted(puffs, reverse=True):
+        col = mix(HOT, FIRE, min(1, age * 5)) if age < 0.2 else mix(FIRE, ASH, min(1, (age - 0.2) * 2.4))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=col)
+
+def rocks(d, cx, y0, t, n=14, power=1.0):
+    rng = random.Random(8)
+    for i in range(n):
+        ph = (t * 0.7 + i / n) % 1; vx = rng.uniform(-420, 420) * power
+        x, y = cx + vx * ph, y0 - (900 * ph - 1000 * ph * ph) * power; r = rng.uniform(6, 13)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=mix(HOT, FIRE, ph))
+
+def lava(d, cx, ty, ground, w, t):
+    for i, (dx, ln) in enumerate(((-0.07, 0.75), (0.05, 0.95), (0.11, 0.6), (-0.02, 0.5))):
+        k = ease(t / 2.5 - i * 0.15) * ln; x0 = cx + dx * w
+        pts = [(x0 + math.sin(j * 1.3 + i) * 12 + dx * w * j * 0.45, ty + (ground - ty) * k * j / 6) for j in range(7)]
+        d.line(pts, fill=FIRE, width=16, joint='curve'); d.line(pts, fill=HOT, width=6, joint='curve')
+
+def sea(d, ground, h=40): d.rectangle([0, ground, W, ground + h], fill=LIQ)
+
+def flake(d, x, y, r, col):
+    for a in (0, 60, 120):
+        dx, dy = math.cos(math.radians(a)) * r, math.sin(math.radians(a)) * r
+        d.line([(x - dx, y - dy), (x + dx, y + dy)], fill=col, width=3)
+
+def snowfall(d, t, n=60, col=None, dots=False, top=None, bottom=None):
+    rng = random.Random(31); top = VY0 - 20 if top is None else top; bottom = VY1 if bottom is None else bottom
+    for i in range(n):
+        x = (rng.uniform(0, W) + math.sin(t * 1.3 + i) * 26) % W
+        y = top + (t * rng.uniform(70, 150) + rng.uniform(0, bottom - top)) % (bottom - top)
+        r = rng.uniform(5, 11)
+        if dots: d.ellipse([x - r * 0.6, y - r * 0.6, x + r * 0.6, y + r * 0.6], fill=col or ASH)
+        else: flake(d, x, y, r, col or SNOW)
+
+def rain(d, t, n=70, top=None, bottom=None, col=(130, 160, 200)):
+    rng = random.Random(41); top = VY0 - 20 if top is None else top; bottom = VY1 - 40 if bottom is None else bottom
+    for i in range(n):
+        x = rng.uniform(-80, W); y = top + (t * rng.uniform(700, 1000) + rng.uniform(0, 700)) % (bottom - top)
+        d.line([(x, y), (x - 14, y + 46)], fill=col, width=3)
+
+def bolt(d, x, y, s, col=None):
+    pts = [(x, y), (x - 50 * s, y + 130 * s), (x + 10 * s, y + 130 * s), (x - 60 * s, y + 290 * s), (x + 70 * s, y + 95 * s), (x + 10 * s, y + 95 * s), (x + 50 * s, y)]
+    d.polygon(pts, fill=col or HOT)
+
+def house(d, x, ground, w, h, col, roof, lit=True, snow=0.0):
+    d.rectangle([x, ground - h, x + w, ground], fill=col)
+    d.polygon([(x - 16, ground - h), (x + w / 2, ground - h - w * 0.42), (x + w + 16, ground - h)], fill=roof)
+    if snow > 0:
+        d.polygon([(x - 16, ground - h), (x + w / 2, ground - h - w * 0.42), (x + w + 16, ground - h), (x + w / 2, ground - h - w * 0.42 + 26 * snow + 14)], fill=SNOW)
+    for i in range(max(1, int(w // 90))):
+        wx = x + 26 + i * 90
+        d.rectangle([wx, ground - h + 34, wx + 40, ground - h + 86], fill=HOT if lit else shade(col, 0.6))
+    d.rectangle([x + w / 2 - 20, ground - 70, x + w / 2 + 20, ground], fill=shade(col, 0.55))
+
+def tree(d, x, ground, s, bare=True, col=None):
+    col = col or shade(STEEL, 0.6)
+    d.line([(x, ground), (x, ground - 150 * s)], fill=col, width=max(3, int(12 * s)))
+    if bare:
+        for a, ln, yy in ((-50, 80, 90), (50, 70, 110), (-35, 60, 140), (40, 55, 150)):
+            d.line([(x, ground - yy * s), (x + math.sin(math.radians(a)) * ln * s, ground - yy * s - math.cos(math.radians(a)) * ln * s)], fill=col, width=max(2, int(7 * s)))
+    else:
+        d.ellipse([x - 70 * s, ground - 270 * s, x + 70 * s, ground - 120 * s], fill=LEAF)
+
+def cal_card(d, x, y, month, year, col, s=1.0):
+    wd, hg = 135 * s, 160 * s
+    d.rounded_rectangle([x - wd, y - hg, x + wd, y + hg], 26 * s, fill=CREAM)
+    d.rounded_rectangle([x - wd, y - hg, x + wd, y - hg + 96 * s], 26 * s, fill=col)
+    d.rectangle([x - wd, y - hg + 60 * s, x + wd, y - hg + 96 * s], fill=col)
+    text_c(d, (x, y - hg + 50 * s), str(year), font('inter', 40 * s), INK)
+    text_c(d, (x, y + 50 * s), month, font('anton', 130 * s), INK)
+
+def ghost(d, x, y, s, col=None):
+    col = col or SNOW
+    d.pieslice([x - 40 * s, y - 50 * s, x + 40 * s, y + 30 * s], 180, 360, fill=col)
+    d.rectangle([x - 40 * s, y - 10 * s, x + 40 * s, y + 46 * s], fill=col)
+    for i in range(3):
+        d.ellipse([x - 40 * s + i * 27 * s, y + 32 * s, x - 14 * s + i * 27 * s, y + 58 * s], fill=col)
+    for sx in (-14, 14):
+        d.ellipse([x + sx * s - 7 * s, y - 18 * s, x + sx * s + 7 * s, y - 2 * s], fill=INK)
+
+def bat(d, x, y, s, flap, col=None):
+    col = col or INK; up = math.sin(flap) * 34 * s
+    d.ellipse([x - 13 * s, y - 16 * s, x + 13 * s, y + 20 * s], fill=col)
+    for sg in (-1, 1):
+        d.polygon([(x, y - 6 * s), (x + sg * 50 * s, y - 30 * s - up), (x + sg * 100 * s, y - up * 0.4), (x + sg * 74 * s, y + 10 * s - up * 0.2),
+                   (x + sg * 54 * s, y - 2 * s), (x + sg * 34 * s, y + 16 * s), (x + sg * 16 * s, y + 4 * s)], fill=col)
+        d.polygon([(x + sg * 4 * s, y - 14 * s), (x + sg * 12 * s, y - 32 * s), (x + sg * 14 * s, y - 12 * s)], fill=col)
+
+def wheel(d, x, y, r, rot, col):
+    d.ellipse([x - r, y - r, x + r, y + r], outline=col, width=9)
+    for k in range(6):
+        a = rot + k * math.pi / 3
+        d.line([(x, y), (x + math.cos(a) * r, y + math.sin(a) * r)], fill=col, width=4)
+
+def wagon(d, x, ground, s, t):
+    r = 38 * s; by = ground - r - 8 * s
+    d.rectangle([x - 90 * s, by - 44 * s, x + 90 * s, by], fill=(132, 92, 58))
+    d.pieslice([x - 96 * s, by - 150 * s, x + 96 * s, by + 60 * s], 180, 360, fill=CREAM)
+    for wx in (-58, 58): wheel(d, x + wx * s, ground - r, r, t * 4, (70, 50, 36))
+    d.line([(x + 90 * s, by - 16 * s), (x + 170 * s, by - 6 * s)], fill=(70, 50, 36), width=max(2, int(7 * s)))
+
+def draisine(d, x, ground, t, col):
+    r = 72; wy = ground - r; rot = t * 3.4
+    wheel(d, x - 120, wy, r, rot, CREAM); wheel(d, x + 120, wy, r, rot, CREAM)
+    d.line([(x - 120, wy), (x - 30, wy - 70), (x + 96, wy - 70), (x + 120, wy)], fill=(150, 104, 62), width=16, joint='curve')
+    d.line([(x + 96, wy - 70), (x + 86, wy - 150), (x + 50, wy - 160)], fill=(150, 104, 62), width=10, joint='curve')
+    hip = (x - 20, wy - 86); sh = (x + 14, wy - 200)
+    for k in (0, math.pi):
+        sw = math.sin(t * 6 + k)
+        knee = (hip[0] + 26 + sw * 30, hip[1] + 64); foot = (knee[0] - 10 + sw * 44, ground - (12 if sw > 0 else 0) - max(0, -sw) * 30)
+        d.line([hip, knee, foot], fill=col, width=15, joint='curve')
+    d.line([hip, sh], fill=col, width=28)
+    d.line([sh, (x + 46, wy - 176), (x + 60, wy - 156)], fill=col, width=13, joint='curve')
+    d.ellipse([sh[0] - 4, sh[1] - 66, sh[0] + 52, sh[1] - 10], fill=col)
+    d.rectangle([sh[0] - 8, sh[1] - 92, sh[0] + 56, sh[1] - 62], fill=INK); d.rectangle([sh[0] - 22, sh[1] - 66, sh[0] + 70, sh[1] - 56], fill=INK)   # top hat
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -346,7 +494,7 @@ def visual(d, kind, t, dur, img, sc=None):
             bullet(d, 140 + i * 72, ground - 40, 1.0, col=GOLD if i < 11 else RED)
         if t > 0.7:
             p = back((t - 0.7) / 0.35)
-            img.alpha_composite(stamp('JAMMED!', p), (int((cx - 330) * S), int((VY0 + 360) * S)))
+            img.alpha_composite(stamp('JAMMED!', p), (int((cx - 330 + LAYOUT['vox']) * S), int((VY0 + 360 + LAYOUT['voy']) * S)))
     elif kind == 'ratio':
         k = int(10 * ease(t / 1.4))
         for i in range(k):
@@ -389,7 +537,7 @@ def visual(d, kind, t, dur, img, sc=None):
         for i in range(7):
             d.line([(cx + 80, VY0 + 180 + i * 56), (cx + (380 if i % 3 else 300), VY0 + 180 + i * 56)], fill=shade(STEEL, 0.8), width=9)
         if t > 0.9:
-            img.alpha_composite(stamp('SAFETY', back((t - 0.9) / 0.35)), (int((cx - 250) * S), int((VY0 + 330) * S)))
+            img.alpha_composite(stamp('SAFETY', back((t - 0.9) / 0.35)), (int((cx - 250 + LAYOUT['vox']) * S), int((VY0 + 330 + LAYOUT['voy']) * S)))
     elif kind == 'follow_wave':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -453,10 +601,12 @@ def visual(d, kind, t, dur, img, sc=None):
             d.rounded_rectangle([x - wd, yy - hg, x + wd, yy + hg], 26, fill=CREAM)
             d.rounded_rectangle([x - wd, yy - hg, x + wd, yy - hg + 96], 26, fill=POP[i % len(POP)])
             d.rectangle([x - wd, yy - hg + 60, x + wd, yy - hg + 96], fill=POP[i % len(POP)])
-            text_c(d, (x, yy - hg + 50), '1518', font('inter', 40), INK)
+            text_c(d, (x, yy - hg + 50), str((sc or {}).get('year', '1518')), font('inter', 40), INK)
             text_c(d, (x, yy + 50), mth, font('anton', 130), INK)
-        for i in range(5):
-            dancer(d, 150 + i * 195, ground, 0.62, t * 1.4 + i * 0.3, POP[i % len(POP)], style=i)
+        if (sc or {}).get('snow'): snowfall(d, t, 50)
+        else:
+            for i in range(5):
+                dancer(d, 150 + i * 195, ground, 0.62, t * 1.4 + i * 0.3, POP[i % len(POP)], style=i)
     elif kind == 'mystery':
         sparkles(d, t)
         p = 1 + 0.07 * math.sin(t * 4)
@@ -474,6 +624,242 @@ def visual(d, kind, t, dur, img, sc=None):
         text_c(d, (cx, VY0 + 170), 'FOLLOW', font('anton', 96 * p), CREAM)
         for i in range(5):
             dancer(d, 150 + i * 195, ground, 0.95, t * 1.5 + i * 0.25, POP[i % len(POP)], style=i)
+    elif kind == 'volcano_quiet':
+        sea(d, ground); ty = volcano(d, cx, ground, crater=(sc or {}).get('crater', False), h=(sc or {}).get('h', 500), top=(sc or {}).get('top', 0.13))
+        for i in range(4):                                         # a lazy wisp of smoke
+            a = (t * 0.12 + i / 4) % 1
+            d.ellipse([cx - 20 + a * 90 - 16 - a * 30, ty - 30 - a * 200 - 16 - a * 30, cx - 20 + a * 90 + 16 + a * 30, ty - 30 - a * 200 + 16 + a * 30], fill=mix(ASH, BG1, a))
+        for x_, s_ in ((110, 0.8), (190, 1.0), (930, 0.9)): tree(d, x_, ground, s_, bare=False)
+        sparkles(d, t, 10)
+    elif kind == 'erupt':
+        pw = (sc or {}).get('power', 1.0); sh = math.sin(t * 50) * 7 * pw
+        d.ellipse([cx - 430, ground - 70, cx + 430, ground + 60], fill=mix(BG1, FIRE, 0.35))
+        sea(d, ground); ty = volcano(d, cx, ground, shake=sh)
+        if (sc or {}).get('columns'):
+            for dx in (-70, 0, 70): plume(d, cx + dx + sh, ty + 20, t + dx, 0.72, n=14)
+        else: plume(d, cx + sh, ty + 20, t, pw)
+        lava(d, cx + sh, ty, ground, 760, t); rocks(d, cx, ty, t, power=pw)
+    elif kind == 'collapse':
+        k = ease((t - 1.0) / 2.2); h = 500 - 170 * k
+        sea(d, ground)
+        for i in range(12):                                         # dotted outline of the old peak
+            u = i / 11; x0 = cx - 380 + 280 * u; x1 = cx + 380 - 280 * u
+            for xx in (x0, x1): d.ellipse([xx - 5, ground - 500 * u - 5, xx + 5, ground - 500 * u + 5], fill=CREAM)
+        ty = volcano(d, cx, ground, h=h, top=0.13 + 0.12 * k, crater=k > 0.5)
+        if k < 1: plume(d, cx, ty + 10, t, 0.5 + 0.4 * (1 - k), n=18)
+        d.line([(W - 110, ground), (W - 110, ground - 500)], fill=CREAM, width=5)
+        for yy in (0, 500): d.line([(W - 130, ground - yy), (W - 90, ground - yy)], fill=CREAM, width=5)
+        d.line([(W - 140, ground - h), (W - 80, ground - h)], fill=GOLD, width=9)
+    elif kind == 'boom':
+        vx = 240; sea(d, ground); ty = volcano(d, vx, ground, w=400, h=270)
+        plume(d, vx, ty + 10, t, 0.5, n=16)
+        for k in range(6):
+            r = (t * 300 + k * 170) % 1020
+            if r < 60: continue
+            d.arc([vx - r, ty - r, vx + r, ty + r], -38, 22, fill=mix(GOLD, BG1, min(1, r / 1020)), width=10)
+        for i in range(3):
+            person(d, 860 + i * 70, ground - 34, 1.5, POP[2 % len(POP)])
+        if (t * 300) % 1020 > 560 or t > 3: text_c(d, (930, ground - 190 + math.sin(t * 9) * 6), '!?' if (sc or {}).get('ask') else '!', font('anton', 120), GOLD, stroke=6)
+    elif kind == 'ash_dark':
+        d.ellipse([cx - 80, VY0 + 80, cx + 80, VY0 + 240], fill=mix(BG1, FIRE, 0.35))                 # the sun, barely visible
+        house(d, 150, ground, 200, 150, shade(STEEL, 0.7), shade(STEEL, 0.5), lit=False); house(d, 660, ground, 260, 180, shade(STEEL, 0.7), shade(STEEL, 0.5), lit=False)
+        tree(d, 500, ground, 1.0)
+        lvl = 30 + 120 * ease(t / max(dur, 1))
+        pts = [(0, ground + 40)] + [(x, ground - lvl - math.sin(x * 0.012) * 26) for x in range(0, W + 1, 60)] + [(W, ground + 40)]
+        d.polygon(pts, fill=ASH)
+        snowfall(d, t, 110, col=shade(ASH, 1.5), dots=True)
+    elif kind == 'people':
+        n = (sc or {}).get('n', 40); cols = 10; shown = int(n * ease(t / max(dur * 0.6, 0.6)))
+        for i in range(shown):
+            r, c = divmod(i, cols)
+            person(d, 100 + c * 98, VY0 + 150 + r * 150, 1.25, mix(CREAM, BG1, 0.55) if (i * 7) % 10 < (sc or {}).get('fade', 0) else CREAM)
+    elif kind == 'ash_globe':
+        R = 250; gy = VY0 + 345
+        d.ellipse([cx - R, gy - R, cx + R, gy + R], fill=LIQ)
+        for bx, by, bw, bh in ((-120, -90, 110, 80), (-60, 40, 70, 100), (60, -120, 130, 70), (110, 10, 90, 120), (20, 130, 80, 50), (-170, 40, 50, 60)):
+            d.ellipse([cx + bx - bw / 2, gy + by - bh / 2, cx + bx + bw / 2, gy + by + bh / 2], fill=LEAF)
+        tx_, ty_ = cx + 150, gy + 60
+        d.ellipse([tx_ - 12, ty_ - 12, tx_ + 12, ty_ + 12], fill=FIRE)
+        k = ease(t / max(dur * 0.85, 1)); rng = random.Random(3)
+        for i in range(150):
+            u = i / 150
+            if u > k: break
+            a = math.radians(-20) + u * 2 * math.pi + t * 0.15
+            rr = R + 36 + rng.uniform(-30, 30); r = rng.uniform(22, 40)
+            x, y = cx + math.cos(a) * rr * 1.08, gy + math.sin(a) * rr * 0.5 + math.cos(a) * 40
+            if math.sin(a) < -0.15 and abs(math.cos(a)) < 0.92: continue                     # hidden behind the globe
+            d.ellipse([x - r, y - r, x + r, y + r], fill=mix(ASH, CREAM, rng.uniform(0.1, 0.35)))
+        sparkles(d, t, 8)
+    elif kind == 'dim_sun':
+        k = ease(t / max(dur * 0.8, 1)); sy_ = VY0 + 280; col = mix(HOT, (190, 96, 60), k)
+        for i in range(12):
+            a = i * math.pi / 6 + t * 0.2; r0, r1 = 190, 190 + 110 * (1 - 0.75 * k)
+            d.line([(cx + math.cos(a) * r0, sy_ + math.sin(a) * r0), (cx + math.cos(a) * r1, sy_ + math.sin(a) * r1)], fill=col, width=14)
+        d.ellipse([cx - 160, sy_ - 160, cx + 160, sy_ + 160], fill=col)
+        for i in range(int(7 * k) + 1):                                                       # bands of haze
+            yy = sy_ - 130 + i * 44; off = math.sin(t * 0.6 + i) * 60
+            d.rounded_rectangle([cx - 330 + off, yy, cx + 330 + off, yy + 16], 8, fill=mix(ASH, BG1, 0.25))
+        d.rectangle([0, ground - 30, W, ground + 40], fill=mix(LEAF, BG0, 0.35 + 0.4 * k))
+    elif kind == 'cold':
+        x0, top, bot = cx - 220, VY0 + 90, ground - 110
+        d.rounded_rectangle([x0 - 34, top, x0 + 34, bot], 34, fill=CREAM); d.ellipse([x0 - 78, bot - 60, x0 + 78, bot + 96], fill=CREAM)
+        lvl = 0.78 - 0.4 * ease(t / 2.4); col = mix(FIRE, (70, 160, 255), ease(t / 2.4)); fy = bot - (bot - top - 60) * lvl
+        d.rounded_rectangle([x0 - 15, fy, x0 + 15, bot + 10], 15, fill=col); d.ellipse([x0 - 54, bot - 36, x0 + 54, bot + 72], fill=col)
+        for i in range(6):
+            yy = top + 70 + i * (bot - top - 130) / 5; d.line([(x0 + 44, yy), (x0 + 84, yy)], fill=CREAM, width=7)
+        for i in range(5):
+            flake(d, cx + 90 + (i % 3) * 150, VY0 + 170 + (i // 3) * 220 + math.sin(t * 2 + i) * 14, 46 + 8 * math.sin(t * 3 + i), SNOW)
+    elif kind == 'snow_farm':
+        k = ease(t / max(dur * 0.8, 1))
+        d.rectangle([0, ground, W, ground + 40], fill=mix(LEAF, SNOW, k))
+        house(d, 170, ground, 250, 190, (150, 84, 70), (92, 60, 60), snow=k); house(d, 600, ground, 190, 130, (170, 60, 52), (96, 50, 50), lit=False, snow=k)
+        tree(d, 900, ground, 1.25); tree(d, 520, ground, 0.8)
+        pts = [(0, ground + 40)] + [(x, ground - 34 * k - math.sin(x * 0.02) * 10 * k) for x in range(0, W + 1, 60)] + [(W, ground + 40)]
+        d.polygon(pts, fill=SNOW)
+        snowfall(d, t, 70)
+        cal_card(d, 930, VY0 + 150, (sc or {}).get('month', 'JUN'), 1816, POP[2 % len(POP)], 0.62)
+    elif kind == 'crops':
+        k = ease(t / max(dur * 0.7, 1)); rng = random.Random(4)
+        for i in range(34):
+            x = 80 + i * 28 + rng.uniform(-6, 6); h = rng.uniform(190, 340); bend = k * rng.uniform(60, 170) * (1 if i % 2 else -1)
+            col = mix(HOT, (120, 120, 128), k)
+            pts = [(x, ground), (x + bend * 0.25, ground - h * 0.6), (x + bend, ground - h * (1 - 0.45 * k))]
+            d.line(pts, fill=mix((196, 160, 80), (110, 110, 118), k), width=5, joint='curve')
+            for j in range(5):
+                gx, gy = pts[2][0] - bend * 0.12 * j, pts[2][1] + j * 15
+                d.ellipse([gx - 8, gy - 10, gx + 8, gy + 10], fill=col)
+        snowfall(d, t, int(40 * k) + 4)
+    elif kind == 'price':
+        bx0, bw, n = 200, 96, 6; hs = [80, 120, 170, 250, 350, 470]
+        d.line([(bx0 - 40, VY0 + 80), (bx0 - 40, ground)], fill=CREAM, width=6)
+        tops = []
+        for i in range(n):
+            p = ease((t - i * 0.35) / 0.5); h = hs[i] * p; x = bx0 + i * (bw + 28)
+            if p <= 0: continue
+            d.rounded_rectangle([x, ground - h, x + bw, ground], 10, fill=mix(HOT, FIRE, i / (n - 1)))
+            tops.append((x + bw / 2, ground - h - 36))
+        if len(tops) > 1:
+            d.line(tops, fill=CREAM, width=9, joint='curve')
+            (x1, y1), (x0_, y0_) = tops[-1], tops[-2]; a = math.atan2(y1 - y0_, x1 - x0_)
+            d.polygon([(x1 + math.cos(a) * 40, y1 + math.sin(a) * 40), (x1 + math.cos(a + 2.4) * 30, y1 + math.sin(a + 2.4) * 30), (x1 + math.cos(a - 2.4) * 30, y1 + math.sin(a - 2.4) * 30)], fill=CREAM)
+        text_c(d, (bx0 + 150, VY0 + 110), (sc or {}).get('label', 'PRICE'), font('anton', 90), CREAM, stroke=5)
+    elif kind == 'riot':
+        for i in range(7):
+            x = 130 + i * 138; b = abs(math.sin(t * 5 + i * 1.3)) * 22; s_ = 1.9
+            person(d, x, ground - 44 - b, s_, POP[i % len(POP)])
+            if i % 2 == 0:
+                d.line([(x + 30, ground - 80 - b), (x + 40, ground - 330 - b)], fill=(150, 104, 62), width=9)
+                d.rounded_rectangle([x - 40, ground - 420 - b, x + 120, ground - 320 - b], 10, fill=CREAM)
+                text_c(d, (x + 40, ground - 370 - b), 'BREAD', font('anton', 50), INK)
+    elif kind == 'migrate':
+        d.ellipse([W - 300, VY0 + 110, W - 140, VY0 + 270], fill=mix(HOT, (190, 96, 60), 0.7))
+        for mx, mh in ((180, 190), (460, 250), (760, 170)): d.polygon([(mx - 200, ground), (mx, ground - mh), (mx + 200, ground)], fill=shade(STEEL, 0.55))
+        for i in range(3):
+            x = (t * 120 + i * 420) % (W + 400) - 200
+            wagon(d, x, ground, 1.15, t)
+    elif kind == 'rain_villa':
+        for mx, mh in ((160, 300), (520, 380), (900, 280)): d.polygon([(mx - 260, ground - 30), (mx, ground - 30 - mh), (mx + 260, ground - 30)], fill=shade(STEEL, 0.5))
+        d.rectangle([0, ground - 30, W, ground + 40], fill=LIQ)
+        house(d, 330, ground - 30, 420, 250, (190, 170, 150), (96, 64, 64))
+        for i in range(4): d.rectangle([356 + i * 96, ground - 150, 396 + i * 96, ground - 100], fill=HOT)
+        tree(d, 220, ground - 30, 1.2); tree(d, 850, ground - 30, 1.0)
+        fl = (t % 3.2) < 0.16 or 1.1 < (t % 3.2) < 1.2
+        if fl: bolt(d, 840 + (int(t / 3.2) % 2) * -640, VY0 + 20, 1.1, SNOW)
+        rain(d, t, 90)
+    elif kind == 'writers':
+        d.rounded_rectangle([cx - 150, VY0 + 60, cx + 150, VY0 + 300], 16, fill=mix(LIQ, BG0, 0.4))          # window
+        d.line([(cx, VY0 + 60), (cx, VY0 + 300)], fill=shade(STEEL, 0.6), width=10); d.line([(cx - 150, VY0 + 180), (cx + 150, VY0 + 180)], fill=shade(STEEL, 0.6), width=10)
+        rain(d, t, 16, top=VY0 + 70, bottom=VY0 + 290)
+        for i in range(4):
+            x = 190 + i * 235; b = math.sin(t * 2 + i) * 5
+            person(d, x, ground - 190 + b, 2.3, POP[i % len(POP)])
+        d.rounded_rectangle([90, ground - 150, W - 90, ground - 110], 16, fill=(132, 92, 58)); d.rectangle([150, ground - 110, 190, ground], fill=(100, 70, 46)); d.rectangle([W - 190, ground - 110, W - 150, ground], fill=(100, 70, 46))
+        d.rectangle([cx - 12, ground - 230, cx + 12, ground - 150], fill=CREAM)                               # candle
+        fk = 1 + 0.18 * math.sin(t * 17) * math.sin(t * 5)
+        d.ellipse([cx - 20 * fk, ground - 300 * (0.94 + 0.06 * fk), cx + 20 * fk, ground - 226], fill=HOT)
+        if (sc or {}).get('ghost'):
+            gx, gy = 190 + 235, VY0 + 120 + math.sin(t * 2.5) * 12
+            d.rounded_rectangle([gx - 110, gy - 100, gx + 110, gy + 90], 40, fill=CREAM)
+            d.polygon([(gx - 30, gy + 80), (gx + 10, gy + 80), (gx - 20, gy + 130)], fill=CREAM)
+            ghost(d, gx, gy, 1.35, mix(BG1, LIQ, 0.5))
+    elif kind == 'lab':
+        d.rounded_rectangle([cx - 330, ground - 150, cx + 330, ground - 110], 12, fill=shade(STEEL, 0.8))       # the slab
+        for lx in (-280, 280): d.rectangle([cx + lx - 18, ground - 110, cx + lx + 18, ground], fill=shade(STEEL, 0.6))
+        d.rounded_rectangle([cx - 290, ground - 215, cx + 250, ground - 150], 32, fill=CREAM)                  # a covered figure
+        d.ellipse([cx + 200, ground - 240, cx + 290, ground - 150], fill=CREAM)
+        on = (t % 1.3) < 0.5 and t > 0.8
+        if on:
+            bolt(d, cx + 20, VY0 + 10, 1.25)
+            for i in range(10):
+                a = i * 0.63 + t * 9; r = 70 + (i * 37 % 60)
+                d.ellipse([cx + math.cos(a) * r * 2.2 - 8, ground - 210 + math.sin(a) * r * 0.7 - 8, cx + math.cos(a) * r * 2.2 + 8, ground - 210 + math.sin(a) * r * 0.7 + 8], fill=HOT)
+        sparkles(d, t, 8)
+    elif kind == 'book':
+        p = back(t / 0.5); bob = math.sin(t * 1.6) * 10; bw, bh = 330 * p, 460 * p; y = VY0 + 345 + bob
+        if p > 0.05:
+            d.rounded_rectangle([cx - bw / 2 + 26, y - bh / 2 + 22, cx + bw / 2 + 26, y + bh / 2 + 22], 14, fill=CREAM)
+            cov = tuple((sc or {}).get('cover', [120, 28, 44]))
+            d.rounded_rectangle([cx - bw / 2, y - bh / 2, cx + bw / 2, y + bh / 2], 14, fill=cov)
+            d.rounded_rectangle([cx - bw / 2 + 22, y - bh / 2 + 22, cx + bw / 2 - 22, y + bh / 2 - 22], 8, outline=HOT, width=5)
+            title = (sc or {}).get('title', 'BOOK'); words_ = title.split()
+            fs = min(86, 500 / max(len(w_) for w_ in words_)) * p
+            for i, w_ in enumerate(words_):
+                text_c(d, (cx, y - 70 + (i - (len(words_) - 1) / 2) * fs * 1.15), w_, font('anton', fs), HOT)
+            text_c(d, (cx, y + bh / 2 - 80), str((sc or {}).get('year', '')), font('inter', 44 * p), CREAM)
+        if t > 0.7 and (t % 2.4) < 0.3: bolt(d, cx + 330, VY0 + 60, 0.9)
+        sparkles(d, t, 14)
+    elif kind == 'bats':
+        d.ellipse([W - 400, VY0 + 60, W - 140, VY0 + 320], fill=CREAM); d.ellipse([W - 330, VY0 + 110, W - 280, VY0 + 160], fill=shade(CREAM, 0.88)); d.ellipse([W - 250, VY0 + 210, W - 190, VY0 + 270], fill=shade(CREAM, 0.88))
+        d.polygon([(0, ground + 40), (0, ground - 120), (80, ground - 120), (80, ground - 300), (120, ground - 380), (160, ground - 300), (160, ground - 160), (260, ground - 160),
+                   (260, ground - 240), (300, ground - 300), (340, ground - 240), (340, ground - 60), (W, ground - 20), (W, ground + 40)], fill=shade(STEEL, 0.42))
+        d.rectangle([104, ground - 270, 134, ground - 220], fill=HOT)
+        for i in range(8):
+            x = (t * (110 + i * 22) + i * 190) % (W + 300) - 150; y = VY0 + 150 + (i * 97 % 330) + math.sin(t * 2 + i) * 30
+            bat(d, x, y, 0.6 + (i % 3) * 0.3, t * 13 + i, col=mix(INK, BG1, 0.25 * (i % 3)))
+    elif kind == 'sunset':
+        x0, y0, x1, y1 = cx - 330, VY0 + 60, cx + 330, VY0 + 470
+        d.line([(cx - 200, y1), (cx - 300, ground)], fill=(132, 92, 58), width=16); d.line([(cx + 200, y1), (cx + 300, ground)], fill=(132, 92, 58), width=16); d.line([(cx, y1), (cx, ground - 20)], fill=(110, 78, 50), width=14)
+        d.rectangle([x0 - 22, y0 - 22, x1 + 22, y1 + 22], fill=(150, 104, 62))
+        d.rectangle([x0, y0, x1, y1], fill=CREAM)
+        bands = [(96, 30, 60), (150, 36, 56), (204, 52, 48), (234, 84, 40), (250, 124, 40), (255, 164, 56), (255, 200, 84)]
+        nb = len(bands); hz = y0 + (y1 - y0) * 0.72; shown = ease(t / max(dur * 0.6, 1)) * nb
+        for i, c in enumerate(bands):
+            if i > shown: break
+            d.rectangle([x0, y0 + (hz - y0) * i / nb, x1, y0 + (hz - y0) * (i + 1) / nb + 1], fill=c)
+        if shown >= nb - 0.5:
+            d.pieslice([cx - 90, hz - 90, cx + 90, hz + 90], 180, 360, fill=HOT)
+            d.rectangle([x0, hz, x1, y1], fill=(60, 34, 60))
+            for i in range(4): d.line([(cx - 70 + i * 10, hz + 22 + i * 22), (cx + 70 - i * 10, hz + 22 + i * 22)], fill=(250, 124, 40), width=6)
+    elif kind == 'bike':
+        for i in range(4):
+            x = (i * 330 - t * 60) % (W + 200) - 100; tree(d, x, ground, 1.0, bare=False)
+        x = (t * 190) % (W + 600) - 300
+        draisine(d, x, ground, t, POP[0])
+        for i in range(3): d.line([(x - 240 - i * 50, ground - 60 - i * 40), (x - 320 - i * 50, ground - 60 - i * 40)], fill=mix(CREAM, BG1, 0.5), width=5)
+    elif kind == 'timeline':
+        nodes = (sc or {}).get('nodes', ['A', 'B', 'C']); n = len(nodes); y = VY0 + 340
+        xs = [130 + (W - 260) * i / max(n - 1, 1) for i in range(n)]
+        k = ease(t / max(dur * 0.55, 1)); d.line([(xs[0], y), (xs[0] + (xs[-1] - xs[0]) * k, y)], fill=CREAM, width=10)
+        for i, (x, lab) in enumerate(zip(xs, nodes)):
+            p = back((t - 0.3 - i * (max(dur * 0.55, 1) / n)) / 0.4)
+            if p <= 0: continue
+            r = 34 * p; d.ellipse([x - r, y - r, x + r, y + r], fill=POP[i % len(POP)]); d.ellipse([x - r * 0.4, y - r * 0.4, x + r * 0.4, y + r * 0.4], fill=INK)
+            up = -1 if i % 2 == 0 else 1
+            d.line([(x, y + up * 40), (x, y + up * 110)], fill=CREAM, width=5)
+            for j, part in enumerate(lab.split('|')):
+                text_c(d, (min(max(x, 190), W - 190), y + up * 160 + (j - (len(lab.split('|')) - 1) / 2) * 70 * 1 + (0 if up < 0 else 0)), part, font('anton', 62 * min(p, 1)), POP[i % len(POP)] if j == 0 else CREAM, stroke=5)
+    elif kind == 'question':
+        sparkles(d, t)
+        p = 1 + 0.07 * math.sin(t * 4)
+        text_c(d, (cx, VY0 + 330), '?', font('anton', 600 * p), GOLD, stroke=12)
+        for i in range(6):
+            a = t * 0.8 + i * math.pi / 3
+            text_c(d, (cx + math.cos(a) * 390, VY0 + 340 + math.sin(a) * 200), '?', font('anton', 90 + 40 * math.sin(a)), mix(BG1, POP[i % len(POP)], 0.6 + 0.4 * math.sin(a) ** 2))
+    elif kind == 'subscribe':
+        sea(d, ground); ty = volcano(d, cx, ground, w=560, h=250); plume(d, cx, ty + 10, t, 0.36, n=14); rocks(d, cx, ty, t, n=8, power=0.4)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 640 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 120 - bh / 2, cx + bw / 2, VY0 + 120 + bh / 2], int(bh / 2), fill=(230, 40, 40))
+        text_c(d, (cx, VY0 + 120), 'SUBSCRIBE', font('anton', 96 * p), SNOW)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -504,15 +890,17 @@ def count_text(big, p):
     m = re.fullmatch(r'([\d,]+)(.*)', big)
     if not m: return big
     n = int(m.group(1).replace(',', ''))
+    if n < 10: return big                      # tiny numbers look odd counting up
     v = int(round(n * ease(p)))
     return (f'{v:,}' if ',' in m.group(1) else str(v)) + m.group(2)
 
-def chunks(d, words, maxw=930):
+def chunks(d, words):
     """Split words into single-line groups that fit the screen width."""
-    f = font('anton', 92); out, cur = [], []
+    maxw = LAYOUT['cw']
+    f = font('anton', LAYOUT['cap']); out, cur = [], []
     for i, w in enumerate(words):
         test = ' '.join(words[j].upper() for j in cur + [i])
-        if cur and (d.textlength(test, font=f) > maxw or len(cur) >= 4):
+        if cur and (d.textlength(test, font=f) > maxw or len(cur) >= LAYOUT['cn']):
             out.append(cur); cur = []
         cur.append(i)
     return out + [cur]
@@ -521,17 +909,42 @@ def caption(d, words, times, t):
     """Show the current line of words, current word highlighted."""
     cur = max([i for i, (a, _) in enumerate(times) if a <= t] or [0])
     chunk = next(c for c in chunks(d, words) if cur in c)
-    f = font('anton', 92)
+    f = font('anton', LAYOUT['cap'])
     widths = [d.textlength(words[i].upper() + ' ', font=f) for i in chunk]
-    x = W / 2 - (sum(widths) - d.textlength(' ', font=f)) / 2; y = 1470
+    x = LAYOUT['cx'] - (sum(widths) - d.textlength(' ', font=f)) / 2; y = LAYOUT['cy']
     for i, w in zip(chunk, widths):
         d.text((x, y), words[i].upper(), font=f, fill=GOLD if i == cur else CREAM, anchor='lm', stroke_width=7, stroke_fill=INK)
         x += w
 
 # ---------- main ----------
+def compose(base, sc, lt, frac):
+    """Draw one frame: the scene's visual, kicker, headline, sub line, caption and progress bar."""
+    img = base.copy(); raw = ImageDraw.Draw(img); d = SD(raw)
+    L = LAYOUT; tx = L['tx']
+    visual(SD(raw, L['vox'], L['voy']), sc['visual'], lt, sc['dur'], img, sc)
+    # kicker pill
+    if sc['kicker']:
+        f = font('inter', 40); tw = d.textlength(sc['kicker'], font=f)
+        a = ease(lt / 0.3)
+        d.rounded_rectangle([tx - tw / 2 - 30, L['ky'] - 36, tx + tw / 2 + 30, L['ky'] + 36], 36, fill=RED + (int(255 * a),))
+        text_c(d, (tx, L['ky']), sc['kicker'], f, CREAM + (int(255 * a),))
+    # big headline: pops in, numbers count up
+    p = back(lt / 0.45)
+    big = count_text(sc['big'], lt / 0.9)
+    size = 230 if len(sc['big']) <= 6 else (175 if len(sc['big']) <= 9 else 140)
+    text_c(d, (tx, L['by']), big, font('anton', size * max(p, 0.05)), GOLD, stroke=8)
+    text_c(d, (tx, L['sy']), sc['sub'], font('inter', 50 if len(sc['sub']) <= 30 else 40), CREAM + (int(255 * ease((lt - 0.2) / 0.4)),))
+    if lt < sc['dur'] - GAP + 0.1:
+        caption(d, sc['words'], sc['times'], lt)
+    # progress bar
+    d.rectangle([0, FH - 10, FW * frac, FH], fill=GOLD)
+    return img
+
+
 def main(script_path, out_path):
     spec = json.load(open(script_path))
     set_palette(spec.get('palette', {}))
+    set_layout(spec.get('layout', 'tall'), spec)
     tmp = tempfile.mkdtemp()
     voice, speed = spec.get('voice', 'mb-us2'), spec.get('speed', 150)
     scenes, clips = [], []
@@ -568,10 +981,10 @@ def main(script_path, out_path):
     np.clip(mix, -1, 1).astype(np.float32).tofile(wav)
 
     bases = base_frames()
-    enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W * S}x{H * S}', '-r', str(FPS), '-i', '-',
+    enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{FW * S}x{FH * S}', '-r', str(FPS), '-i', '-',
                             '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', wav,
                             '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11',
-                            '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+                            '-c:v', 'libx264', '-preset', 'medium', '-crf', str(LAYOUT['crf']), '-profile:v', 'high', '-pix_fmt', 'yuv420p',
                             '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-shortest', '-movflags', '+faststart', out_path],
                            stdin=subprocess.PIPE)
     nf = int(total * FPS)
@@ -579,24 +992,7 @@ def main(script_path, out_path):
         t = fi / FPS
         sc = next((s for s in scenes if s['t0'] <= t < s['t0'] + s['dur']), scenes[-1])
         lt = t - sc['t0']
-        img = bases[fi % len(bases)].copy(); d = SD(ImageDraw.Draw(img))
-        visual(d, sc['visual'], lt, sc['dur'], img, sc)
-        # kicker pill
-        if sc['kicker']:
-            f = font('inter', 40); tw = d.textlength(sc['kicker'], font=f)
-            a = ease(lt / 0.3)
-            d.rounded_rectangle([W / 2 - tw / 2 - 30, 190 - 36, W / 2 + tw / 2 + 30, 190 + 36], 36, fill=RED + (int(255 * a),))
-            text_c(d, (W / 2, 190), sc['kicker'], f, CREAM + (int(255 * a),))
-        # big headline: pops in, numbers count up
-        p = back(lt / 0.45)
-        big = count_text(sc['big'], lt / 0.9)
-        size = 230 if len(sc['big']) <= 6 else 175
-        text_c(d, (W / 2, 390), big, font('anton', size * max(p, 0.05)), GOLD, stroke=8)
-        text_c(d, (W / 2, 560), sc['sub'], font('inter', 50), CREAM + (int(255 * ease((lt - 0.2) / 0.4)),))
-        if lt < sc['dur'] - GAP + 0.1:
-            caption(d, sc['words'], sc['times'], lt)
-        # progress bar
-        d.rectangle([0, H - 10, W * t / total, H], fill=GOLD)
+        img = compose(bases[fi % len(bases)], sc, lt, t / total)
         # fade in/out of the whole video
         frame = img.convert('RGB')
         fade = min(1.0, t / 0.4, (total - t) / 0.5)

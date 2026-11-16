@@ -20,13 +20,17 @@ BG0, BG1 = (27, 22, 17), (48, 37, 26)
 CREAM, GOLD, RED, INK = (243, 230, 200), (242, 177, 52), (217, 72, 59), (20, 16, 12)
 EMU_C, EMU_D = (92, 74, 58), (60, 47, 37)
 LINE, LIQ, STEEL = (90, 72, 52), (176, 104, 34), (120, 138, 158)   # ground line, liquid, metal
+GLOW = None                                                         # optional soft light behind the visuals
+POP = [(255, 71, 133), (71, 214, 255), (255, 160, 60), (140, 255, 170), (190, 130, 255)]   # bright colours for figures
 
 def set_palette(pal):
     """Override colours from the script's "palette": bg0, bg1, text, headline, accent, ink, line, liquid, steel."""
-    global BG0, BG1, CREAM, GOLD, RED, INK, LINE, LIQ, STEEL
+    global BG0, BG1, CREAM, GOLD, RED, INK, LINE, LIQ, STEEL, GLOW, POP
     t = lambda k, d: tuple(pal.get(k, d))
     BG0, BG1, CREAM, GOLD, RED = t('bg0', BG0), t('bg1', BG1), t('text', CREAM), t('headline', GOLD), t('accent', RED)
     INK, LINE, LIQ, STEEL = t('ink', INK), t('line', LINE), t('liquid', LIQ), t('steel', STEEL)
+    GLOW = tuple(pal['glow']) if 'glow' in pal else None
+    POP = [tuple(c) for c in pal.get('pop', POP)]
 
 S = 2   # render scale: layout is in 1080x1920 units, output is (1080*S)x(1920*S); 2 = 4K
 
@@ -135,6 +139,9 @@ def base_frames(k=6):
     yy, xx = np.mgrid[0:RH, 0:RW]
     v = 1 - 0.55 * (((xx - RW / 2) / (RW * 0.75)) ** 2 + ((yy - RH / 2) / (RH * 0.62)) ** 2)
     img = (img * np.clip(v, 0.25, 1)[:, :, None]).astype(np.float32)
+    if GLOW:                                    # soft coloured light behind the visual area
+        gl = np.exp(-(((xx - RW / 2) / (RW * 0.48)) ** 2 + ((yy - RH * 0.53) / (RH * 0.2)) ** 2))
+        img += (np.array(GLOW, np.float32) * 0.42) * gl[:, :, None].astype(np.float32)
     rng = np.random.default_rng(1); g = 2 * S
     out = []
     for _ in range(k):
@@ -238,9 +245,54 @@ def person(d, x, y, s, col):
     d.ellipse([x - 13 * s, y - 62 * s, x + 13 * s, y - 36 * s], fill=col)
     d.rounded_rectangle([x - 18 * s, y - 32 * s, x + 18 * s, y + 22 * s], 12 * s, fill=col)
 
+def mix(a, b, k): return tuple(int(a[i] * (1 - k) + b[i] * k) for i in range(3))
+
+def dancer(d, x, y, s, phase, col, style=0):
+    """A dancing figure with feet near (x, y); phase animates the limbs."""
+    w = max(2, int(13 * s)); a = phase * 2 * math.pi
+    hop = abs(math.sin(a)) * 26 * s; sway = math.sin(a) * 16 * s
+    hip = (x + sway * 0.4, y - 120 * s - hop); sh = (x + sway, y - 235 * s - hop)
+    for k, sg in ((0, -1), (math.pi, 1)):                                   # legs
+        kick = math.sin(a + k) * 0.5 + 0.5
+        knee = (hip[0] + sg * (22 + 30 * kick) * s, hip[1] + (62 - 14 * kick) * s)
+        foot = (knee[0] + sg * (8 + 34 * kick) * s, y - 46 * kick * s - hop * 0.2)
+        d.line([hip, knee, foot], fill=col, width=w, joint='curve')
+    if style % 2:                                                           # a skirt on every other dancer
+        d.polygon([(sh[0] - 22 * s, sh[1] + 60 * s), (hip[0] - 62 * s, hip[1] + 46 * s), (hip[0] + 62 * s, hip[1] + 46 * s), (sh[0] + 22 * s, sh[1] + 60 * s)], fill=col)
+    d.line([hip, sh], fill=col, width=int(w * 2.1))
+    for sg, off in ((-1, 0.0), (1, 1.4)):                                   # arms
+        up = math.sin(a * 2 + off + style)
+        el = (sh[0] + sg * 52 * s, sh[1] - (10 + 34 * up) * s)
+        hand = (el[0] + sg * (22 + 14 * up) * s, el[1] - (48 + 22 * up) * s)
+        d.line([(sh[0], sh[1] + 8 * s), el, hand], fill=col, width=w, joint='curve')
+    hx, hy = sh[0] + sway * 0.3, sh[1] - 44 * s
+    d.ellipse([hx - 27 * s, hy - 27 * s, hx + 27 * s, hy + 27 * s], fill=col)
+
+def note(d, x, y, s, col):
+    d.ellipse([x - 16 * s, y - 11 * s, x + 12 * s, y + 13 * s], fill=col)
+    d.line([(x + 9 * s, y), (x + 9 * s, y - 74 * s)], fill=col, width=max(2, int(7 * s)))
+    d.line([(x + 9 * s, y - 72 * s), (x + 44 * s, y - 54 * s)], fill=col, width=max(2, int(11 * s)))
+
+def notes(d, t, x0, x1, y0, y1, n=7):
+    rng = random.Random(11)
+    for i in range(n):
+        u = (t * rng.uniform(0.18, 0.32) + rng.random()) % 1
+        x = x0 + (x1 - x0) * rng.random() + math.sin(t * 2 + i) * 22
+        note(d, x, y1 - (y1 - y0) * u, rng.uniform(0.6, 1.0), mix(POP[i % len(POP)], BG1, 0.55 * u))
+
+def sparkles(d, t, n=26):
+    """Slow drifting dots of light across the visual area."""
+    rng = random.Random(21)
+    for i in range(n):
+        x = rng.uniform(40, W - 40) + math.sin(t * 0.8 + i) * 18
+        y = VY1 + 60 - ((t * rng.uniform(22, 60) + rng.uniform(0, 800)) % 800)
+        r = rng.uniform(3, 9); tw = 0.5 + 0.5 * math.sin(t * 3 + i * 1.7)
+        c = mix(BG1, POP[i % len(POP)], 0.25 + 0.45 * tw)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=c)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
-def visual(d, kind, t, dur, img):
+def visual(d, kind, t, dur, img, sc=None):
     cx, ground = W / 2, VY1 - 40
     d.line([(60, ground), (W - 60, ground)], fill=LINE, width=4)
     if kind == 'standoff':
@@ -344,6 +396,84 @@ def visual(d, kind, t, dur, img):
         d.rounded_rectangle([cx - bw / 2, VY0 + 250 - bh / 2, cx + bw / 2, VY0 + 250 + bh / 2], int(bh / 2), fill=RED)
         text_c(d, (cx, VY0 + 250), 'FOLLOW', font('anton', 96 * p), CREAM)
         wave(d, (t * 420) % (W + 500) - 150, ground, 170, t, left=-400)
+    elif kind == 'dance1':
+        sparkles(d, t)
+        d.ellipse([cx - 230, ground - 26, cx + 230, ground + 26], fill=mix(BG1, GOLD, 0.35))        # pool of light
+        dancer(d, cx, ground, 1.65, t * 1.3, POP[0], style=1)
+        notes(d, t, 120, W - 120, VY0 + 40, ground - 250, n=6)
+    elif kind == 'crowd':
+        sparkles(d, t, 14)
+        n = (sc or {}).get('n', 30); rows = (sc or {}).get('rows', 3)
+        rng = random.Random(9); per = math.ceil(n / rows)
+        shown = int(n * ease(t / max(dur * 0.7, 0.6))) + 1
+        k = 0
+        for r in range(rows):                                       # back rows first: smaller and dimmer
+            depth = (r + 1) / rows; sc_ = (2.3 / (per ** 0.62)) * (0.62 + 0.38 * depth)
+            yb = ground - (rows - 1 - r) * (470 / rows)
+            for c in range(per):
+                if k >= min(n, shown): break
+                x = 70 + (W - 140) * (c + 0.5 + (0.5 if r % 2 else 0) * 0.6) / per
+                col = mix(BG1, POP[rng.randrange(len(POP))], 0.45 + 0.55 * depth)
+                dancer(d, x, yb, sc_, t * rng.uniform(1.0, 1.6) + rng.random(), col, style=k)
+                k += 1
+    elif kind == 'fever':
+        sparkles(d, t, 12)
+        x0, top, bot = cx - 250, VY0 + 110, ground - 110
+        d.rounded_rectangle([x0 - 34, top, x0 + 34, bot], 34, fill=CREAM)                 # thermometer
+        d.ellipse([x0 - 78, bot - 60, x0 + 78, bot + 96], fill=CREAM)
+        lvl = ease(t / 1.4); fy = bot - (bot - top - 60) * lvl
+        d.rounded_rectangle([x0 - 15, fy, x0 + 15, bot + 10], 15, fill=RED)
+        d.ellipse([x0 - 54, bot - 36, x0 + 54, bot + 72], fill=RED)
+        for i in range(6):
+            yy = top + 70 + i * (bot - top - 130) / 5
+            d.line([(x0 + 44, yy), (x0 + 84, yy)], fill=CREAM, width=7)
+        dancer(d, cx + 190, ground, 1.5, t * 1.5, POP[2], style=0)
+        for i in range(3):                                                             # heat waves
+            hx = cx + 60 + i * 130; ph = t * 3 + i
+            pts = [(hx + math.sin(ph + j * 0.9) * 16, ground - 520 - j * 22) for j in range(6)]
+            d.line(pts, fill=mix(BG1, RED, 0.8), width=8, joint='curve')
+    elif kind == 'band':
+        d.polygon([(90, ground), (150, ground - 120), (W - 150, ground - 120), (W - 90, ground)], fill=mix(BG1, GOLD, 0.3))   # stage
+        d.rectangle([150, ground - 132, W - 150, ground - 116], fill=GOLD)
+        sy = ground - 126
+        dancer(d, cx - 40, sy, 1.15, t * 1.5, POP[0], style=1); dancer(d, cx + 150, sy, 1.15, t * 1.5 + 0.4, POP[1], style=2)
+        dx = 255; beat = abs(math.sin(t * 7)) * 16                                      # drummer
+        dancer(d, dx - 70, sy, 0.95, t * 0.6, POP[3], style=0)
+        d.ellipse([dx - 10, sy - 150 + beat * 0.2, dx + 130, sy - 40], fill=CREAM); d.ellipse([dx + 4, sy - 138 + beat * 0.2, dx + 116, sy - 52], fill=RED)
+        hx = W - 300                                                                    # horn player
+        dancer(d, hx + 90, sy, 0.95, t * 0.6 + 0.3, POP[4], style=0)
+        d.polygon([(hx + 60, sy - 196), (hx - 70, sy - 250 - beat), (hx - 70, sy - 150 + beat)], fill=GOLD)
+        notes(d, t, 120, W - 120, VY0 + 20, sy - 300, n=9)
+    elif kind == 'calendar':
+        sparkles(d, t, 12)
+        for i, mth in enumerate((sc or {}).get('months', ['JUL', 'AUG', 'SEP'])):
+            p = back((t - 0.25 - i * 0.55) / 0.4)
+            if p <= 0: continue
+            x = cx - 330 + i * 330; yy = VY0 + 270 + (1 - p) * 80; wd, hg = 135, 160
+            d.rounded_rectangle([x - wd, yy - hg, x + wd, yy + hg], 26, fill=CREAM)
+            d.rounded_rectangle([x - wd, yy - hg, x + wd, yy - hg + 96], 26, fill=POP[i % len(POP)])
+            d.rectangle([x - wd, yy - hg + 60, x + wd, yy - hg + 96], fill=POP[i % len(POP)])
+            text_c(d, (x, yy - hg + 50), '1518', font('inter', 40), INK)
+            text_c(d, (x, yy + 50), mth, font('anton', 130), INK)
+        for i in range(5):
+            dancer(d, 150 + i * 195, ground, 0.62, t * 1.4 + i * 0.3, POP[i % len(POP)], style=i)
+    elif kind == 'mystery':
+        sparkles(d, t)
+        p = 1 + 0.07 * math.sin(t * 4)
+        text_c(d, (cx, VY0 + 300), '?', font('anton', 560 * p), GOLD, stroke=12)
+        for i in range(6):
+            a = t * 0.9 + i * math.pi / 3
+            x, yy = cx + math.cos(a) * 400, VY0 + 330 + math.sin(a) * 150
+            depth = 0.5 + 0.5 * math.sin(a)
+            dancer(d, x, yy + 130, 0.45 + 0.2 * depth, t * 1.4 + i, mix(BG1, POP[i % len(POP)], 0.5 + 0.5 * depth), style=i)
+    elif kind == 'follow_dance':
+        sparkles(d, t)
+        p = 1 + 0.06 * math.sin(t * 6)
+        bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 170 - bh / 2, cx + bw / 2, VY0 + 170 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 170), 'FOLLOW', font('anton', 96 * p), CREAM)
+        for i in range(5):
+            dancer(d, 150 + i * 195, ground, 0.95, t * 1.5 + i * 0.25, POP[i % len(POP)], style=i)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -450,7 +580,7 @@ def main(script_path, out_path):
         sc = next((s for s in scenes if s['t0'] <= t < s['t0'] + s['dur']), scenes[-1])
         lt = t - sc['t0']
         img = bases[fi % len(bases)].copy(); d = SD(ImageDraw.Draw(img))
-        visual(d, sc['visual'], lt, sc['dur'], img)
+        visual(d, sc['visual'], lt, sc['dur'], img, sc)
         # kicker pill
         if sc['kicker']:
             f = font('inter', 40); tw = d.textlength(sc['kicker'], font=f)

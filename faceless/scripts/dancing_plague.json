@@ -1,0 +1,28 @@
+{
+  "title": "The Dancing Plague of 1518",
+  "voice": "kokoro:af_heart",
+  "speed": 0.98,
+  "palette": {
+    "bg0": [20, 8, 42], "bg1": [58, 18, 86], "text": [255, 244, 230], "headline": [255, 209, 71],
+    "accent": [255, 71, 133], "ink": [14, 4, 28], "line": [124, 72, 160], "glow": [255, 71, 160],
+    "pop": [[255, 71, 133], [71, 214, 255], [255, 160, 60], [140, 255, 170], [190, 130, 255]]
+  },
+  "scenes": [
+    {"say": "In 1518, a woman started dancing in the street. She did not stop for days.",
+     "kicker": "TRUE STORY", "big": "1518", "sub": "STRASBOURG", "visual": "dance1"},
+    {"say": "Within a week, more than thirty people had joined her.",
+     "kicker": "ONE WEEK LATER", "big": "34", "sub": "people dancing", "visual": "crowd", "n": 34, "rows": 3},
+    {"say": "Within a month, the crowd had reportedly grown to four hundred.",
+     "kicker": "ONE MONTH LATER", "big": "400", "sub": "people dancing", "visual": "crowd", "n": 96, "rows": 4},
+    {"say": "Doctors blamed hot blood. Their cure was more dancing.",
+     "kicker": "THE DIAGNOSIS", "big": "HOT BLOOD", "sub": "said the doctors", "visual": "fever"},
+    {"say": "So the city built a stage and hired musicians. It only made things worse.",
+     "kicker": "THE CURE", "big": "A STAGE", "sub": "and a hired band", "visual": "band"},
+    {"say": "The dancing went on for about two months before it finally faded away.",
+     "kicker": "HOW LONG", "big": "2 MONTHS", "sub": "July to September", "visual": "calendar"},
+    {"say": "Nobody knows the cause. Some blame stress. Others blame a fungus in the bread.",
+     "kicker": "THE MYSTERY", "big": "WHY", "sub": "still unsolved, 500 years later", "visual": "mystery"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_dance"}
+  ]
+}

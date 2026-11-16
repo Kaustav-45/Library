@@ -82,7 +82,8 @@ def font(name, size):
 
 def ease(t): t = min(max(t, 0.0), 1.0); return 1 - (1 - t) ** 3
 def back(t):
-    t = min(max(t, 0.0), 1.0); c = 1.70158
+    if t <= 0: return 0.0
+    t = min(t, 1.0); c = 1.70158
     return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2
 
 # ---------- audio ----------
@@ -832,8 +833,8 @@ def visual(d, kind, t, dur, img, sc=None):
             for i in range(4): d.line([(cx - 70 + i * 10, hz + 22 + i * 22), (cx + 70 - i * 10, hz + 22 + i * 22)], fill=(250, 124, 40), width=6)
     elif kind == 'bike':
         for i in range(4):
-            x = (i * 330 - t * 60) % (W + 200) - 100; tree(d, x, ground, 1.0, bare=False)
-        x = (t * 190) % (W + 600) - 300
+            x = (i * 330 - t * 230) % (W + 240) - 120; tree(d, x, ground, 1.0, bare=False)
+        x = cx - 40 + math.sin(t * 0.5) * 130                      # the rider stays in view; the trees roll past
         draisine(d, x, ground, t, POP[0])
         for i in range(3): d.line([(x - 240 - i * 50, ground - 60 - i * 40), (x - 320 - i * 50, ground - 60 - i * 40)], fill=mix(CREAM, BG1, 0.5), width=5)
     elif kind == 'timeline':
@@ -891,6 +892,7 @@ def count_text(big, p):
     if not m: return big
     n = int(m.group(1).replace(',', ''))
     if n < 10: return big                      # tiny numbers look odd counting up
+    if ',' not in m.group(1) and 1000 <= n <= 2100 and not m.group(2): return big   # a year, not a quantity
     v = int(round(n * ease(p)))
     return (f'{v:,}' if ',' in m.group(1) else str(v)) + m.group(2)
 

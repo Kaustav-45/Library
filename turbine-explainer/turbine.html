@@ -31,6 +31,16 @@
   #replay { position:absolute; top:14px; right:14px; background:var(--accent); border:0; color:#1b1b1b;
     font-weight:700; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:15px; }
   body.capture #replay { display:none; }
+  @media (orientation: portrait) {
+    #caption { bottom:21%; width:90%; }
+    #title { font-size:30px; margin:8px 0 6px; }
+    #sub { font-size:19px; line-height:1.3; }
+    #step { font-size:15px; }
+    #flow { top:6%; width:92%; flex-wrap:wrap; white-space:normal; gap:6px; font-size:14px; row-gap:8px; }
+    .label { font-size:15px; }
+    #shade { height:55%; bottom:0; background:linear-gradient(to top, rgba(8,14,26,.2) 0%, rgba(8,14,26,.85) 25%, rgba(8,14,26,.85) 45%, rgba(8,14,26,0) 100%); }
+    #bar { height:6px; }
+  }
 </style>
 </head>
 <body>
@@ -231,6 +241,10 @@ function camAt(t){
   const tr=3.0; const k=(B===A)?0:smooth(B[0]-tr,B[0],t);
   const p=A[1].map((x,j)=>lerp(x,B[1][j],k)), g=A[2].map((x,j)=>lerp(x,B[2][j],k));
   const drift=Math.sin(t*0.25)*0.6;
+  if(camera.aspect<1){ // tall screen: widen the view and step back so the scene fits
+    const back=1.45; for(let j=0;j<3;j++) p[j]=g[j]+(p[j]-g[j])*back;
+    g[1]-=0.9; // keep the model above the captions
+  }
   camera.position.set(p[0]+drift, p[1], p[2]); camera.lookAt(g[0],g[1],g[2]);
 }
 const capStep=document.getElementById('step'), capTitle=document.getElementById('title'), capSub=document.getElementById('sub'), cap=document.getElementById('caption');
@@ -311,7 +325,8 @@ function renderAt(t){
 }
 window.renderAt=renderAt; window.DURATION=DURATION;
 
-function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.updateProjectionMatrix(); }
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }
+resize();
 window.addEventListener('resize',resize);
 
 if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }

@@ -706,6 +706,146 @@ def bubbles(d, t, x0, x1, y0, y1, n=24, seed=3):
         x = rng.uniform(x0, x1) + math.sin(t * 2 + i) * 14; y = y1 - (t * rng.uniform(60, 140) + rng.uniform(0, y1 - y0)) % (y1 - y0)
         r = rng.uniform(5, 16); d.ellipse([x - r, y - r, x + r, y + r], outline=mix(LIQ, CREAM, 0.5), width=3)
 
+# ----- "on this day" drawings -----
+def tear_calendar(d, cx, cy, s, month, day, sub='', tear=0.0, nxt=None):
+    """A tear-off desk calendar. tear 0..1 peels the top page off to reveal nxt."""
+    w, h = 300 * s, 360 * s
+    d.rounded_rectangle([cx - w + 14 * s, cy - h + 20 * s, cx + w + 14 * s, cy + h + 20 * s], 26 * s, fill=shade(BG0, 0.7))
+    def page(dd, num, col=CREAM):
+        d.rounded_rectangle([cx - w, cy - h, cx + w, cy + h], 26 * s, fill=col)
+        d.rounded_rectangle([cx - w, cy - h, cx + w, cy - h + 150 * s], 26 * s, fill=RED); d.rectangle([cx - w, cy - h + 100 * s, cx + w, cy - h + 150 * s], fill=RED)
+        text_c(d, (cx, cy - h + 78 * s), month, font('anton', 92 * s), CREAM)
+        text_c(d, (cx, cy + 50 * s), str(num), font('anton', 330 * s), INK)
+        if sub: text_c(d, (cx, cy + h - 56 * s), sub, font('inter', 40 * s), shade(INK, 2.4))
+    page(d, nxt if (tear > 0 and nxt is not None) else day)
+    if 0 < tear < 1 and nxt is not None:                                   # the old page falls away
+        k = ease(tear); pw, ph = w * (1 - 0.45 * k), h * (1 - 0.45 * k)
+        px, py = cx + 420 * k * s, cy + 200 * k * s; a = 0.9 * k
+        c_, s_ = math.cos(a), math.sin(a)
+        pts = [(px + (dx * c_ - dy * s_), py + (dx * s_ + dy * c_)) for dx, dy in ((-pw, -ph), (pw, -ph), (pw, ph), (-pw, ph))]
+        d.polygon(pts, fill=mix(CREAM, BG1, 0.25 * k))
+        mx, my = px - (0 * c_ - 40 * s_), py + (0 * s_ + 40 * c_)
+        text_c(d, (mx, my), str(day), font('anton', 300 * s * (1 - 0.45 * k)), mix(INK, BG1, 0.5 * k))
+    for rx in (-150, 0, 150):                                               # binder rings
+        d.rounded_rectangle([cx + rx * s - 14 * s, cy - h - 40 * s, cx + rx * s + 14 * s, cy - h + 30 * s], 12 * s, fill=STEEL)
+
+def crown(d, cx, cy, s, t):
+    g, dk = GOLD, shade(GOLD, 0.72)
+    for i in range(12):                                                     # light rays
+        a = i * math.pi / 6 + t * 0.25
+        d.polygon([(cx, cy), (cx + math.cos(a - 0.08) * 420 * s, cy + math.sin(a - 0.08) * 420 * s), (cx + math.cos(a + 0.08) * 420 * s, cy + math.sin(a + 0.08) * 420 * s)], fill=mix(BG1, GOLD, 0.18))
+    d.rounded_rectangle([cx - 260 * s, cy + 120 * s, cx + 260 * s, cy + 190 * s], 30 * s, fill=RED)        # cushion
+    d.polygon([(cx - 210 * s, cy + 120 * s), (cx - 240 * s, cy - 130 * s), (cx - 120 * s, cy - 10 * s), (cx, cy - 200 * s), (cx + 120 * s, cy - 10 * s), (cx + 240 * s, cy - 130 * s), (cx + 210 * s, cy + 120 * s)], fill=g)
+    d.rectangle([cx - 210 * s, cy + 50 * s, cx + 210 * s, cy + 120 * s], fill=dk)
+    for jx, col in ((-120, RED), (0, (60, 140, 230)), (120, RED)): d.ellipse([cx + jx * s - 22 * s, cy + 63 * s, cx + jx * s + 22 * s, cy + 107 * s], fill=col)
+    for tx, ty in ((-240, -130), (0, -200), (240, -130)): d.ellipse([tx * s + cx - 22 * s, ty * s + cy - 22 * s, tx * s + cx + 22 * s, ty * s + cy + 22 * s], fill=CREAM)
+
+def wooden_mouse(d, cx, ground, s, t):
+    wd, dk = (176, 116, 62), (130, 82, 42)
+    d.rounded_rectangle([cx - 200 * s, ground - 210 * s, cx + 200 * s, ground], 30 * s, fill=wd)
+    for i in range(5): d.line([(cx - 180 * s, ground - (40 + i * 34) * s), (cx + 180 * s, ground - (46 + i * 34) * s)], fill=dk, width=max(2, int(4 * s)))
+    d.rounded_rectangle([cx + 70 * s, ground - 250 * s, cx + 150 * s, ground - 206 * s], 10 * s, fill=RED)   # the button
+    d.ellipse([cx - 150 * s, ground - 30 * s, cx - 90 * s, ground + 30 * s], fill=INK); d.ellipse([cx + 90 * s, ground - 30 * s, cx + 150 * s, ground + 30 * s], fill=INK)
+    cord = [(cx - 200 * s, ground - 120 * s), (cx - 290 * s, ground - 150 * s), (cx - 330 * s, ground - 300 * s), (cx - 300 * s, ground - 440 * s)]
+    d.line(cord, fill=INK, width=max(3, int(12 * s)), joint='curve')
+
+def monitor(d, cx, cy, s, t):
+    d.rounded_rectangle([cx - 220 * s, cy - 170 * s, cx + 220 * s, cy + 150 * s], 30 * s, fill=(196, 186, 160))
+    d.rounded_rectangle([cx - 180 * s, cy - 136 * s, cx + 180 * s, cy + 110 * s], 20 * s, fill=(20, 40, 30))
+    for i in range(4): d.line([(cx - 150 * s, cy - 100 * s + i * 40 * s), (cx + (60 if i % 2 else 120) * s, cy - 100 * s + i * 40 * s)], fill=(80, 220, 120), width=max(2, int(6 * s)))
+    ax, ay = cx + math.sin(t * 1.3) * 110 * s, cy + math.cos(t * 1.7) * 60 * s                 # cursor
+    d.polygon([(ax, ay), (ax, ay + 50 * s), (ax + 14 * s, ay + 38 * s), (ax + 26 * s, ay + 60 * s), (ax + 36 * s, ay + 54 * s), (ax + 24 * s, ay + 34 * s), (ax + 40 * s, ay + 34 * s)], fill=CREAM)
+    d.rectangle([cx - 60 * s, cy + 150 * s, cx + 60 * s, cy + 200 * s], fill=(170, 160, 136))
+
+def lunar_rover(d, x, ground, s, t):
+    body = (150, 156, 170)
+    for wx in (-120, -40, 40, 120):
+        r = 34 * s; d.ellipse([x + wx * s - r, ground - 2 * r, x + wx * s + r, ground], fill=INK)
+        a = t * 3 + wx; d.line([(x + wx * s, ground - r), (x + wx * s + math.cos(a) * r, ground - r + math.sin(a) * r)], fill=STEEL, width=max(2, int(5 * s)))
+    d.pieslice([x - 170 * s, ground - 210 * s, x + 170 * s, ground - 30 * s], 0, 180, fill=body)
+    d.rectangle([x - 170 * s, ground - 124 * s, x + 170 * s, ground - 110 * s], fill=shade(body, 0.7))
+    d.polygon([(x - 170 * s, ground - 124 * s), (x - 200 * s, ground - 230 * s), (x + 140 * s, ground - 300 * s), (x + 170 * s, ground - 124 * s)], fill=(60, 90, 160))  # open lid / solar panel
+    for i in range(1, 5): d.line([(x - 170 * s + i * 66 * s, ground - 124 * s), (x - 200 * s + i * 68 * s, ground - 230 * s - i * 14 * s)], fill=(40, 60, 110), width=max(2, int(4 * s)))
+    d.line([(x + 120 * s, ground - 140 * s), (x + 150 * s, ground - 360 * s)], fill=STEEL, width=max(2, int(5 * s)))
+    d.ellipse([x + 186 * s, ground - 150 * s, x + 214 * s, ground - 122 * s], fill=LIGHT)
+
+def candle(d, x, y, s, t, i=0):
+    d.rectangle([x - 7 * s, y - 40 * s, x + 7 * s, y], fill=CREAM)
+    fk = 1 + 0.25 * math.sin(t * 13 + i * 2)
+    d.ellipse([x - 9 * s, y - 70 * s * fk, x + 9 * s, y - 38 * s], fill=HOT)
+
+# ----- Apollo 11 drawings -----
+MOONC = (176, 172, 166)
+
+def moon_ground(d, ground, top=150):
+    d.polygon([(x_, ground - top + 850 * (1 - math.sqrt(max(0, 1 - ((x_ - W / 2) / (W / 2 + 260)) ** 2)))) for x_ in range(-260, W + 261, 30)] + [(W + 260, ground + 40), (-260, ground + 40)], fill=MOONC)
+    for cx_, cy_, r in ((160, ground - 40, 60), (700, ground - 90, 40), (930, ground - 20, 80), (420, ground - 10, 34)):
+        d.ellipse([cx_ - r, cy_ - r * 0.36, cx_ + r, cy_ + r * 0.36], fill=shade(MOONC, 0.75))
+
+def earth(d, x, y, r):
+    d.ellipse([x - r, y - r, x + r, y + r], fill=(44, 110, 190))
+    for bx, by, bw, bh in ((-0.3, -0.3, 0.7, 0.55), (0.35, 0.25, 0.55, 0.65), (-0.4, 0.4, 0.45, 0.3)):
+        d.ellipse([x + bx * r - bw * r / 2, y + by * r - bh * r / 2, x + bx * r + bw * r / 2, y + by * r + bh * r / 2], fill=(110, 180, 110))
+    d.ellipse([x - r * 0.5, y - r * 0.85, x + r * 0.2, y - r * 0.6], fill=(236, 244, 255))
+
+def big_moon(d, x, y, r):
+    d.ellipse([x - r, y - r, x + r, y + r], fill=MOONC)
+    for bx, by, br in ((-0.35, -0.2, 0.22), (0.25, 0.3, 0.16), (0.3, -0.4, 0.12), (-0.1, 0.5, 0.1), (0.5, 0.0, 0.08)):
+        d.ellipse([x + bx * r - br * r, y + by * r - br * r, x + bx * r + br * r, y + by * r + br * r], fill=shade(MOONC, 0.8))
+
+def saturn_v(d, x, base, s, flame=0.0, t=0.0):
+    W_, B = (240, 242, 248), INK
+    if flame > 0:
+        fk = 1 + 0.15 * math.sin(t * 30)
+        d.polygon([(x - 46 * s, base), (x, base + 300 * s * flame * fk), (x + 46 * s, base)], fill=(255, 150, 40))
+        d.polygon([(x - 26 * s, base), (x, base + 180 * s * flame * fk), (x + 26 * s, base)], fill=(255, 236, 160))
+    d.rectangle([x - 50 * s, base - 300 * s, x + 50 * s, base], fill=W_)
+    for yy in (-60, -150, -240): d.rectangle([x - 50 * s, base + (yy - 18) * s, x + 50 * s, base + yy * s], fill=B)
+    for sg in (-1, 1): d.polygon([(x + sg * 50 * s, base - 60 * s), (x + sg * 86 * s, base), (x + sg * 50 * s, base)], fill=B)
+    d.polygon([(x - 50 * s, base - 300 * s), (x - 38 * s, base - 350 * s), (x + 38 * s, base - 350 * s), (x + 50 * s, base - 300 * s)], fill=W_)
+    d.rectangle([x - 38 * s, base - 470 * s, x + 38 * s, base - 350 * s], fill=W_); d.rectangle([x - 38 * s, base - 410 * s, x + 38 * s, base - 396 * s], fill=B)
+    d.polygon([(x - 38 * s, base - 470 * s), (x - 22 * s, base - 520 * s), (x + 22 * s, base - 520 * s), (x + 38 * s, base - 470 * s)], fill=W_)
+    d.polygon([(x - 22 * s, base - 520 * s), (x, base - 580 * s), (x + 22 * s, base - 520 * s)], fill=(200, 204, 214))
+    d.line([(x, base - 580 * s), (x, base - 630 * s)], fill=(200, 204, 214), width=max(2, int(5 * s)))
+
+def puff_cloud(d, x, y, t, n=16, spread=380, col=(220, 222, 230)):
+    rng = random.Random(14)
+    for i in range(n):
+        a = rng.uniform(math.pi * 0.95, math.pi * 2.05); age = (t * 0.6 + i / n) % 1
+        r = 40 + age * 90; px = x + math.cos(a) * spread * age; py = y + math.sin(a) * 60 * age - 20
+        d.ellipse([px - r, py - r * 0.7, px + r, py + r * 0.7], fill=mix(col, BG1, age * 0.6))
+
+def ascent_stage(d, x, base, s):
+    c = (200, 204, 214)
+    d.polygon([(x - 70 * s, base), (x - 80 * s, base - 70 * s), (x - 40 * s, base - 120 * s), (x + 50 * s, base - 120 * s), (x + 80 * s, base - 70 * s), (x + 70 * s, base)], fill=c)
+    d.polygon([(x - 30 * s, base - 80 * s), (x - 6 * s, base - 100 * s), (x - 6 * s, base - 60 * s)], fill=INK)
+    d.line([(x + 40 * s, base - 120 * s), (x + 60 * s, base - 180 * s)], fill=c, width=max(2, int(5 * s))); d.ellipse([x + 46 * s, base - 206 * s, x + 80 * s, base - 172 * s], fill=CREAM)
+
+def descent_stage(d, x, ground, s):
+    d.line([(x - 70 * s, ground - 70 * s), (x - 120 * s, ground)], fill=STEEL, width=max(3, int(9 * s))); d.line([(x + 70 * s, ground - 70 * s), (x + 120 * s, ground)], fill=STEEL, width=max(3, int(9 * s)))
+    for fx in (-120, 120): d.ellipse([x + fx * s - 24 * s, ground - 8 * s, x + fx * s + 24 * s, ground + 8 * s], fill=STEEL)
+    d.polygon([(x - 90 * s, ground - 140 * s), (x + 90 * s, ground - 140 * s), (x + 100 * s, ground - 66 * s), (x - 100 * s, ground - 66 * s)], fill=(214, 168, 62))
+    for i in range(5): d.line([(x - 84 * s + i * 42 * s, ground - 136 * s), (x - 92 * s + i * 46 * s, ground - 70 * s)], fill=(180, 136, 40), width=max(2, int(3 * s)))
+
+def capsule(d, x, y, s):
+    d.polygon([(x - 70 * s, y), (x - 26 * s, y - 100 * s), (x + 26 * s, y - 100 * s), (x + 70 * s, y)], fill=(210, 214, 222))
+    d.rounded_rectangle([x - 74 * s, y - 6 * s, x + 74 * s, y + 18 * s], 8 * s, fill=(120, 96, 70))
+    d.ellipse([x - 12 * s, y - 70 * s, x + 12 * s, y - 46 * s], fill=INK)
+
+def chutes(d, x, y, s, t):
+    for i, dx in enumerate((-150, 0, 150)):
+        cx_, cy_ = x + dx * s, y - 330 * s + abs(dx) * 0.25 * s + math.sin(t * 2 + i) * 6 * s
+        d.line([(cx_ - 110 * s, cy_), (x, y - 100 * s)], fill=CREAM, width=max(1, int(3 * s))); d.line([(cx_ + 110 * s, cy_), (x, y - 100 * s)], fill=CREAM, width=max(1, int(3 * s)))
+        for k in range(4):
+            d.pieslice([cx_ - 110 * s, cy_ - 90 * s, cx_ + 110 * s, cy_ + 90 * s], 180 + k * 45, 180 + (k + 1) * 45, fill=(226, 60, 50) if k % 2 == 0 else (245, 245, 245))
+
+def boot_print(d, x, y, s, a=0.0):
+    c_, s_ = math.cos(a), math.sin(a); R = lambda px, py: (x + px * c_ * s - py * s_ * s, y + px * s_ * s + py * c_ * s)
+    d.polygon([R(px, py) for px, py in ((-40, -160), (40, -160), (66, -110), (70, -20), (52, 40), (56, 130), (-56, 130), (-52, 40), (-70, -20), (-66, -110))], fill=shade(MOONC, 0.68))
+    d.line([R(-56, 50), R(56, 50)], fill=shade(MOONC, 0.9), width=max(2, int(12 * s)))
+    for k in range(9):
+        yy = -130 + k * 30; d.line([R(-50, yy), R(50, yy)], fill=shade(MOONC, 0.52), width=max(2, int(8 * s)))
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -1161,7 +1301,7 @@ def visual(d, kind, t, dur, img, sc=None):
         ex, ey = 210, VY0 + 170
         d.ellipse([ex - 90, ey - 90, ex + 90, ey + 90], fill=(44, 110, 190))
         for bx, by, bw, bh in ((-30, -30, 60, 50), (30, 20, 50, 60), (-40, 40, 40, 30)): d.ellipse([ex + bx - bw / 2, ey + by - bh / 2, ex + bx + bw / 2, ey + by + bh / 2], fill=LEAF)
-        d.ellipse([-260, ground - 110, W + 260, ground + 700], fill=shade(STONE, 0.78))
+        d.polygon([(x_, ground - 110 + 810 * (1 - math.sqrt(max(0, 1 - ((x_ - cx) / (cx + 260)) ** 2)))) for x_ in range(-260, W + 261, 30)] + [(W + 260, ground + 40), (-260, ground + 40)], fill=shade(STONE, 0.78))
         for cx_, cy_, r in ((200, ground + 10, 70), (640, ground - 50, 44), (900, ground + 30, 90), (420, ground + 60, 36)):
             d.ellipse([cx_ - r, cy_ - r * 0.36, cx_ + r, cy_ + r * 0.36], fill=shade(STONE, 0.6))
         lander(d, 720, ground - 84, 1.25)
@@ -1392,6 +1532,136 @@ def visual(d, kind, t, dur, img, sc=None):
         wl = ground - 130
         liner(d, (t * 160) % (W + 900) - 450, wl, 0.6)
         water(d, wl, t)
+    elif kind == 'calendar_flip':
+        sparkles(d, t, 20)
+        seq = (sc or {}).get('seq', [14, 15, 16, 17]); step = 0.55
+        i = min(int(t / step), len(seq) - 1); frac = (t - i * step) / step
+        cur = seq[i]; nxt = seq[i + 1] if i + 1 < len(seq) else None
+        tear_calendar(d, cx, VY0 + 340, 0.88, (sc or {}).get('month', 'NOVEMBER'), cur, sub='', tear=frac if nxt else 0, nxt=nxt)
+    elif kind == 'crown':
+        sparkles(d, t, 26)
+        crown(d, cx, VY0 + 350 + math.sin(t * 1.5) * 10, 1.25, t)
+    elif kind == 'canal':
+        d.rectangle([60, VY0 + 40, W - 60, ground], fill=(206, 168, 100))
+        d.rectangle([60, VY0 + 40, W - 60, VY0 + 150], fill=LIQ); d.rectangle([60, ground - 110, W - 60, ground], fill=LIQ)
+        path = [(cx + math.sin(u * 3.0) * 60, VY0 + 150 + u * (ground - 260 - VY0)) for u in [j / 20 for j in range(21)]]
+        d.line(path, fill=LIQ, width=54, joint='curve')
+        text_c(d, (cx, VY0 + 95), 'MEDITERRANEAN SEA', font('inter', 34), CREAM)
+        text_c(d, (cx, ground - 55), 'RED SEA', font('inter', 34), CREAM)
+        u = (t * 0.22) % 1; k = min(int(u * 20), 19); f = u * 20 - k
+        sx, sy = path[k][0] + (path[k + 1][0] - path[k][0]) * f, path[k][1] + (path[k + 1][1] - path[k][1]) * f
+        d.polygon([(sx - 14, sy - 40), (sx, sy - 62), (sx + 14, sy - 40), (sx + 14, sy + 40), (sx - 14, sy + 40)], fill=CREAM)
+        d.rectangle([sx - 8, sy - 20, sx + 8, sy + 10], fill=RED)
+        p = ease((t - 0.8) / 0.6)
+        if p > 0:
+            text_c(d, (W - 240, VY0 + 320), '~160 KM', font('anton', 70 * p), INK)
+            d.line([(W - 120, VY0 + 170), (W - 120, ground - 130)], fill=INK, width=5)
+    elif kind == 'mouse':
+        sparkles(d, t, 14)
+        monitor(d, cx + 170, VY0 + 250, 0.95, t)
+        wooden_mouse(d, cx - 160, ground - 30, 1.15, t)
+        d.line([(0, ground - 30), (W, ground - 30)], fill=LINE, width=4)
+    elif kind == 'rover':
+        sparkles(d, t, 30)
+        ex, ey = 870, VY0 + 110
+        d.ellipse([ex - 70, ey - 70, ex + 70, ey + 70], fill=(44, 110, 190))
+        for bx, by, bw, bh in ((-20, -20, 50, 40), (25, 18, 40, 46), (-30, 30, 30, 22)): d.ellipse([ex + bx - bw / 2, ey + by - bh / 2, ex + bx + bw / 2, ey + by + bh / 2], fill=(110, 180, 110))
+        d.polygon([(x_, ground - 150 + 850 * (1 - math.sqrt(max(0, 1 - ((x_ - cx) / (cx + 260)) ** 2)))) for x_ in range(-260, W + 261, 30)] + [(W + 260, ground + 40), (-260, ground + 40)], fill=(170, 166, 160))
+        for cx_, cy_, r in ((160, ground - 40, 60), (700, ground - 90, 40), (930, ground - 20, 80)): d.ellipse([cx_ - r, cy_ - r * 0.36, cx_ + r, cy_ + r * 0.36], fill=(130, 126, 122))
+        rx = 120 + (t * 70) % 900
+        for j in range(10):                                                         # wheel tracks behind it
+            tx = rx - 180 - j * 46
+            if tx > -40: d.rectangle([tx, ground - 66, tx + 26, ground - 58], fill=(140, 136, 130))
+        lunar_rover(d, rx, ground - 56, 1.05, t)
+    elif kind == 'protest':
+        buildings(d, 60, ground - 60, n=3, seed=4, scale=0.9); buildings(d, 620, ground - 60, n=3, seed=7, scale=0.9)
+        for tx in (480, 600):                                                       # Prague's twin spires
+            d.polygon([(tx - 40, ground - 60), (tx - 40, ground - 420), (tx, ground - 560), (tx + 40, ground - 420), (tx + 40, ground - 60)], fill=shade(STEEL, 0.4))
+        rng = random.Random(6)
+        for r in range(3):
+            for c in range(9):
+                x = 70 + c * 118 + (r % 2) * 50; y = ground - 30 - (2 - r) * 70; b = abs(math.sin(t * 3 + c + r)) * 8
+                col = mix(BG1, CREAM, 0.3 + 0.25 * r)
+                person(d, x, y - b, 1.1 + 0.15 * r, col)
+                if (c + r) % 3 == 0: candle(d, x + 30, y - 30 - b, 1.0 + 0.1 * r, t, c)
+                elif (c + r) % 3 == 1 and math.sin(t * 6 + c) > 0:                  # jingling keys
+                    kx, ky = x + 30, y - 110 - b; d.ellipse([kx - 12, ky - 12, kx + 12, ky + 12], outline=GOLD, width=5); d.line([(kx, ky + 10), (kx, ky + 46)], fill=GOLD, width=6)
+    elif kind == 'follow_calendar':
+        sparkles(d, t, 20)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 80 - bh / 2, cx + bw / 2, VY0 + 80 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 80), 'FOLLOW', font('anton', 96 * p), CREAM)
+        tear_calendar(d, cx, VY0 + 470, 0.55, (sc or {}).get('month', 'NOVEMBER'), (sc or {}).get('day', 17))
+    elif kind == 'moon_earth':
+        sparkles(d, t, 40)
+        earth(d, 230, ground - 120, 140); big_moon(d, 830, VY0 + 170, 150)
+        pts = [(230 + (830 - 230) * u, ground - 120 - math.sin(u * math.pi) * 380 - (ground - 120 - VY0 - 170) * u) for u in [j / 40 for j in range(41)]]
+        for j in range(0, 40, 2): d.line([pts[j], pts[j + 1]], fill=CREAM, width=5)
+        u = (t * 0.18) % 1; k = min(int(u * 40), 39); sx, sy = pts[k]
+        d.ellipse([sx - 14, sy - 14, sx + 14, sy + 14], fill=GOLD)
+    elif kind == 'launch':
+        sparkles(d, t, 26)
+        k = ease((t - 0.8) / max(dur - 0.8, 1.5)) ** 1.6; base = ground - 40 - k * 160
+        d.rectangle([150, ground - 600, 190, ground - 40], fill=shade(RED, 0.7))
+        for j in range(12): d.line([(150, ground - 40 - j * 48), (190, ground - 64 - j * 48)], fill=shade(RED, 0.5), width=4)
+        d.rectangle([60, ground - 40, W - 60, ground], fill=shade(STEEL, 0.5))
+        saturn_v(d, cx + 40, base, 0.7, flame=0.45 * min(1, t / 0.6), t=t)
+        puff_cloud(d, cx + 40, ground - 30, t, n=18, spread=460)
+    elif kind == 'orbit':
+        sparkles(d, t, 40)
+        big_moon(d, cx, VY0 + 360, 230)
+        a = t * 1.1; rx_, ry_ = 380, 120
+        x_, y_ = cx + math.cos(a) * rx_, VY0 + 360 + math.sin(a) * ry_
+        if math.sin(a) > -0.2 or abs(math.cos(a)) > 0.62:
+            d.rectangle([x_ - 30, y_ - 14, x_ + 18, y_ + 14], fill=(220, 224, 232)); d.polygon([(x_ + 18, y_ - 14), (x_ + 46, y_), (x_ + 18, y_ + 14)], fill=(200, 204, 214))
+        d.arc([cx - rx_, VY0 + 360 - ry_, cx + rx_, VY0 + 360 + ry_], 0, 180, fill=mix(BG1, CREAM, 0.35), width=3)
+    elif kind == 'landing':
+        sparkles(d, t, 30); earth(d, 880, VY0 + 90, 60)
+        moon_ground(d, ground)
+        k = ease(t / max(dur * 0.8, 1.5)); y_ = ground - 110 - 470 * (1 - k)
+        if k < 0.98:
+            for i in range(10):
+                a = math.radians(180 + i * 18); r = 80 + 260 * (1 - (ground - 110 - y_) / 470) * ((t * 3 + i) % 1)
+                d.ellipse([cx + math.cos(a) * r - 20, ground - 80 - 12, cx + math.cos(a) * r + 20, ground - 80 + 12], fill=shade(MOONC, 1.1))
+            d.polygon([(cx - 22, y_ + 20), (cx, y_ + 90 + 20 * math.sin(t * 30)), (cx + 22, y_ + 20)], fill=(255, 170, 60))
+        descent_stage(d, cx, y_ + 30, 1.0); ascent_stage(d, cx, y_ - 110, 1.0)
+        if (t % 0.8) < 0.45 and k < 0.9:
+            d.rounded_rectangle([60, VY0 + 30, 340, VY0 + 120], 16, fill=RED); text_c(d, (200, VY0 + 75), 'ALARM 1202', font('anton', 52), CREAM)
+        fuel = max(0.04, 1 - k * 0.96); d.rounded_rectangle([W - 120, VY0 + 160, W - 70, VY0 + 460], 12, outline=CREAM, width=5)
+        d.rectangle([W - 112, VY0 + 452 - 284 * fuel, W - 78, VY0 + 452], fill=GOLD if fuel > 0.2 else RED)
+        text_c(d, (W - 95, VY0 + 500), 'FUEL', font('inter', 30), CREAM)
+    elif kind == 'footprint':
+        sparkles(d, t, 30)
+        d.rectangle([60, VY0 + 40, W - 60, ground], fill=MOONC)
+        rng = random.Random(2)
+        for i in range(60):
+            x_, y_ = rng.uniform(80, W - 80), rng.uniform(VY0 + 60, ground - 20); r = rng.uniform(4, 14)
+            d.ellipse([x_ - r, y_ - r, x_ + r, y_ + r], fill=shade(MOONC, rng.uniform(0.82, 1.08)))
+        p = ease(t / 0.8)
+        boot_print(d, cx - 120, VY0 + 400, 1.15 * p + 0.01, -0.12)
+        if t > 0.9: boot_print(d, cx + 160, VY0 + 260, 1.15 * ease((t - 0.9) / 0.6) + 0.01, 0.12)
+    elif kind == 'moon_liftoff':
+        sparkles(d, t, 30); earth(d, 200, VY0 + 110, 70)
+        moon_ground(d, ground)
+        descent_stage(d, cx, ground - 30, 1.15)
+        k = ease((t - 0.6) / max(dur - 0.6, 1.5)) ** 1.4; y_ = ground - 30 - 150 * 1.15 - k * 220
+        if t > 0.4: d.polygon([(cx - 26, y_), (cx, y_ + 120 + 20 * math.sin(t * 30)), (cx + 26, y_)], fill=(255, 170, 60))
+        ascent_stage(d, cx, y_, 1.15)
+    elif kind == 'splashdown':
+        sparkles(d, t, 20); wl = ground - 160
+        k = ease(t / max(dur * 0.75, 1.5)); y_ = wl - 20 - 150 * (1 - k)
+        chutes(d, cx, y_, 0.8, t); capsule(d, cx, y_, 1.3)
+        water(d, wl, t)
+        if k > 0.97:
+            r = 60 + ((t * 120) % 200)
+            d.ellipse([cx - r * 1.6, wl - r * 0.2, cx + r * 1.6, wl + r * 0.2], outline=mix(LIQ, CREAM, 0.6), width=5)
+    elif kind == 'follow_space':
+        sparkles(d, t, 40)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 100 - bh / 2, cx + bw / 2, VY0 + 100 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 100), 'FOLLOW', font('anton', 96 * p), CREAM)
+        big_moon(d, cx, VY0 + 470, 170)
+        a = t * 0.9; d.ellipse([cx + math.cos(a) * 280 - 12, VY0 + 470 + math.sin(a) * 90 - 12, cx + math.cos(a) * 280 + 12, VY0 + 470 + math.sin(a) * 90 + 12], fill=GOLD)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

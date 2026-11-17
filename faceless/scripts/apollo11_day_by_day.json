@@ -1,0 +1,35 @@
+{
+  "title": "Apollo 11, Day by Day",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 4.0,
+  "transitions": true,
+  "palette": {
+    "bg0": [2, 4, 14], "bg1": [24, 32, 76], "text": [242, 246, 255], "headline": [255, 172, 64],
+    "accent": [232, 84, 44], "ink": [4, 6, 16], "line": [70, 80, 124], "liquid": [24, 80, 150],
+    "steel": [140, 150, 172], "glow": [80, 110, 255],
+    "pop": [[255, 172, 64], [255, 240, 220], [120, 180, 255], [255, 120, 80], [200, 210, 255]]
+  },
+  "scenes": [
+    {"say": "In eight days in July 1969, humans flew to the Moon and back. Here is how it happened, day by day.",
+     "kicker": "TRUE STORY", "big": "8 DAYS", "sub": "Apollo 11, day by day", "visual": "moon_earth"},
+    {"say": "July sixteenth. Neil Armstrong, Buzz Aldrin and Michael Collins blast off from Florida on a giant Saturn Five rocket.",
+     "kicker": "JULY 16, 1969", "big": "LIFTOFF", "sub": "Florida, 9:32 in the morning", "visual": "launch"},
+    {"say": "July nineteenth. After three days and almost four hundred thousand kilometres, they reach the Moon.",
+     "kicker": "JULY 19, 1969", "big": "384,400 KM", "sub": "from the Earth to the Moon", "visual": "orbit"},
+    {"say": "July twentieth. Alarms are going off and fuel is running out, so Armstrong flies the lander by hand. The Eagle has landed.",
+     "kicker": "JULY 20 · 4:17 PM", "big": "EAGLE", "sub": "landed with under a minute of fuel", "visual": "landing"},
+    {"say": "That night, around six hundred million people watch Armstrong take the first step on the Moon.",
+     "kicker": "JULY 20 · 10:56 PM", "big": "1ST STEP", "sub": "watched by 600 million people", "visual": "moonwalk"},
+    {"say": "They plant a flag, collect rocks, and spend about two and a half hours walking on another world.",
+     "kicker": "ON THE MOON", "big": "2.5 HOURS", "sub": "walking on another world", "visual": "footprint"},
+    {"say": "July twenty first. The Eagle lifts off and rejoins Michael Collins, who has been orbiting the Moon alone.",
+     "kicker": "JULY 21, 1969", "big": "LIFT OFF", "sub": "leaving the Moon", "visual": "moon_liftoff"},
+    {"say": "July twenty fourth. The capsule splashes down in the Pacific Ocean. Mission accomplished.",
+     "kicker": "JULY 24, 1969", "big": "SPLASHDOWN", "sub": "the Pacific Ocean", "visual": "splashdown"},
+    {"say": "And their footprints are still up there today, because the Moon has no wind to blow them away.",
+     "kicker": "STILL THERE", "big": "FOOTPRINTS", "sub": "no wind to erase them", "visual": "footprint"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_space"}
+  ]
+}

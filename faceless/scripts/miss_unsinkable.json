@@ -1,0 +1,37 @@
+{
+  "title": "Miss Unsinkable",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 4.0,
+  "transitions": true,
+  "palette": {
+    "bg0": [3, 9, 30], "bg1": [16, 58, 128], "text": [238, 246, 255], "headline": [128, 212, 255],
+    "accent": [0, 110, 236], "ink": [4, 10, 26], "line": [56, 100, 170], "liquid": [18, 74, 150],
+    "steel": [112, 140, 176], "glow": [40, 120, 255],
+    "pop": [[128, 212, 255], [80, 160, 255], [210, 236, 255], [60, 124, 232], [170, 200, 255]]
+  },
+  "scenes": [
+    {"say": "This woman survived the sinking of the Titanic. And that was not even her only shipwreck.",
+     "kicker": "TRUE STORY", "big": "3 SHIPS", "sub": "one woman survived them all", "visual": "liner_night"},
+    {"say": "Her name was Violet Jessop. She worked as a stewardess on giant ocean liners.",
+     "kicker": "MEET VIOLET", "big": "VIOLET", "sub": "a stewardess at sea", "visual": "portrait"},
+    {"say": "In 1911, she was on board the Olympic when a warship smashed into its side. She walked away.",
+     "kicker": "SHIP 1 · 1911", "big": "OLYMPIC", "sub": "rammed by a warship", "visual": "collision"},
+    {"say": "A year later, she joined the Olympic's sister ship. The Titanic.",
+     "kicker": "SHIP 2 · 1912", "big": "TITANIC", "sub": "the ship they called unsinkable", "visual": "liner_night"},
+    {"say": "It hit an iceberg, and sank in less than three hours.",
+     "kicker": "APRIL 1912", "big": "ICEBERG", "sub": "the Titanic goes down", "visual": "iceberg_sink"},
+    {"say": "Violet escaped in lifeboat sixteen. Someone handed her a baby to look after.",
+     "kicker": "SURVIVOR", "big": "LIFEBOAT 16", "sub": "holding a stranger's baby", "visual": "lifeboat"},
+    {"say": "Then, in World War One, she served on the third sister ship, the Britannic, a hospital ship.",
+     "kicker": "SHIP 3 · 1916", "big": "BRITANNIC", "sub": "a hospital ship at war", "visual": "hospital_ship"},
+    {"say": "It hit a mine. As her lifeboat was pulled toward the giant propellers, she jumped into the sea.",
+     "kicker": "NOVEMBER 1916", "big": "SHE JUMPED", "sub": "the Britannic sank in under an hour", "visual": "propeller"},
+    {"say": "She hit her head, but she survived. Three ships, three disasters, one woman.",
+     "kicker": "SURVIVED AGAIN", "big": "3 FOR 3", "sub": "Olympic, Titanic, Britannic", "visual": "three_ships"},
+    {"say": "They called her Miss Unsinkable. She lived to the age of eighty three.",
+     "kicker": "MISS UNSINKABLE", "big": "AGE 83", "sub": "Violet Jessop, 1887 to 1971", "visual": "portrait"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_sea"}
+  ]
+}

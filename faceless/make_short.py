@@ -621,6 +621,91 @@ def mini_icon(d, kind, x, y, s, t):
     elif kind == 'wave': wave(d, x + 70 * s, y + 60 * s, 90 * s, t, left=x - 90 * s)
     elif kind == 'pyramid': pyramid(d, x, y + 60 * s, 170 * s, 120 * s)
 
+# ----- ocean liner drawings (Violet Jessop story) -----
+LIGHT, FUNNEL = (255, 222, 140), (214, 170, 96)
+
+def liner(d, x, wl, s, tilt=0.0, hull=None, lights=True, funnels=4, band=None, cross=False, deck=None):
+    """An ocean liner side view, bow to the right, waterline centre at (x, wl). tilt > 0 dips the bow."""
+    hull = hull or INK; deck = deck or mix(hull, CREAM, 0.25)
+    c, sn = math.cos(tilt), math.sin(tilt)
+    R = lambda px, py: (x + (px * c - py * sn) * s, wl + (px * sn + py * c) * s)
+    poly = lambda pts, col: d.polygon([R(px, py) for px, py in pts], fill=col)
+    poly([(-330, 0), (320, 0), (385, -112), (-345, -112), (-362, -64)], hull)
+    if band: poly([(-340, -40), (355, -40), (364, -56), (-350, -56)], band)
+    poly([(-300, -112), (300, -112), (300, -150), (-300, -150)], deck)
+    poly([(-240, -150), (220, -150), (220, -186), (-240, -186)], mix(deck, CREAM, 0.3))
+    for i in range(funnels):
+        fx = -170 + i * (360 / max(1, funnels - 1)) if funnels > 1 else 0
+        poly([(fx - 24, -186), (fx + 24, -186), (fx + 30, -318), (fx - 18, -318)], FUNNEL)
+        poly([(fx - 20, -296), (fx + 29, -296), (fx + 30, -318), (fx - 18, -318)], INK)
+    d.line([R(-300, -150), R(-280, -380)], fill=mix(hull, CREAM, 0.4), width=max(2, int(5 * s)))
+    d.line([R(280, -150), R(300, -380)], fill=mix(hull, CREAM, 0.4), width=max(2, int(5 * s)))
+    if cross:
+        for cxp in (-170, 160):
+            poly([(cxp - 10, -96), (cxp + 10, -96), (cxp + 10, -22), (cxp - 10, -22)], (214, 40, 46))
+            poly([(cxp - 36, -69), (cxp + 36, -69), (cxp + 36, -49), (cxp - 36, -49)], (214, 40, 46))
+    if lights:
+        for row in (-82, -130, -168):
+            for i in range(-10, 11):
+                px = i * 29
+                if abs(px) > (300 if row < -100 else 320) or (row == -168 and abs(px + 10) > 215): continue
+                if (i * 7 + row) % 5 == 0: continue
+                cx_, cy_ = R(px, row); r = 3.5 * s
+                d.ellipse([cx_ - r, cy_ - r, cx_ + r, cy_ + r], fill=LIGHT)
+
+def warship(d, x, wl, s):
+    col = STEEL; R = lambda px, py: (x + px * s, wl + py * s)
+    d.polygon([R(-280, 0), R(230, 0), R(300, 18), R(262, -88), R(-292, -88)], fill=col)
+    d.polygon([R(-160, -88), R(120, -88), R(110, -140), R(-150, -140)], fill=shade(col, 1.15))
+    for fx in (-90, 10): d.polygon([R(fx - 20, -140), R(fx + 20, -140), R(fx + 18, -250), R(fx - 18, -250)], fill=shade(col, 0.8))
+    d.line([R(80, -140), R(90, -330)], fill=shade(col, 0.8), width=max(2, int(6 * s)))
+
+def water(d, y, t, dark=False):
+    """The sea from y down, with moving wave lines."""
+    d.rectangle([0, y, W, VY1 + 60], fill=shade(LIQ, 0.6) if dark else LIQ)
+    for i in range(7):
+        yy = y + 16 + i * 30; off = math.sin(t * 1.3 + i * 1.7) * 40
+        for k in range(5):
+            x0 = (k * 260 + off + i * 90) % (W + 200) - 120
+            d.line([(x0, yy), (x0 + 120, yy)], fill=mix(LIQ, CREAM, 0.25 - i * 0.025), width=5)
+
+def moon(d, x, y, r):
+    d.ellipse([x - r * 1.6, y - r * 1.6, x + r * 1.6, y + r * 1.6], fill=mix(BG1, CREAM, 0.12))
+    d.ellipse([x - r, y - r, x + r, y + r], fill=CREAM)
+    d.ellipse([x - r * 0.4, y - r * 0.3, x - r * 0.1, y], fill=mix(CREAM, STEEL, 0.25))
+
+def iceberg(d, x, wl, s):
+    ice, sh = (226, 242, 255), (150, 196, 236)
+    d.polygon([(x - 160 * s, wl), (x - 110 * s, wl - 150 * s), (x - 40 * s, wl - 230 * s), (x + 10 * s, wl - 330 * s), (x + 70 * s, wl - 210 * s), (x + 150 * s, wl - 120 * s), (x + 190 * s, wl)], fill=ice)
+    d.polygon([(x + 10 * s, wl - 330 * s), (x + 70 * s, wl - 210 * s), (x + 150 * s, wl - 120 * s), (x + 190 * s, wl), (x + 40 * s, wl)], fill=sh)
+
+def lifeboat(d, x, wl, s, t, baby=True):
+    b = math.sin(t * 1.8) * 6 * s; r = math.sin(t * 1.4) * 0.04
+    for i, px in enumerate((-110, -55, 0, 55, 110)):
+        hx = x + px * s; hy = wl - 70 * s + b + px * r * s
+        d.ellipse([hx - 18 * s, hy - 52 * s, hx + 18 * s, hy - 16 * s], fill=INK)
+        d.rounded_rectangle([hx - 22 * s, hy - 18 * s, hx + 22 * s, hy + 30 * s], 10 * s, fill=INK)
+        if baby and i == 2: d.ellipse([hx - 30 * s, hy - 8 * s, hx + 6 * s, hy + 16 * s], fill=CREAM)
+    d.polygon([(x - 190 * s, wl - 60 * s + b), (x + 190 * s, wl - 60 * s + b), (x + 150 * s, wl + 6 * s + b), (x - 150 * s, wl + 6 * s + b)], fill=(150, 104, 62))
+    d.line([(x - 190 * s, wl - 60 * s + b), (x + 190 * s, wl - 60 * s + b)], fill=(190, 140, 90), width=max(2, int(8 * s)))
+    d.line([(x + 40 * s, wl - 50 * s + b), (x + 220 * s, wl + 30 * s + b)], fill=(130, 90, 54), width=max(2, int(8 * s)))
+
+def propeller(d, cx, cy, r, ang):
+    for k in range(3):
+        a = ang + k * 2 * math.pi / 3
+        p1 = (cx + math.cos(a - 0.35) * r * 0.25, cy + math.sin(a - 0.35) * r * 0.25)
+        p2 = (cx + math.cos(a - 0.2) * r, cy + math.sin(a - 0.2) * r)
+        p3 = (cx + math.cos(a + 0.25) * r * 0.95, cy + math.sin(a + 0.25) * r * 0.95)
+        p4 = (cx + math.cos(a + 0.4) * r * 0.25, cy + math.sin(a + 0.4) * r * 0.25)
+        d.polygon([p1, p2, p3, p4], fill=FUNNEL)
+    d.ellipse([cx - r * 0.2, cy - r * 0.2, cx + r * 0.2, cy + r * 0.2], fill=shade(FUNNEL, 0.7))
+
+def bubbles(d, t, x0, x1, y0, y1, n=24, seed=3):
+    rng = random.Random(seed)
+    for i in range(n):
+        x = rng.uniform(x0, x1) + math.sin(t * 2 + i) * 14; y = y1 - (t * rng.uniform(60, 140) + rng.uniform(0, y1 - y0)) % (y1 - y0)
+        r = rng.uniform(5, 16); d.ellipse([x - r, y - r, x + r, y + r], outline=mix(LIQ, CREAM, 0.5), width=3)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -1227,6 +1312,86 @@ def visual(d, kind, t, dur, img, sc=None):
         bx, by = cx + 300, VY0 + 120
         pts = [(bx + math.sin(sw) * (yy) + math.cos(sw) * xx, by + math.cos(sw) * yy - math.sin(sw) * xx) for xx, yy in ((-60, 90), (-50, 30), (-20, 0), (20, 0), (50, 30), (60, 90))]
         d.polygon(pts, fill=GOLD); d.ellipse([bx - 16 + math.sin(sw) * 110, by + 92, bx + 16 + math.sin(sw) * 110, by + 124], fill=GOLD)
+    elif kind == 'liner_night':
+        sparkles(d, t, 30); moon(d, 930, VY0 + 40, 50)
+        wl = ground - 150
+        liner(d, cx + math.sin(t * 0.4) * 24, wl, 1.2, tilt=math.sin(t * 1.1) * 0.008)
+        water(d, wl, t)
+        for i in range(6):                                                           # reflections of the lights
+            rx = cx - 280 + i * 110 + math.sin(t * 2 + i) * 10
+            d.line([(rx, wl + 26), (rx + 40, wl + 26)], fill=LIGHT, width=4)
+    elif kind == 'portrait':
+        sparkles(d, t, 24); py = VY0 + 340
+        d.ellipse([cx - 250, py - 320, cx + 250, py + 320], fill=GOLD); d.ellipse([cx - 228, py - 298, cx + 228, py + 298], fill=mix(BG1, CREAM, 0.18))
+        d.pieslice([cx - 200, py + 100, cx + 200, py + 420], 180, 360, fill=INK)
+        d.rectangle([cx - 38, py + 10, cx + 38, py + 140], fill=INK)
+        d.ellipse([cx - 88, py - 170, cx + 88, py + 46], fill=INK); d.ellipse([cx + 34, py - 200, cx + 124, py - 110], fill=INK)
+        d.rounded_rectangle([cx - 104, py - 186, cx + 70, py - 150], 16, fill=CREAM)                     # a stewardess's cap
+        d.rectangle([cx - 228, py + 262, cx + 228, py + 300], fill=mix(BG1, CREAM, 0.18))
+    elif kind == 'collision':
+        sparkles(d, t, 20); wl = ground - 150
+        k = ease(t / 1.6); hit = t > 1.55; sh = math.sin(t * 50) * 6 * hit * max(0, 1 - (t - 1.55) / 1.5)
+        liner(d, cx + 160 + sh, wl, 0.9, hull=mix(INK, STEEL, 0.25))
+        warship(d, -260 + 420 * k, wl, 0.62)
+        if hit:
+            p = ease((t - 1.55) / 0.3); bx, by = 196, wl - 50
+            pts = [(bx + math.cos(i * math.pi / 6) * (90 if i % 2 else 34) * p, by + math.sin(i * math.pi / 6) * (90 if i % 2 else 34) * p) for i in range(12)]
+            if p < 1 or (t % 0.4) < 0.3: d.polygon(pts, fill=LIGHT)
+        water(d, wl, t)
+    elif kind == 'iceberg_sink':
+        sparkles(d, t, 30); wl = ground - 150
+        k = ease((t - 0.8) / max(dur * 0.85 - 0.8, 1))
+        iceberg(d, 900, wl, 1.05)
+        liner(d, cx - 110, wl + 150 * k, 1.05, tilt=0.3 * k, lights=(t % 0.5) > 0.1 or k < 0.5)
+        water(d, wl, t)
+        d.polygon([(900 - 170, wl), (900 + 200, wl), (900 + 120, wl + 120), (900 - 120, wl + 120)], fill=mix(LIQ, (226, 242, 255), 0.35))
+    elif kind == 'lifeboat':
+        sparkles(d, t, 34); moon(d, 200, VY0 + 120, 46); wl = ground - 120
+        liner(d, 880, wl + 40, 0.32, tilt=0.6, lights=False)
+        water(d, wl, t, dark=True)
+        lifeboat(d, cx - 60, wl + 40, 1.25, t)
+    elif kind == 'hospital_ship':
+        d.ellipse([W - 230, VY0 - 40, W - 90, VY0 + 100], fill=mix(LIGHT, CREAM, 0.4))
+        wl = ground - 150
+        liner(d, cx + math.sin(t * 0.4) * 20, wl, 1.2, hull=(232, 240, 248), band=(40, 168, 100), cross=True, lights=False, deck=(250, 252, 255))
+        water(d, wl, t)
+    elif kind == 'propeller':
+        d.rectangle([0, VY0 + 40, W, VY1 + 60], fill=shade(LIQ, 0.55))
+        for i in range(5):                                                           # light shafts from the surface
+            x0 = 120 + i * 220 + math.sin(t + i) * 30
+            d.polygon([(x0, VY0 + 40), (x0 + 70, VY0 + 40), (x0 + 160, VY1), (x0 + 60, VY1)], fill=mix(shade(LIQ, 0.55), CREAM, 0.06))
+        d.line([(0, VY0 + 40), (W, VY0 + 40)], fill=mix(LIQ, CREAM, 0.5), width=6)
+        bx = cx + 40 + ease(t / 2.5) * 140
+        d.polygon([(bx - 150, VY0 + 6), (bx + 150, VY0 + 6), (bx + 110, VY0 + 60), (bx - 110, VY0 + 60)], fill=(150, 104, 62))
+        d.rectangle([W - 260, VY0 - 60, W + 40, VY0 + 160], fill=shade(STEEL, 0.6))
+        propeller(d, W - 150, VY0 + 400, 240, t * 7)
+        bubbles(d, t, W - 420, W - 20, VY0 + 80, VY1)
+        f = ease((t - 0.8) / 1.4)
+        if f > 0:
+            px_, py_ = bx - 220, VY0 + 20 + f * 520
+            person(d, px_, py_, 2.0, CREAM)
+            if f < 0.25: d.ellipse([px_ - 70, VY0 + 26, px_ + 70, VY0 + 56], fill=mix(LIQ, CREAM, 0.7))
+        bubbles(d, t, bx - 300, bx - 140, VY0 + 300, VY1, n=10, seed=9)
+    elif kind == 'three_ships':
+        sparkles(d, t, 20)
+        names = ['OLYMPIC', 'TITANIC', 'BRITANNIC']; wl = VY0 + 360
+        for i, nm in enumerate(names):
+            x = 190 + i * 350; brit = i == 2
+            liner(d, x, wl, 0.4, hull=(232, 240, 248) if brit else INK, band=(40, 168, 100) if brit else None, cross=brit, lights=not brit, deck=(250, 252, 255) if brit else None)
+            text_c(d, (x, wl + 70), nm, font('anton', 54), CREAM, stroke=4)
+            p = back((t - 0.5 - i * 0.6) / 0.4)
+            if p > 0.02:
+                d.ellipse([x - 54 * p, wl - 300 - 54 * p, x + 54 * p, wl - 300 + 54 * p], fill=(52, 200, 120))
+                d.line([(x - 24 * p, wl - 300), (x - 6 * p, wl - 280 * p - 300 * (1 - p)), (x + 28 * p, wl - 324 * p - 300 * (1 - p))], fill=CREAM, width=12)
+        water(d, wl + 130, t)
+    elif kind == 'follow_sea':
+        sparkles(d, t, 26)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 120 - bh / 2, cx + bw / 2, VY0 + 120 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 120), 'FOLLOW', font('anton', 96 * p), CREAM)
+        wl = ground - 130
+        liner(d, (t * 160) % (W + 900) - 450, wl, 0.6)
+        water(d, wl, t)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

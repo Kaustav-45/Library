@@ -46,6 +46,12 @@ def set_palette(pal):
     GLOW = tuple(pal['glow']) if 'glow' in pal else None
     POP = [tuple(c) for c in pal.get('pop', POP)]
 
+DEFAULT_PAL = dict(bg0=BG0, bg1=BG1, text=CREAM, headline=GOLD, accent=RED, ink=INK, line=LINE, liquid=LIQ, steel=STEEL, pop=POP)
+
+def scene_palette(spec, sc):
+    """The full palette for a scene: defaults, then the script's palette, then the scene's own."""
+    return {**DEFAULT_PAL, **spec.get('palette', {}), **sc.get('palette', {})}
+
 S = 2   # render scale: layout is in 1080x1920 units, output is (1080*S)x(1920*S); 2 = 4K
 
 class SD:
@@ -583,6 +589,38 @@ def paper(d, x, y, w, h, ang, col):
     c, s_ = math.cos(ang), math.sin(ang)
     d.polygon([(x + (dx * c - dy * s_), y + (dx * s_ + dy * c)) for dx, dy in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2))], fill=col)
 
+# ----- channel trailer drawings -----
+def cabinet(d, cx, ground, t, open_k, labels):
+    """A tall archive cabinet; the middle drawer slides out and labelled files rise from it."""
+    w, h = 380, 440; x0, x1, top = cx - w / 2, cx + w / 2, ground - h
+    wood, dark = shade(GOLD, 0.55), shade(GOLD, 0.38)
+    d.rounded_rectangle([x0, top, x1, ground], 18, fill=wood)
+    d.rectangle([x1 - 60, top + 10, x1 - 10, ground], fill=dark)
+    for i in range(3):
+        y0 = top + 24 + i * 138; off = open_k * 150 if i == 1 else 0
+        d.rounded_rectangle([x0 + 24 + off * 0.1, y0, x1 - 24 + off * 0.1, y0 + 116], 12, fill=shade(GOLD, 0.7))
+        d.rounded_rectangle([cx - 60, y0 + 46, cx + 60, y0 + 70], 12, fill=CREAM)
+        if i == 1 and open_k > 0:                                       # drawer front pulled toward us
+            d.rounded_rectangle([x0 - 26 * open_k, y0 + 116, x1 + 26 * open_k, y0 + 116 + 60 * open_k], 10, fill=shade(GOLD, 0.82))
+    for j, lab in enumerate(labels):
+        p = back((t - 0.6 - j * 0.32) / 0.45)
+        if p <= 0.02: continue
+        a = math.radians(-168 + j * (156 / max(1, len(labels) - 1)))
+        fx = cx + math.cos(a) * 400 * min(p, 1.05); fy = top + 60 + math.sin(a) * 150 * min(p, 1.05) + math.sin(t * 2 + j) * 10
+        col = POP[j % len(POP)]
+        d.rounded_rectangle([fx - 84, fy - 54, fx + 84, fy + 54], 12, fill=col)
+        d.rounded_rectangle([fx - 84, fy - 74, fx - 18, fy - 44], 10, fill=col)
+        text_c(d, (fx, fy + 4), lab, font('anton', 58), INK)
+
+def mini_icon(d, kind, x, y, s, t):
+    if kind == 'emu': emu(d, x, y + 60 * s, 0.38 * s, t, face=1)
+    elif kind == 'dancer': dancer(d, x, y + 70 * s, 0.42 * s, t * 1.4, POP[0], style=1)
+    elif kind == 'palm': palm(d, x, y + 80 * s, 0.32 * s, 0.3, t, col=INK)
+    elif kind == 'volcano':
+        ty = volcano(d, x, y + 60 * s, w=170 * s, h=120 * s); d.ellipse([x - 22 * s, ty - 50 * s, x + 22 * s, ty - 6 * s], fill=FIRE)
+    elif kind == 'wave': wave(d, x + 70 * s, y + 60 * s, 90 * s, t, left=x - 90 * s)
+    elif kind == 'pyramid': pyramid(d, x, y + 60 * s, 170 * s, 120 * s)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -779,7 +817,7 @@ def visual(d, kind, t, dur, img, sc=None):
     elif kind == 'erupt':
         pw = (sc or {}).get('power', 1.0); sh = math.sin(t * 50) * 7 * pw
         d.ellipse([cx - 430, ground - 70, cx + 430, ground + 60], fill=mix(BG1, FIRE, 0.35))
-        sea(d, ground); ty = volcano(d, cx, ground, shake=sh)
+        sea(d, ground); ty = volcano(d, cx, ground, shake=sh, h=(sc or {}).get('h', 500))
         if (sc or {}).get('columns'):
             for dx in (-70, 0, 70): plume(d, cx + dx + sh, ty + 20, t + dx, 0.72, n=14)
         else: plume(d, cx + sh, ty + 20, t, pw)
@@ -1161,6 +1199,34 @@ def visual(d, kind, t, dur, img, sc=None):
         d.rounded_rectangle([cx - bw / 2, VY0 + 110 - bh / 2, cx + bw / 2, VY0 + 110 + bh / 2], int(bh / 2), fill=RED)
         text_c(d, (cx, VY0 + 110), 'FOLLOW', font('anton', 96 * p), CREAM)
         soldier(d, cx, ground - 14, 0.9, pose='salute')
+    elif kind == 'archive':
+        sparkles(d, t, 22)
+        cabinet(d, cx, ground, t, ease((t - 0.2) / 0.6), (sc or {}).get('labels', ['1518', '1815', '1919', '1932', '1944']))
+    elif kind == 'stopwatch':
+        sparkles(d, t, 16); gx, gy, r = cx, VY0 + 360, 260
+        d.rounded_rectangle([gx - 50, gy - r - 80, gx + 50, gy - r - 20], 16, fill=CREAM)
+        d.ellipse([gx - r - 20, gy - r - 20, gx + r + 20, gy + r + 20], fill=CREAM); d.ellipse([gx - r, gy - r, gx + r, gy + r], fill=mix(BG1, INK, 0.5))
+        k = min(1, t / max(dur * 0.85, 1))
+        d.pieslice([gx - r + 14, gy - r + 14, gx + r - 14, gy + r - 14], -90, -90 + 360 * k, fill=GOLD)
+        for i in range(12):
+            a = math.radians(i * 30 - 90); d.line([(gx + math.cos(a) * (r - 40), gy + math.sin(a) * (r - 40)), (gx + math.cos(a) * (r - 12), gy + math.sin(a) * (r - 12))], fill=CREAM, width=8)
+        a = math.radians(-90 + 360 * k); d.line([(gx, gy), (gx + math.cos(a) * (r - 50), gy + math.sin(a) * (r - 50))], fill=RED, width=14)
+        d.ellipse([gx - 22, gy - 22, gx + 22, gy + 22], fill=RED)
+        text_c(d, (gx, gy + 120), '0:%02d' % int(60 * k), font('anton', 90), CREAM, stroke=5)
+    elif kind == 'subscribe_odd':
+        sparkles(d, t, 24)
+        icons = (sc or {}).get('icons', ['emu', 'wave', 'dancer', 'volcano', 'palm', 'pyramid'])
+        for i, ic in enumerate(icons):                              # the channel's stories orbit the button
+            a = t * 0.7 + i * 2 * math.pi / len(icons)
+            depth = 0.5 + 0.5 * math.sin(a)
+            mini_icon(d, ic, cx + math.cos(a) * 380, VY0 + 330 + math.sin(a) * 210, 0.7 + 0.5 * depth, t + i)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 620 * p, 160 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 330 - bh / 2, cx + bw / 2, VY0 + 330 + bh / 2], int(bh / 2), fill=(230, 33, 39))
+        text_c(d, (cx, VY0 + 330), 'SUBSCRIBE', font('anton', 100 * p), (255, 255, 255))
+        sw = math.sin(t * 9) * 0.35 * (1 if (t % 2.0) < 0.8 else 0)        # the bell rings now and then
+        bx, by = cx + 300, VY0 + 120
+        pts = [(bx + math.sin(sw) * (yy) + math.cos(sw) * xx, by + math.cos(sw) * yy - math.sin(sw) * xx) for xx, yy in ((-60, 90), (-50, 30), (-20, 0), (20, 0), (50, 30), (60, 90))]
+        d.polygon(pts, fill=GOLD); d.ellipse([bx - 16 + math.sin(sw) * 110, by + 92, bx + 16 + math.sin(sw) * 110, by + 124], fill=GOLD)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -1282,7 +1348,8 @@ def main(script_path, out_path):
     wav = os.path.join(tmp, 'mix.f32')
     np.clip(mix, -1, 1).astype(np.float32).tofile(wav)
 
-    bases = base_frames()
+    bases = base_frames(); pal_key = json.dumps(scene_palette(spec, {}), sort_keys=True)
+    wipe = spec.get('transitions', False)
     enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{FW * S}x{FH * S}', '-r', str(FPS), '-i', '-',
                             '-f', 'f32le', '-ar', str(SR), '-ac', '1', '-i', wav,
                             '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11',
@@ -1295,7 +1362,13 @@ def main(script_path, out_path):
         t = fi / FPS
         sc = next((s for s in scenes if s['t0'] <= t < s['t0'] + s['dur']), scenes[-1])
         lt = t - sc['t0']
+        key = json.dumps(scene_palette(spec, sc), sort_keys=True)
+        if key != pal_key:                                   # this scene has its own colours
+            set_palette(scene_palette(spec, sc)); bases = base_frames(3); pal_key = key
         img = compose(bases[fi % len(bases)], sc, lt, t / total)
+        if wipe and sc is not scenes[0] and lt < 0.28:        # a colour bar sweeps off to reveal the scene
+            k = ease(lt / 0.28); dr = ImageDraw.Draw(img); x0 = FW * S * k
+            dr.rectangle([x0, 0, FW * S, FH * S], fill=GOLD); dr.rectangle([x0, 0, x0 + 18 * S, FH * S], fill=RED)
         # fade in/out of the whole video
         frame = img.convert('RGB')
         fade = min(1.0, t / 0.4, (total - t) / 0.5)

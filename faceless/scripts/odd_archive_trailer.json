@@ -1,0 +1,31 @@
+{
+  "title": "Odd Archive Channel Trailer",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 4.0,
+  "transitions": true,
+  "palette": {
+    "bg0": [4, 12, 36], "bg1": [18, 64, 140], "text": [240, 248, 255], "headline": [130, 214, 255],
+    "accent": [0, 112, 240], "ink": [2, 8, 26], "line": [56, 100, 170], "liquid": [30, 100, 190],
+    "steel": [116, 146, 188], "glow": [50, 130, 255],
+    "pop": [[130, 214, 255], [80, 160, 255], [210, 236, 255], [60, 124, 232], [170, 200, 255]]
+  },
+  "scenes": [
+    {"say": "This is Odd Archive. A collection of the strangest true stories in history.",
+     "kicker": "WELCOME TO", "big": "ODD ARCHIVE", "sub": "strange but true history", "visual": "archive"},
+    {"say": "Like the time Australia went to war against emus, and lost.",
+     "kicker": "THE EMU WAR", "big": "1932", "sub": "Australia vs emus", "visual": "standoff"},
+    {"say": "The town where hundreds of people danced for weeks, and nobody knows why.",
+     "kicker": "THE DANCING PLAGUE", "big": "1518", "sub": "Strasbourg", "visual": "crowd", "n": 60, "rows": 3},
+    {"say": "The volcano that cancelled summer, and helped create Frankenstein.",
+     "kicker": "NO SUMMER", "big": "1815", "sub": "Mount Tambora erupts", "visual": "erupt", "h": 360, "power": 0.5},
+    {"say": "The soldier who kept fighting for twenty nine years after the war ended.",
+     "kicker": "THE LAST SOLDIER", "big": "29 YEARS", "sub": "after World War Two ended", "visual": "jungle_soldier"},
+    {"say": "And why Cleopatra lived closer to the Moon landing than to the pyramids.",
+     "kicker": "MIND THE GAP", "big": "CLEOPATRA", "sub": "closer to the Moon landing", "visual": "timebar"},
+    {"say": "Every story is true. And every story takes less than a minute.",
+     "kicker": "OUR PROMISE", "big": "100% TRUE", "sub": "and under a minute", "visual": "stopwatch"},
+    {"say": "Subscribe to Odd Archive, and never miss the strange side of history.",
+     "kicker": "", "big": "SUBSCRIBE", "sub": "new strange history every week", "visual": "subscribe_odd"}
+  ]
+}

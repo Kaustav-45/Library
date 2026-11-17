@@ -1,0 +1,33 @@
+{
+  "title": "The Shortest War in History",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 4.0,
+  "transitions": true,
+  "palette": {
+    "bg0": [4, 18, 34], "bg1": [10, 82, 112], "text": [240, 250, 252], "headline": [255, 204, 84],
+    "accent": [226, 62, 58], "ink": [6, 16, 26], "line": [40, 110, 130], "liquid": [16, 112, 150],
+    "steel": [128, 140, 156], "glow": [40, 200, 220],
+    "pop": [[255, 204, 84], [240, 250, 252], [120, 220, 240], [255, 140, 110], [180, 230, 210]]
+  },
+  "scenes": [
+    {"say": "The shortest war in history lasted just thirty eight minutes.",
+     "kicker": "TRUE STORY", "big": "38 MINUTES", "sub": "the shortest war ever fought", "visual": "war_clock"},
+    {"say": "August twenty fifth, 1896. The sultan of Zanzibar, an island off East Africa, suddenly dies.",
+     "kicker": "AUGUST 25, 1896", "big": "ZANZIBAR", "sub": "the sultan is dead", "visual": "island_palace"},
+    {"say": "Within hours, his cousin Khalid seizes the palace and declares himself the new sultan. Britain wants someone else.",
+     "kicker": "AUGUST 25, 1896", "big": "KHALID", "sub": "seizes the palace", "visual": "seize"},
+    {"say": "British warships surround the palace. Their message: get out by nine o'clock on the morning of August twenty seventh.",
+     "kicker": "THE ULTIMATUM", "big": "9:00 AM", "sub": "August 27, 1896", "visual": "ultimatum"},
+    {"say": "Khalid refuses. At two minutes past nine, the British ships open fire.",
+     "kicker": "AUGUST 27 · 9:02 AM", "big": "FIRE", "sub": "the shelling begins", "visual": "bombard"},
+    {"say": "Zanzibar's only warship fires back. It is sunk almost at once.",
+     "kicker": "MINUTES LATER", "big": "SUNK", "sub": "Zanzibar's only warship", "visual": "sink_small"},
+    {"say": "By nine forty, the palace is burning, about five hundred defenders are dead or wounded, and the flag comes down.",
+     "kicker": "AUGUST 27 · 9:40 AM", "big": "IT'S OVER", "sub": "after about 38 minutes", "visual": "ruins"},
+    {"say": "The British side had just one sailor wounded. And Khalid? He ran to the German consulate to hide.",
+     "kicker": "THE AFTERMATH", "big": "1 WOUNDED", "sub": "on the British side", "visual": "consulate"},
+    {"say": "Follow for more strange history.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more strange history", "visual": "follow_sea"}
+  ]
+}

@@ -846,6 +846,56 @@ def boot_print(d, x, y, s, a=0.0):
     for k in range(9):
         yy = -130 + k * 30; d.line([R(-50, yy), R(50, yy)], fill=shade(MOONC, 0.52), width=max(2, int(8 * s)))
 
+# ----- Zanzibar war drawings -----
+WALL = (238, 232, 218)
+
+def palace(d, cx, ground, s, damage=0.0, flag=1.0, t=0.0):
+    """A white seafront palace with arcades and a central tower. damage 0..1 knocks it about."""
+    w, h = 520 * s, 230 * s; x0, x1 = cx - w / 2, cx + w / 2
+    d.rectangle([x0, ground - h, x1, ground], fill=WALL)
+    d.rectangle([cx - 70 * s, ground - h - 170 * s, cx + 70 * s, ground - h], fill=WALL)
+    d.polygon([(cx - 84 * s, ground - h - 170 * s), (cx, ground - h - 240 * s), (cx + 84 * s, ground - h - 170 * s)], fill=shade(WALL, 0.85))
+    for row in range(2):
+        for i in range(9):
+            ax = x0 + 32 * s + i * 54 * s; ay = ground - h + 34 * s + row * 104 * s
+            d.rectangle([ax, ay + 26 * s, ax + 30 * s, ay + 80 * s], fill=shade(WALL, 0.55))
+            d.pieslice([ax, ay + 8 * s, ax + 30 * s, ay + 44 * s], 180, 360, fill=shade(WALL, 0.55))
+    d.rectangle([x0, ground - h, x1, ground - h + 16 * s], fill=shade(WALL, 0.8))
+    pole_top = ground - h - 240 * s - 150 * s
+    d.line([(cx, ground - h - 240 * s), (cx, pole_top)], fill=INK, width=max(2, int(6 * s)))
+    if flag > 0:
+        fy = pole_top + (1 - flag) * 130 * s; wv = math.sin(t * 6) * 8 * s
+        d.polygon([(cx, fy), (cx + 120 * s, fy + 10 * s + wv), (cx + 120 * s, fy + 70 * s + wv), (cx, fy + 60 * s)], fill=(206, 32, 42))
+    if damage > 0:
+        rng = random.Random(3)
+        for i in range(int(14 * damage)):
+            hx, hy = rng.uniform(x0 + 20 * s, x1 - 20 * s), rng.uniform(ground - h - 120 * s, ground - 30 * s)
+            r = rng.uniform(18, 46) * s; d.ellipse([hx - r, hy - r * 0.8, hx + r, hy + r * 0.8], fill=shade(INK, 1.6))
+        k = min(1, damage * 1.3)
+        d.polygon([(x1 - 140 * s, ground - h), (x1 + 4, ground - h), (x1 + 4, ground - h + 160 * s * k), (x1 - 60 * s, ground - h + 60 * s * k)], fill=BG1 if False else shade(INK, 1.2))
+
+def clock_face(d, cx, cy, r, hours, minutes, ring=None):
+    d.ellipse([cx - r - 16, cy - r - 16, cx + r + 16, cy + r + 16], fill=ring or GOLD)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=CREAM)
+    for i in range(12):
+        a = math.radians(i * 30 - 90); L = 30 if i % 3 == 0 else 16
+        d.line([(cx + math.cos(a) * (r - L - 8), cy + math.sin(a) * (r - L - 8)), (cx + math.cos(a) * (r - 8), cy + math.sin(a) * (r - 8))], fill=INK, width=8 if i % 3 == 0 else 5)
+    ha = math.radians((hours % 12 + minutes / 60) * 30 - 90); ma = math.radians(minutes * 6 - 90)
+    d.line([(cx, cy), (cx + math.cos(ha) * r * 0.52, cy + math.sin(ha) * r * 0.52)], fill=INK, width=16)
+    d.line([(cx, cy), (cx + math.cos(ma) * r * 0.8, cy + math.sin(ma) * r * 0.8)], fill=RED, width=10)
+    d.ellipse([cx - 16, cy - 16, cx + 16, cy + 16], fill=INK)
+
+def shell_arcs(d, t, xs, x1, y1, n=6):
+    """Shells flying from ships at xs (x, y) toward (x1, y1)."""
+    for i in range(n):
+        x0, y0 = xs[i % len(xs)]; u = (t * 0.9 + i / n) % 1
+        x = x0 + (x1 - x0) * u; y = y0 + (y1 - y0) * u - math.sin(u * math.pi) * 260
+        for k in range(4):
+            uu = max(0, u - k * 0.03); xx = x0 + (x1 - x0) * uu; yy = y0 + (y1 - y0) * uu - math.sin(uu * math.pi) * 260
+            r = 10 - k * 2; d.ellipse([xx - r, yy - r, xx + r, yy + r], fill=mix(HOT, BG1, k * 0.25))
+        if u < 0.08:
+            r = 40 * (1 - u / 0.08); d.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=HOT)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -1662,6 +1712,65 @@ def visual(d, kind, t, dur, img, sc=None):
         text_c(d, (cx, VY0 + 100), 'FOLLOW', font('anton', 96 * p), CREAM)
         big_moon(d, cx, VY0 + 470, 170)
         a = t * 0.9; d.ellipse([cx + math.cos(a) * 280 - 12, VY0 + 470 + math.sin(a) * 90 - 12, cx + math.cos(a) * 280 + 12, VY0 + 470 + math.sin(a) * 90 + 12], fill=GOLD)
+    elif kind == 'war_clock':
+        sparkles(d, t, 20)
+        k = min(1, t / max(dur * 0.85, 1.5)); m_ = 38 * ease(k)
+        clock_face(d, cx, VY0 + 330, 250, 9, 2 + m_)
+        d.pieslice([cx - 230, VY0 + 100, cx + 230, VY0 + 560], -90 + 12, -90 + 12 + 6 * m_, fill=mix(CREAM, RED, 0.35))
+        clock_face_hands = None
+        ha = math.radians((9 + (2 + m_) / 60) * 30 - 90); ma = math.radians((2 + m_) * 6 - 90)
+        d.line([(cx, VY0 + 330), (cx + math.cos(ha) * 130, VY0 + 330 + math.sin(ha) * 130)], fill=INK, width=16)
+        d.line([(cx, VY0 + 330), (cx + math.cos(ma) * 200, VY0 + 330 + math.sin(ma) * 200)], fill=RED, width=10)
+        d.ellipse([cx - 16, VY0 + 314, cx + 16, VY0 + 346], fill=INK)
+        text_c(d, (cx, ground - 40), '9:%02d AM' % int(2 + m_), font('anton', 84), CREAM, stroke=6)
+    elif kind == 'island_palace':
+        sun_disc(d, 860, VY0 + 130, 90, col=(255, 226, 150)); wl = ground - 130
+        d.polygon([(90, wl), (180, wl - 120), (900, wl - 130), (1000, wl)], fill=(222, 196, 140))
+        palace(d, cx + 40, wl - 120, 0.62, t=t); palm(d, 170, wl - 110, 0.55, 0.3, t, col=(40, 90, 60)); palm(d, 930, wl - 110, 0.5, -0.3, t, col=(40, 90, 60))
+        water(d, wl, t)
+        p = back((t - 0.8) / 0.4)
+        if p > 0.02:
+            d.rounded_rectangle([60, VY0 + 40, 60 + 330 * p, VY0 + 120], 20, fill=INK)
+            if p > 0.8: text_c(d, (225, VY0 + 80), 'EAST AFRICA', font('anton', 52), CREAM)
+    elif kind == 'seize':
+        wl = ground - 60; d.rectangle([60, wl, W - 60, ground + 20], fill=(222, 196, 140))
+        palace(d, cx, wl, 1.0, flag=ease((t - 0.6) / 1.4), t=t)
+        for i, x in enumerate((150, 250, 830, 930)):
+            person(d, x, wl - 34, 1.6, INK); d.line([(x + 26, wl - 60), (x + 34, wl - 210)], fill=INK, width=8)
+    elif kind == 'ultimatum':
+        wl = ground - 120
+        clock_face(d, cx, VY0 + 250, 190, 8, 40 + 20 * ease(t / max(dur * 0.8, 1.5)))
+        for i, x in enumerate((-80, 330, 700)):
+            warship(d, x + math.sin(t * 0.7 + i) * 12 + 120, wl, 0.48 + 0.06 * (i % 2))
+        water(d, wl, t)
+    elif kind == 'bombard':
+        wl = ground - 110
+        palace(d, W - 250, wl, 0.62, damage=ease(t / max(dur * 0.9, 1.5)) * 0.6, t=t)
+        ships = [(130, wl - 60), (380, wl - 50)]
+        for x, y in ships: warship(d, x - 30, wl, 0.42)
+        shell_arcs(d, t, [(x + 100, y - 20) for x, y in ships], W - 250, wl - 140)
+        puff_cloud(d, W - 250, wl - 150, t, n=10, spread=220, col=(120, 116, 112))
+        water(d, wl, t)
+    elif kind == 'sink_small':
+        wl = ground - 130; k = ease((t - 0.6) / max(dur * 0.85, 1.5))
+        liner(d, cx, wl + 170 * k, 0.75, tilt=-0.35 * k, hull=(232, 240, 248), funnels=1, lights=False, deck=(250, 252, 255))
+        puff_cloud(d, cx + 80, wl - 200 + 120 * k, t, n=10, spread=160, col=(110, 106, 104))
+        water(d, wl, t)
+    elif kind == 'ruins':
+        wl = ground - 60; d.rectangle([60, wl, W - 60, ground + 20], fill=(222, 196, 140))
+        palace(d, cx, wl, 1.0, damage=1.0, flag=max(0.0, 1 - ease(t / 1.6)), t=t)
+        puff_cloud(d, cx - 100, wl - 260, t, n=14, spread=300, col=(96, 92, 90))
+        puff_cloud(d, cx + 160, wl - 200, t + 1.3, n=10, spread=200, col=(110, 104, 100))
+    elif kind == 'consulate':
+        sparkles(d, t, 18); wl = ground - 40
+        d.rectangle([cx - 300, wl - 420, cx + 300, wl], fill=(214, 206, 190)); d.polygon([(cx - 330, wl - 420), (cx, wl - 540), (cx + 330, wl - 420)], fill=(170, 160, 146))
+        for i in range(4): d.rectangle([cx - 250 + i * 140, wl - 360, cx - 190 + i * 140, wl - 260], fill=shade(WALL, 0.55))
+        d.rectangle([cx - 50, wl - 170, cx + 50, wl], fill=(110, 76, 46))
+        for i, c in enumerate(((0, 0, 0), (214, 30, 30), (240, 240, 240))):             # the German imperial flag of the time
+            d.rectangle([cx + 300, wl - 600 + i * 30, cx + 440, wl - 570 + i * 30], fill=c)
+        d.line([(cx + 300, wl - 600), (cx + 300, wl - 420)], fill=INK, width=6)
+        x = W - 140 - min(1, t / 2.2) * 520
+        person(d, x, wl - 34, 1.8, INK)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

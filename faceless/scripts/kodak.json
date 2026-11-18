@@ -1,0 +1,37 @@
+{
+  "title": "Kodak Invented the Digital Camera, Then Hid It",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 4.0,
+  "transitions": true,
+  "palette": {
+    "bg0": [18, 8, 6], "bg1": [104, 32, 16], "text": [255, 248, 232], "headline": [255, 204, 0],
+    "accent": [214, 30, 40], "ink": [22, 10, 8], "line": [150, 80, 50], "liquid": [40, 110, 184],
+    "steel": [150, 130, 120], "glow": [255, 140, 40],
+    "pop": [[255, 204, 0], [255, 120, 80], [255, 248, 232], [120, 190, 255], [255, 170, 60]]
+  },
+  "scenes": [
+    {"say": "Remember Kodak film? The company that ruled photography for almost a century invented the digital camera. And then it hid it.",
+     "kicker": "TRUE STORY", "big": "KODAK", "sub": "the invention they buried", "visual": "film"},
+    {"say": "December 1975. A young Kodak engineer named Steve Sasson builds the world's first digital camera. It weighs about eight pounds.",
+     "kicker": "DECEMBER 1975", "big": "THE FIRST", "sub": "digital camera ever built", "visual": "proto"},
+    {"say": "It takes black and white photos of just ten thousand pixels, and needs twenty three seconds to save each one to a cassette tape.",
+     "kicker": "THE PROTOTYPE", "big": "0.01 MP", "sub": "23 seconds per photo", "visual": "pixels"},
+    {"say": "Sasson shows it to Kodak's bosses. He later said their reaction was: that's cute, but don't tell anyone about it.",
+     "kicker": "THE REACTION", "big": "DON'T TELL", "sub": "as Sasson remembers it", "visual": "boardroom"},
+    {"say": "Why hide it? Because film was a gold mine. In 1976, Kodak sold around ninety percent of all film in America.",
+     "kicker": "THE REASON", "big": "90%", "sub": "of US film sales in 1976", "visual": "share"},
+    {"say": "So Kodak protected film. Rivals built the digital cameras. Then phones put a camera in every pocket.",
+     "kicker": "1990s TO 2000s", "big": "PHONES", "sub": "a camera in every pocket", "visual": "phones"},
+    {"say": "January 2012. Kodak files for bankruptcy.",
+     "kicker": "JANUARY 2012", "big": "BANKRUPT", "sub": "the giant falls", "visual": "bankrupt"},
+    {"say": "Three months later, a photo sharing app with just thirteen employees is bought for one billion dollars.",
+     "kicker": "APRIL 2012", "big": "$1 BILLION", "sub": "for a photo app with 13 employees", "visual": "app_sale"},
+    {"say": "Here is the lesson. Kodak did not miss the future. It saw it first, and chose to protect what was already making money.",
+     "kicker": "THE LESSON", "big": "SAW IT FIRST", "sub": "and protected the past instead", "visual": "bulb"},
+    {"say": "So ask yourself. In your career or your business, what are you protecting that might be holding you back?",
+     "kicker": "YOUR TURN", "big": "ASK YOURSELF", "sub": "what are you protecting?", "visual": "question"},
+    {"say": "Follow Odd Archive for more history with a lesson.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more history with a lesson", "visual": "follow_film"}
+  ]
+}

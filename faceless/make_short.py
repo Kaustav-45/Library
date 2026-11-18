@@ -896,6 +896,76 @@ def shell_arcs(d, t, xs, x1, y1, n=6):
         if u < 0.08:
             r = 40 * (1 - u / 0.08); d.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=HOT)
 
+# ----- Kodak story drawings -----
+FILMC, BLACK = (60, 40, 30), (20, 14, 12)
+
+def film_strip(d, y, h, t, speed=120, frames=None):
+    """A horizontal strip of film scrolling left, with sprocket holes and little picture frames."""
+    d.rectangle([0, y - h / 2, W, y + h / 2], fill=FILMC)
+    off = (t * speed) % 60
+    for i in range(-1, W // 60 + 2):
+        x = i * 60 - off
+        d.rounded_rectangle([x + 14, y - h / 2 + 10, x + 40, y - h / 2 + 30], 5, fill=BG0); d.rounded_rectangle([x + 14, y + h / 2 - 30, x + 40, y + h / 2 - 10], 5, fill=BG0)
+    off2 = (t * speed) % 240
+    for i in range(-1, W // 240 + 2):
+        x = i * 240 - off2 + 20; col = (frames or POP)[(i + int(t * speed // 240)) % len(frames or POP)]
+        d.rectangle([x, y - h / 2 + 44, x + 200, y + h / 2 - 44], fill=mix(col, FILMC, 0.25))
+        d.pieslice([x + 30, y + 10, x + 170, y + h / 2 - 20], 180, 360, fill=mix(col, BLACK, 0.4))
+        d.ellipse([x + 140, y - h / 2 + 60, x + 176, y - h / 2 + 96], fill=mix(col, CREAM, 0.6))
+
+def film_canister(d, x, y, s):
+    d.rounded_rectangle([x - 70 * s, y - 110 * s, x + 70 * s, y + 110 * s], 18 * s, fill=GOLD)
+    d.rectangle([x - 70 * s, y - 30 * s, x + 70 * s, y + 30 * s], fill=RED)
+    d.rectangle([x - 40 * s, y - 136 * s, x + 40 * s, y - 110 * s], fill=BLACK); d.rectangle([x - 40 * s, y + 110 * s, x + 40 * s, y + 136 * s], fill=BLACK)
+    d.polygon([(x + 70 * s, y - 60 * s), (x + 150 * s, y - 50 * s), (x + 150 * s, y + 40 * s), (x + 70 * s, y + 50 * s)], fill=FILMC)
+
+def proto_camera(d, cx, cy, s, t, flash=False):
+    """The 1975 prototype: a boxy 'toaster' with a lens, a cassette deck and loose wires."""
+    body = (196, 190, 176)
+    d.rounded_rectangle([cx - 230 * s, cy - 150 * s, cx + 230 * s, cy + 150 * s], 22 * s, fill=body)
+    d.rectangle([cx - 230 * s, cy - 150 * s, cx + 230 * s, cy - 110 * s], fill=shade(body, 0.8))
+    d.ellipse([cx - 220 * s, cy - 90 * s, cx - 40 * s, cy + 90 * s], fill=BLACK); d.ellipse([cx - 180 * s, cy - 50 * s, cx - 80 * s, cy + 50 * s], fill=(50, 60, 90))
+    d.ellipse([cx - 160 * s, cy - 36 * s, cx - 126 * s, cy - 2 * s], fill=(160, 180, 230))
+    d.rounded_rectangle([cx + 10 * s, cy - 70 * s, cx + 200 * s, cy + 40 * s], 10 * s, fill=BLACK)              # cassette window
+    for k in (-1, 1):
+        rx = cx + 105 * s + k * 50 * s; a = t * 4
+        d.ellipse([rx - 26 * s, cy - 41 * s, rx + 26 * s, cy + 11 * s], fill=CREAM)
+        d.line([(rx, cy - 15 * s), (rx + math.cos(a) * 22 * s, cy - 15 * s + math.sin(a) * 22 * s)], fill=BLACK, width=max(2, int(5 * s)))
+    for i in range(4): d.ellipse([cx + 20 * s + i * 44 * s, cy + 70 * s, cx + 46 * s + i * 44 * s, cy + 96 * s], fill=(RED if i == 0 else shade(body, 0.6)))
+    wires = [(cx + 230 * s, cy + 60 * s), (cx + 300 * s, cy + 90 * s), (cx + 290 * s, cy + 190 * s), (cx + 360 * s, cy + 220 * s)]
+    d.line(wires, fill=RED, width=max(2, int(7 * s)), joint='curve')
+    if flash:
+        d.ellipse([cx - 300 * s, cy - 170 * s, cx + 40 * s, cy + 170 * s], fill=mix(CREAM, BG1, 0.3))
+
+def boss(d, x, ground, s, col):
+    person(d, x, ground, s, col)
+    d.polygon([(x - 8 * s, ground - 30 * s), (x + 8 * s, ground - 30 * s), (x + 4 * s, ground + 6 * s), (x - 4 * s, ground + 6 * s)], fill=RED)   # a tie
+
+def bubble(d, x, y, w, h, text, size, col=None):
+    col = col or CREAM
+    d.rounded_rectangle([x - w / 2, y - h / 2, x + w / 2, y + h / 2], 28, fill=col)
+    d.polygon([(x - 40, y + h / 2 - 4), (x - 90, y + h / 2 + 60), (x + 10, y + h / 2 - 4)], fill=col)
+    lines_ = text.split('|')
+    for i, ln in enumerate(lines_):
+        text_c(d, (x, y + (i - (len(lines_) - 1) / 2) * size * 1.1), ln, font('anton', size), INK)
+
+def phone(d, x, y, s, col=None, screen=None, cam=True):
+    col = col or BLACK
+    d.rounded_rectangle([x - 70 * s, y - 140 * s, x + 70 * s, y + 140 * s], 22 * s, fill=col)
+    d.rounded_rectangle([x - 60 * s, y - 120 * s, x + 60 * s, y + 116 * s], 12 * s, fill=screen or mix(POP[2 % len(POP)], CREAM, 0.3))
+    if cam:
+        d.rounded_rectangle([x - 34 * s, y - 40 * s, x + 34 * s, y + 20 * s], 10 * s, outline=CREAM, width=max(2, int(5 * s)))
+        d.ellipse([x - 16 * s, y - 26 * s, x + 16 * s, y + 6 * s], outline=CREAM, width=max(2, int(5 * s)))
+
+def bulb(d, cx, cy, s, t):
+    glow = 0.5 + 0.5 * math.sin(t * 3)
+    for k in range(3):
+        r = (190 + k * 50) * s; d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=mix(BG1, GOLD, 0.12 + 0.06 * glow - 0.04 * k))
+    d.ellipse([cx - 140 * s, cy - 150 * s, cx + 140 * s, cy + 130 * s], fill=GOLD)
+    d.polygon([(cx - 70 * s, cy + 110 * s), (cx + 70 * s, cy + 110 * s), (cx + 56 * s, cy + 190 * s), (cx - 56 * s, cy + 190 * s)], fill=GOLD)
+    for i in range(3): d.rounded_rectangle([cx - 62 * s, cy + 190 * s + i * 30 * s, cx + 62 * s, cy + 214 * s + i * 30 * s], 10 * s, fill=(170, 166, 160))
+    d.line([(cx - 40 * s, cy + 100 * s), (cx - 20 * s, cy - 10 * s), (cx, cy + 40 * s), (cx + 20 * s, cy - 10 * s), (cx + 40 * s, cy + 100 * s)], fill=shade(GOLD, 0.6), width=max(2, int(8 * s)), joint='curve')
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -1481,13 +1551,13 @@ def visual(d, kind, t, dur, img, sc=None):
         sparkles(d, t, 16); gx, gy, r = cx, VY0 + 360, 260
         d.rounded_rectangle([gx - 50, gy - r - 80, gx + 50, gy - r - 20], 16, fill=CREAM)
         d.ellipse([gx - r - 20, gy - r - 20, gx + r + 20, gy + r + 20], fill=CREAM); d.ellipse([gx - r, gy - r, gx + r, gy + r], fill=mix(BG1, INK, 0.5))
-        k = min(1, t / max(dur * 0.85, 1))
-        d.pieslice([gx - r + 14, gy - r + 14, gx + r - 14, gy + r - 14], -90, -90 + 360 * k, fill=GOLD)
+        k = min(1, t / max(dur * 0.85, 1)); secs = (sc or {}).get('secs', 60)
+        d.pieslice([gx - r + 14, gy - r + 14, gx + r - 14, gy + r - 14], -90, -90 + 360 * k * secs / 60, fill=GOLD)
         for i in range(12):
             a = math.radians(i * 30 - 90); d.line([(gx + math.cos(a) * (r - 40), gy + math.sin(a) * (r - 40)), (gx + math.cos(a) * (r - 12), gy + math.sin(a) * (r - 12))], fill=CREAM, width=8)
-        a = math.radians(-90 + 360 * k); d.line([(gx, gy), (gx + math.cos(a) * (r - 50), gy + math.sin(a) * (r - 50))], fill=RED, width=14)
+        a = math.radians(-90 + 360 * k * secs / 60); d.line([(gx, gy), (gx + math.cos(a) * (r - 50), gy + math.sin(a) * (r - 50))], fill=RED, width=14)
         d.ellipse([gx - 22, gy - 22, gx + 22, gy + 22], fill=RED)
-        text_c(d, (gx, gy + 120), '0:%02d' % int(60 * k), font('anton', 90), CREAM, stroke=5)
+        text_c(d, (gx, gy + 120), '0:%02d' % int(secs * k), font('anton', 90), CREAM, stroke=5)
     elif kind == 'subscribe_odd':
         sparkles(d, t, 24)
         icons = (sc or {}).get('icons', ['emu', 'wave', 'dancer', 'volcano', 'palm', 'pyramid'])
@@ -1771,6 +1841,76 @@ def visual(d, kind, t, dur, img, sc=None):
         d.line([(cx + 300, wl - 600), (cx + 300, wl - 420)], fill=INK, width=6)
         x = W - 140 - min(1, t / 2.2) * 520
         person(d, x, wl - 34, 1.8, INK)
+    elif kind == 'film':
+        sparkles(d, t, 16)
+        film_strip(d, VY0 + 170, 220, t)
+        film_canister(d, cx - 220, ground - 200, 1.2); film_canister(d, cx + 200, ground - 170, 1.0)
+        d.line([(0, ground - 30), (W, ground - 30)], fill=LINE, width=4)
+    elif kind == 'proto':
+        sparkles(d, t, 14)
+        proto_camera(d, cx - 40, VY0 + 360, 1.2, t, flash=(t % 2.4) < 0.12 and t > 0.8)
+        p = back((t - 0.9) / 0.4)
+        if p > 0.02:
+            d.rounded_rectangle([cx - 200 * p, ground - 120, cx + 200 * p, ground - 30], 22, fill=RED)
+            if p > 0.8: text_c(d, (cx, ground - 75), '8 POUNDS', font('anton', 62), CREAM)
+    elif kind == 'pixels':
+        n = 10; size_ = 50; x0, y0 = cx - n * size_ / 2, VY0 + 70
+        img_ = [[0] * n for _ in range(n)]
+        for yy in range(n):                                                       # a blocky face, built pixel by pixel
+            for xx in range(n):
+                r_ = math.hypot(xx - 4.5, yy - 4.5); v = 0.85 if r_ < 4.2 else 0.25
+                if yy in (3, 4) and xx in (3, 6): v = 0.1
+                if yy == 7 and 3 <= xx <= 6: v = 0.15
+                img_[yy][xx] = v
+        k = min(1, t / max(dur * 0.85, 1.5)); shown = int(n * n * k)
+        for i in range(shown):
+            yy, xx = divmod(i, n); g = int(40 + 200 * img_[yy][xx])
+            d.rectangle([x0 + xx * size_, y0 + yy * size_, x0 + (xx + 1) * size_ - 3, y0 + (yy + 1) * size_ - 3], fill=(g, g, g))
+        d.rounded_rectangle([x0, ground - 110, x0 + n * size_, ground - 70], 20, fill=shade(BG1, 0.6))
+        d.rounded_rectangle([x0, ground - 110, x0 + n * size_ * k, ground - 70], 20, fill=GOLD)
+        text_c(d, (cx, ground - 20), 'SAVING TO TAPE... %d SEC' % int(23 * k), font('inter', 34), CREAM)
+    elif kind == 'boardroom':
+        d.rounded_rectangle([90, ground - 170, W - 90, ground - 120], 16, fill=(110, 70, 44)); d.rectangle([150, ground - 120, 190, ground], fill=(80, 50, 30)); d.rectangle([W - 190, ground - 120, W - 150, ground], fill=(80, 50, 30))
+        for i, x in enumerate((210, 420, 660, 870)): boss(d, x, ground - 200, 2.1, mix(BLACK, BG1, 0.25 * (i % 2)))
+        proto_camera(d, cx, ground - 230, 0.32, t)
+        p = back((t - 0.6) / 0.4)
+        if p > 0.02: bubble(d, 660, VY0 + 190, 600 * p, 260 * p, "THAT'S CUTE...|DON'T TELL ANYONE", 64 * p)
+    elif kind == 'share':
+        sparkles(d, t, 12); gy = VY0 + 340; r = 270; k = ease(t / 1.6)
+        d.ellipse([cx - r, gy - r, cx + r, gy + r], fill=shade(BG1, 0.6))
+        d.pieslice([cx - r, gy - r, cx + r, gy + r], -90, -90 + 324 * k, fill=GOLD)
+        d.ellipse([cx - 120, gy - 120, cx + 120, gy + 120], fill=BG1 if False else shade(BG0, 1.4))
+        text_c(d, (cx, gy), 'FILM', font('anton', 70), CREAM)
+        film_canister(d, cx + 330, gy + 210, 0.6)
+    elif kind == 'phones':
+        sparkles(d, t, 12)
+        n = int(1 + 9 * ease(t / max(dur * 0.7, 1.5)))
+        for i in range(n):
+            r_, c_ = divmod(i, 5); x = 150 + c_ * 195; y = VY0 + 170 + r_ * 320 + math.sin(t * 2 + i) * 6
+            phone(d, x, y, 0.8, screen=mix(POP[i % len(POP)], CREAM, 0.35))
+        film_canister(d, 980, ground - 80, 0.55 * (1 - ease(t / max(dur, 1.5)) * 0.6))
+    elif kind == 'bankrupt':
+        buildings(d, 120, ground, n=1, seed=3, scale=2.4)
+        buildings(d, 560, ground, n=2, seed=9, scale=1.4)
+        p = back((t - 0.8) / 0.35)
+        if p > 0.02: img.alpha_composite(stamp('BANKRUPT', p), (int((cx - 330 + LAYOUT['vox']) * S), int((VY0 + 260 + LAYOUT['voy']) * S)))
+    elif kind == 'app_sale':
+        sparkles(d, t, 22)
+        phone(d, cx, VY0 + 260, 1.35, screen=mix(GOLD, CREAM, 0.4))
+        n = min(13, int(13 * ease((t - 0.5) / 1.6)))
+        for i in range(n):
+            x = 110 + (i % 7) * 145 + (70 if i >= 7 else 0); y = ground - 190 + (110 if i >= 7 else 0)
+            person(d, x, y, 1.05, CREAM)
+        if n >= 13: text_c(d, (cx, ground + 4), '13 EMPLOYEES', font('anton', 60), GOLD, stroke=5)
+    elif kind == 'bulb':
+        sparkles(d, t, 20)
+        bulb(d, cx, VY0 + 300, 1.15, t)
+    elif kind == 'follow_film':
+        sparkles(d, t, 18)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 90 - bh / 2, cx + bw / 2, VY0 + 90 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 90), 'FOLLOW', font('anton', 96 * p), CREAM)
+        film_strip(d, VY0 + 420, 200, t)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

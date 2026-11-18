@@ -3,6 +3,7 @@
   "voice": "kokoro:af_heart",
   "speed": 1.0,
   "grain": 4.0,
+  "maxrate": "24M",
   "transitions": true,
   "palette": {
     "bg0": [18, 8, 6], "bg1": [104, 32, 16], "text": [255, 248, 232], "headline": [255, 204, 0],

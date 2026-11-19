@@ -1016,7 +1016,7 @@ def newspaper(d, cx, cy, s, head, sub_=''):
     for i in range(9):
         y = cy + 30 * s + i * 30 * s; d.line([(cx - 10 * s, y), (cx + 240 * s, y)], fill=shade(INK, 3.5), width=max(2, int(6 * s)))
 
-def envelope(d, cx, cy, s, open_k=0.0):
+def letter_envelope(d, cx, cy, s, open_k=0.0):
     w, h = 300 * s, 200 * s; paper_c = (236, 230, 214)
     d.rectangle([cx - w, cy - h, cx + w, cy + h], fill=paper_c)
     d.polygon([(cx - w, cy + h), (cx, cy + 10 * s), (cx + w, cy + h)], fill=shade(paper_c, 0.9))
@@ -2026,7 +2026,7 @@ def visual(d, kind, t, dur, img, sc=None):
         for i in range(7): d.line([(cx - 220 + i * 73, VY0 + 120), (cx - 220 + i * 73, VY0 + 170)], fill=GOLD, width=5); d.ellipse([cx - 230 + i * 73, VY0 + 166, cx - 210 + i * 73, VY0 + 186], fill=CREAM)
     elif kind == 'secret':
         sparkles(d, t, 16)
-        envelope(d, cx, VY0 + 380, 1.2, open_k=0.0)
+        letter_envelope(d, cx, VY0 + 380, 1.2, open_k=0.0)
         p = back((t - 0.6) / 0.35)
         if p > 0.02: img.alpha_composite(stamp('TOP SECRET', p), (int((cx - 330 + LAYOUT['vox']) * S), int((VY0 + 300 + LAYOUT['voy']) * S)))
     elif kind == 'bribe':

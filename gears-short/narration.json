@@ -1,0 +1,14 @@
+[
+ ["hook","Why is one bicycle gear easy uphill, and another one super fast? The secret is gears."],
+ ["basics","A gear is just a wheel with teeth. When two gears mesh, the teeth push each other around."],
+ ["dir","Notice something? The second gear spins the opposite way."],
+ ["dir","Add a third gear, and the direction flips back again."],
+ ["ratio","Now let's make one gear small, and the other big. The small one has ten teeth. The big one has thirty."],
+ ["ratio","So the small gear has to spin three times, just to turn the big gear once."],
+ ["ratio","The big gear turns slower, but with three times more turning force. Scientists call this torque."],
+ ["ratio","Flip it around, and big to small gives you speed instead. You trade one for the other."],
+ ["bike","On a bike, a big front gear and a small back gear make the wheel spin fast."],
+ ["bike","A small front gear and a big back gear make climbing hills easy."],
+ ["world","Gears are hiding everywhere. In clocks, cars, washing machines, and even your kitchen mixer."],
+ ["outro","Small teeth, huge wonders. Follow for more science made simple!"]
+]

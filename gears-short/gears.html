@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Gears Work</title>
+<style>
+  :root { --bg:#0d1430; --ink:#f4f7fb; --accent:#ffc94d; }
+  html,body { margin:0; height:100%; background:var(--bg); overflow:hidden;
+    font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); }
+  #stage { position:fixed; inset:0; } canvas { display:block; }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
+    background:linear-gradient(to top, rgba(7,10,26,.3) 0%, rgba(7,10,26,.9) 30%, rgba(7,10,26,.5) 62%, rgba(7,10,26,0) 100%); }
+  #topshade { position:absolute; left:0; right:0; top:0; height:19%; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(7,10,26,.85), rgba(7,10,26,0)); }
+  #head { position:absolute; top:5.2%; left:0; right:0; text-align:center; }
+  #head .t { font-size:28px; font-weight:900; letter-spacing:1px; text-shadow:0 3px 14px rgba(0,0,0,.7); }
+  #head .chip { display:inline-block; margin-top:8px; background:var(--accent); color:#1b1b1b; font-weight:800;
+    border-radius:999px; padding:5px 14px; font-size:15px; letter-spacing:1px; }
+  #sub { position:absolute; left:6%; right:6%; bottom:22%; text-align:center; font-weight:800;
+    font-size:27px; line-height:1.28; text-shadow:0 2px 0 #000, 0 0 12px rgba(0,0,0,.85); }
+  #big { position:absolute; left:5%; right:5%; top:10%; text-align:center; }
+  #big .l1 { font-size:28px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+  #big .l2 { font-size:54px; font-weight:900; line-height:1.05; margin-top:6px; text-shadow:0 4px 18px rgba(0,0,0,.7); }
+  #chips { position:absolute; left:0; right:0; top:15.5%; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:0 6%; }
+  #chips span { background:rgba(8,12,30,.9); border:2px solid var(--accent); border-radius:10px; padding:7px 14px; font-weight:800; font-size:19px; opacity:0; }
+  .label { position:absolute; transform:translate(-50%,-50%); background:rgba(8,12,30,.9);
+    border:2px solid var(--accent); color:var(--ink); border-radius:8px; padding:4px 11px;
+    font-weight:800; font-size:17px; white-space:nowrap; pointer-events:none; }
+  .label.red { border-color:#ff5a5a; } .label.blue { border-color:#4fa3ff; } .label.green { border-color:#4ee28a; }
+  .label.big { font-size:21px; padding:6px 14px; }
+  #bar { position:absolute; left:0; bottom:0; height:6px; background:var(--accent); width:0; }
+  #replay { position:absolute; top:12px; right:12px; background:var(--accent); border:0; color:#1b1b1b;
+    font-weight:700; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:14px; }
+  body.capture #replay { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topshade"></div>
+<div id="shade"></div>
+<div id="head"><div class="t">HOW GEARS WORK</div><div class="chip" id="chip"></div></div>
+<div id="big"><div class="l1" id="big1"></div><div class="l2" id="big2"></div></div>
+<div id="chips"><span>Clocks</span><span>Cars</span><span>Washing machines</span><span>Mixers</span></div>
+<div id="labels"></div>
+<div id="sub"></div>
+<div id="bar"></div>
+<button id="replay">↻ Replay</button>
+<script src="three.min.js"></script>
+<script>
+const TIMING = {
+ "lines": [
+  {
+   "m": "hook",
+   "text": "Why is one bicycle gear easy uphill, and another one super fast? The secret is gears.",
+   "start": 0.5,
+   "end": 6.05
+  },
+  {
+   "m": "basics",
+   "text": "A gear is just a wheel with teeth. When two gears mesh, the teeth push each other around.",
+   "start": 7.25,
+   "end": 12.2
+  },
+  {
+   "m": "dir",
+   "text": "Notice something? The second gear spins the opposite way.",
+   "start": 13.4,
+   "end": 16.57
+  },
+  {
+   "m": "dir",
+   "text": "Add a third gear, and the direction flips back again.",
+   "start": 16.87,
+   "end": 19.65
+  },
+  {
+   "m": "ratio",
+   "text": "Now let's make one gear small, and the other big. The small one has ten teeth. The big one has thirty.",
+   "start": 20.85,
+   "end": 26.44
+  },
+  {
+   "m": "ratio",
+   "text": "So the small gear has to spin three times, just to turn the big gear once.",
+   "start": 26.74,
+   "end": 30.75
+  },
+  {
+   "m": "ratio",
+   "text": "The big gear turns slower, but with three times more turning force. Scientists call this torque.",
+   "start": 31.05,
+   "end": 36.36
+  },
+  {
+   "m": "ratio",
+   "text": "Flip it around, and big to small gives you speed instead. You trade one for the other.",
+   "start": 36.66,
+   "end": 41.2
+  },
+  {
+   "m": "bike",
+   "text": "On a bike, a big front gear and a small back gear make the wheel spin fast.",
+   "start": 42.4,
+   "end": 46.67
+  },
+  {
+   "m": "bike",
+   "text": "A small front gear and a big back gear make climbing hills easy.",
+   "start": 46.97,
+   "end": 50.66
+  },
+  {
+   "m": "world",
+   "text": "Gears are hiding everywhere. In clocks, cars, washing machines, and even your kitchen mixer.",
+   "start": 51.86,
+   "end": 57.32
+  },
+  {
+   "m": "outro",
+   "text": "Small teeth, huge wonders. Follow for more science made simple!",
+   "start": 58.52,
+   "end": 62.34
+  }
+ ],
+ "duration": 64.14
+};
+(function(){
+const LINES=TIMING.lines, DURATION=TIMING.duration, L=i=>LINES[i];
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const smooth=(a,b,x)=>{const k=clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+const win=(a,b,t,f=0.4)=>smooth(a,a+f,t)*(1-smooth(b-f,b,t));
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const TAU=Math.PI*2;
+
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.outputEncoding=THREE.sRGBEncoding;
+document.getElementById('stage').appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0d1430);
+const camera=new THREE.PerspectiveCamera(62,1,0.1,300);
+scene.add(new THREE.HemisphereLight(0xe8eeff,0x1a1f40,0.5));
+const key=new THREE.DirectionalLight(0xffffff,1.15); key.position.set(-6,10,12); scene.add(key);
+const rimP=new THREE.DirectionalLight(0xff7ad9,0.45); rimP.position.set(10,-4,6); scene.add(rimP);
+const rimC=new THREE.DirectionalLight(0x5fd3ff,0.45); rimC.position.set(-10,-6,4); scene.add(rimC);
+
+function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.3,'rgba(255,255,255,.5)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=r; g.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
+const GLOW=glowTex();
+function sprite(color,size,op=1,parent=scene){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false}));
+  s.scale.set(size,size,1); parent.add(s); return s; }
+// back wall with soft colour pools behind each scene
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(200,80),new THREE.MeshBasicMaterial({color:0x0c1230})); wall.position.set(12,5,-3); scene.add(wall);
+
+// ---------- gear factory ----------
+const gloss=c=>new THREE.MeshPhysicalMaterial({color:c,roughness:0.35,metalness:0.1,clearcoat:0.6,clearcoatRoughness:0.15,transparent:true,opacity:1});
+function gearShape(N,m,hole,holes){
+  const R=m*N/2, ro=R+m, rr=R-1.25*m, s=new THREE.Shape(); let first=true;
+  const pt=(r,a)=>{ const x=Math.cos(a)*r, y=Math.sin(a)*r; if(first){ s.moveTo(x,y); first=false; } else s.lineTo(x,y); };
+  for(let k=0;k<N;k++){ const c=k*TAU/N, p=Math.PI/N;
+    pt(rr,c-p); pt(rr,c-0.62*p); pt(ro,c-0.28*p); pt(ro,c+0.28*p); pt(rr,c+0.62*p); }
+  s.closePath();
+  const h=new THREE.Path(); h.absarc(0,0,hole,0,TAU,true); s.holes.push(h);
+  if(holes){ const n=N>=24?6:5; for(let k=0;k<n;k++){ const a=k*TAU/n+0.3, rc=(hole+rr)/2, rh=Math.min((rr-hole)*0.32, rc*Math.sin(Math.PI/n)*0.62);
+    const p=new THREE.Path(); p.absarc(Math.cos(a)*rc,Math.sin(a)*rc,rh,0,TAU,true); s.holes.push(p); } }
+  return s;
+}
+function makeGear(N,m,color,opts={}){
+  const g=new THREE.Group(); const R=m*N/2;
+  const geo=new THREE.ExtrudeGeometry(gearShape(N,m,opts.hole||Math.max(0.12,R*0.14),R>0.9),{depth:opts.depth||0.42,bevelEnabled:true,bevelThickness:0.06,bevelSize:0.04,bevelSegments:3,curveSegments:12});
+  geo.translate(0,0,-(opts.depth||0.42)/2);
+  const mat=gloss(color); const mesh=new THREE.Mesh(geo,mat); g.add(mesh);
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(Math.max(0.16,R*0.2),Math.max(0.16,R*0.2),(opts.depth||0.42)+0.25,24),gloss(0xf2f4fa)); hub.rotation.x=Math.PI/2; g.add(hub);
+  const axle=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,3.2,12),new THREE.MeshStandardMaterial({color:0x8d97ab,metalness:0.8,roughness:0.3})); axle.rotation.x=Math.PI/2; axle.position.z=-1.5; g.add(axle);
+  const dot=new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.09,m*0.6),16,12),new THREE.MeshBasicMaterial({color:0xffffff})); dot.position.set(R-1.9*m,0,(opts.depth||0.42)/2+0.06); g.add(dot);
+  g.userData={N,R,m,mat,dot}; return g;
+}
+// angle of gear B so its teeth mesh with gear A (B centre lies at angle alpha from A)
+function meshAngle(A,thA,B,alpha){ return alpha+Math.PI-Math.PI/B.userData.N-(thA-alpha)*A.userData.N/B.userData.N; }
+// curved direction arrow (CCW; mirror for CW)
+function dirArrow(radius,color,tube=0.07){
+  const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false});
+  const g=new THREE.Group(); const a0=Math.PI*0.2, span=Math.PI*0.62;
+  const arc=new THREE.Mesh(new THREE.TorusGeometry(radius,tube,10,60,span),m); arc.rotation.z=a0; g.add(arc);
+  const e=a0+span; const head=new THREE.Mesh(new THREE.ConeGeometry(tube*3.2,tube*7,16),m);
+  head.position.set(Math.cos(e)*radius,Math.sin(e)*radius,0); head.rotation.z=e; g.add(head);
+  g.userData.m=m; scene.add(g); return g;
+}
+function setDir(arrow,pos,ccw,op,rot=0){ arrow.position.copy(pos); arrow.scale.x=ccw?1:-1; arrow.rotation.z=rot; arrow.userData.m.opacity=op; arrow.visible=op>0.01; }
+
+// ---------- SCENE A: direction (three equal gears) ----------
+const AX=-24, AY=5.2, M1=0.2, NA=16, RA=M1*NA/2;
+const aAng1=-0.7, aAng2=Math.PI+0.7; // centre-to-centre angles
+const gA1=makeGear(NA,M1,0xff4d5e), gA2=makeGear(NA,M1,0x3f8cff), gA3=makeGear(NA,M1,0xffc23d);
+const cA2=V(AX+0.9,AY,0), cA1=cA2.clone().add(V(-Math.cos(aAng1)*2*RA,-Math.sin(aAng1)*2*RA,0)), cA3=cA2.clone().add(V(Math.cos(aAng2)*2*RA,Math.sin(aAng2)*2*RA,0));
+gA1.position.copy(cA1); gA2.position.copy(cA2); gA3.position.copy(cA3); scene.add(gA1,gA2,gA3);
+const arA1=dirArrow(RA+0.55,0xffffff), arA2=dirArrow(RA+0.55,0xffffff), arA3=dirArrow(RA+0.55,0xffffff);
+const contactA=sprite(0xfff1a8,0.9,0), contactA2=sprite(0xfff1a8,0.9,0);
+sprite(0x3f5cff,14,0.22).position.set(AX,AY,-2.8);
+
+// ---------- SCENE B: small vs big ----------
+const BX=0, BY=3.0, NBs=10, NBb=30;
+const gBs=makeGear(NBs,M1,0xff4d5e), gBb=makeGear(NBb,M1,0x3f8cff);
+const cBb=V(BX,BY,0), bAlpha=Math.PI/2; const cBs=cBb.clone().add(V(0,M1*(NBs+NBb)/2,0));
+gBb.position.copy(cBb); gBs.position.copy(cBs); scene.add(gBs,gBb);
+sprite(0x7a3cff,16,0.22).position.set(BX,BY+1.5,-2.8);
+const torqueS=dirArrow(1.55,0x4ee28a,0.05), torqueB=dirArrow(3.75,0x4ee28a,0.17);
+const speedS=dirArrow(1.55,0xffc94d,0.09);
+
+// ---------- SCENE C: bicycle drivetrain ----------
+const CX=24, CY=4.6, M2=0.1;
+const cF=V(CX-2.3,CY,0.3), cR=V(CX+1.9,CY,0.3);
+const frontBig=makeGear(36,M2,0xff4d5e,{depth:0.18}), frontSmall=makeGear(20,M2,0xff4d5e,{depth:0.18});
+const rearSmall=makeGear(12,M2,0x3f8cff,{depth:0.18}), rearBig=makeGear(28,M2,0x3f8cff,{depth:0.18});
+[frontBig,frontSmall].forEach(g=>{ g.position.copy(cF); scene.add(g); });
+[rearSmall,rearBig].forEach(g=>{ g.position.copy(cR); scene.add(g); });
+const metalM=new THREE.MeshStandardMaterial({color:0x9aa4b8,metalness:0.85,roughness:0.25});
+const frameM=gloss(0x2bd18f);
+function bar(a,b,r,mat){ const d=b.clone().sub(a); const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),16),mat);
+  c.position.copy(a).addScaledVector(d,0.5); c.quaternion.setFromUnitVectors(V(0,1,0),d.normalize()); scene.add(c); return c; }
+// frame
+const seatTop=V(CX-2.9,CY+4.0,-0.1);
+bar(V(cF.x,cF.y,-0.1),V(cR.x,cR.y,-0.1),0.09,frameM);
+bar(V(cF.x,cF.y,-0.1),seatTop,0.1,frameM);
+bar(seatTop,V(cR.x,cR.y,-0.1),0.08,frameM);
+const seat=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.18,0.45),gloss(0x1b1f2e)); seat.position.copy(seatTop).add(V(-0.1,0.25,0)); scene.add(seat);
+bar(seatTop,seatTop.clone().add(V(0.05,0.2,0)),0.07,metalM);
+// rear wheel
+const wheel=new THREE.Group(); wheel.position.set(cR.x,cR.y,-0.35); scene.add(wheel);
+const WR=3.0;
+wheel.add(new THREE.Mesh(new THREE.TorusGeometry(WR,0.22,16,96),new THREE.MeshStandardMaterial({color:0x1d1f27,roughness:0.85})));
+wheel.add(new THREE.Mesh(new THREE.TorusGeometry(WR-0.22,0.06,10,96),metalM));
+for(let i=0;i<16;i++){ const a=i*TAU/16; const sp=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,WR-0.25,6),metalM);
+  sp.position.set(Math.cos(a)*(WR-0.25)/2,Math.sin(a)*(WR-0.25)/2,0); sp.rotation.z=a-Math.PI/2; wheel.add(sp); }
+const valveDot=new THREE.Mesh(new THREE.SphereGeometry(0.14,12,10),new THREE.MeshBasicMaterial({color:0xffc94d})); valveDot.position.set(WR-0.25,0,0.08); wheel.add(valveDot);
+// crank + pedal
+const crank=new THREE.Group(); crank.position.set(cF.x,cF.y,0.62); scene.add(crank);
+const arm=new THREE.Mesh(new THREE.BoxGeometry(0.22,1.5,0.14),metalM); arm.position.y=-0.75; crank.add(arm);
+const pedal=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.18,0.5),gloss(0x1b1f2e)); pedal.position.set(0,-1.5,0.25); crank.add(pedal);
+// chain (instanced links following the convex hull of both sprockets)
+const NL=160; const linkGeo=new THREE.BoxGeometry(0.19,0.1,0.12);
+const links=new THREE.InstancedMesh(linkGeo,new THREE.MeshStandardMaterial({color:0xd7dde8,metalness:0.8,roughness:0.3}),NL); scene.add(links);
+function hull(P){ P.sort((a,b)=>a.x-b.x||a.y-b.y); const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+  const lo=[],up=[]; for(const p of P){ while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p); }
+  for(let i=P.length-1;i>=0;i--){ const p=P[i]; while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0) up.pop(); up.push(p); }
+  up.pop(); lo.pop(); return lo.concat(up); }
+sprite(0x2bd18f,17,0.18).position.set(CX,CY,-2.8);
+const streaks=[]; for(let i=0;i<14;i++){ const s=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.05,0.02),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0})); s.userData={y:(i/13-0.5)*5.2,ph:i*0.37%1}; scene.add(s); streaks.push(s); }
+
+// ---------- SCENE D: gear cluster ----------
+const DX=48, DY=5.4, M3=0.17;
+const DSPEC=[[22,0xffc23d],[12,0xff4d5e,0.35],[26,0x3f8cff,-0.5],[10,0x2bd18f,-1.9],[18,0xb26bff,-3.0],[14,0xff8a3d,2.1]];
+const DG=[], DA=[];
+{ let prev=null; DSPEC.forEach(([n,c,ang],i)=>{ const g=makeGear(n,M3,c); if(!prev){ g.position.set(DX-1.5,DY+0.6,0); }
+    else { const base=(i===5)?DG[0]:prev; const d=M3*(base.userData.N+n)/2; g.position.copy(base.position).add(V(Math.cos(ang)*d,Math.sin(ang)*d,0)); g.userData.parent=base; g.userData.alpha=ang; }
+    scene.add(g); DG.push(g); prev=g; }); }
+sprite(0xffb13d,18,0.16).position.set(DX,DY,-2.8);
+sprite(0x7a3cff,14,0.18).position.set(DX+2,DY-2,-2.6);
+
+// ---------- labels ----------
+const labelsEl=document.getElementById('labels'), LBL=[];
+function label(text,cls,posFn,from,to,dyn){ const d=document.createElement('div'); d.className='label '+cls; d.textContent=text; labelsEl.appendChild(d); LBL.push({d,posFn,from,to,dyn}); }
+const at=(v,dx=0,dy=0)=>()=>v.clone().add(V(dx,dy,0));
+label("Teeth push teeth","",()=>contactA.position.clone().add(V(1.7,0.25,0)),L(1).start+2.4,L(1).end+0.3);
+label("Opposite way!","blue",at(cA2,1.7,1.85),L(2).start+0.6,L(3).end+0.4);
+label("Flips back!","",at(cA3,-0.2,-2.35),L(3).start+0.8,L(3).end+0.4);
+label("10 teeth","red",at(cBs,-1.9,0.4),L(4).start+2.4,L(4).end+0.2);
+label("30 teeth","blue",at(cBb,0,-3.75),L(4).start+3.8,L(4).end+0.2);
+const turnS=()=>{ const v=clamp((thS-thS_a)/TAU,0,3); return "Small: "+v.toFixed(1)+" turns"; };
+const turnB=()=>{ const v=clamp((thS-thS_a)/TAU/3,0,1); return "Big: "+v.toFixed(1)+" turn"; };
+label("","red big",at(cBs,0,1.65),L(5).start+0.1,L(5).end+0.4,turnS);
+label("","blue big",at(cBb,0,-1.0),L(5).start+0.1,L(5).end+0.4,turnB);
+label("Slow but STRONG: 3x force","green",at(cBb,0,-1.0),L(6).start+0.8,L(6).end+0.3);
+label("Torque","green",at(cBb,2.3,2.6),L(6).start+3.0,L(6).end+0.3);
+label("SPEED: 3x faster","",at(cBs,0,1.65),L(7).start+1.2,L(7).end+0.4);
+label("POWER","green",at(cBb,0,-1.0),L(7).start+1.2,L(7).end+0.4);
+label("Big front gear","red",at(cF,-0.3,-2.35),L(8).start+0.6,L(8).end+0.1);
+label("Small back gear","blue",at(cR,0,1.0),L(8).start+1.8,L(8).end+0.1);
+label("1 pedal turn = 3 wheel turns","big",()=>V(CX,CY+3.9,0),L(8).start+2.4,L(8).end+0.1);
+label("Small front gear","red",at(cF,-0.3,-2.35),L(9).start+0.5,L(9).end+0.4);
+label("Big back gear","blue",at(cR,0,1.75),L(9).start+1.2,L(9).end+0.4);
+label("Easy climbing!","green big",()=>V(CX,CY+3.9,0),L(9).start+2.0,L(9).end+0.4);
+
+// ---------- motion ----------
+const B_A=L(5).start+0.5, B_B=L(5).end-0.2;
+function omegaB(t){ // small-gear angular speed
+  const bump=(t>B_A&&t<B_B)? 6*Math.PI*6*((t-B_A)/(B_B-B_A))*(1-(t-B_A)/(B_B-B_A))/(B_B-B_A) : 0;
+  const base=0.9*(1-win(B_A-0.2,B_B+0.2,t,0.2));
+  const slow=-0.35*win(L(6).start,L(6).end,t,0.5);
+  const fast=4.2*win(L(7).start+0.6,L(7).end+0.8,t,0.6);
+  return base+bump+slow+fast; }
+let thS=0, thS_a=0;
+function integ(t,f,dt=1/120){ let a=0; for(let x=dt/2;x<t;x+=dt) a+=f(x)*dt; return a; }
+const swC=t=>smooth(L(9).start-0.3,L(9).start+0.9,t);
+const pedalW=2.0;
+const Rf=t=>lerp(1.8,1.0,swC(t)), Rr=t=>lerp(0.6,1.4,swC(t));
+
+// ---------- camera ----------
+const SHOTS=[
+  [0,            [DX+2,DY+0.6-1.6,18], [DX+0.2,DY+1.8-1.6,0]],
+  [L(1).start,   [AX+2.4,AY+0.8-1.6,13], [AX,AY+1.3-1.6,0]],
+  [L(4).start,   [BX+2.6,BY+2.0-1.6,16], [BX,BY+2.9-1.6,0]],
+  [L(8).start,   [CX+1.5,CY+0.8-1.6,16.5],[CX+0.2,CY+1.1-1.6,0]],
+  [L(10).start,  [DX-1.5,DY+0.5-1.6,16.5], [DX+0.2,DY+1.6-1.6,0]],
+  [L(11).start,  [DX+2,DY+0.8-1.6,18.5],[DX+0.2,DY+1.2-1.6,0]],
+];
+function camAt(t){
+  let i=0; while(i<SHOTS.length-1 && t>=SHOTS[i+1][0]) i++;
+  const A=SHOTS[i], B=SHOTS[Math.min(i+1,SHOTS.length-1)];
+  const k=(B===A)?0:smooth(B[0]-1.5,B[0]+0.1,t);
+  const p=A[1].map((x,j)=>lerp(x,B[1][j],k)), g=A[2].map((x,j)=>lerp(x,B[2][j],k));
+  camera.position.set(p[0]+Math.sin(t*0.3)*0.8,p[1]+Math.sin(t*0.21)*0.3,p[2]); camera.lookAt(g[0],g[1],g[2]);
+}
+
+const CHIPS={hook:"",basics:"THE BASICS",dir:"DIRECTION",ratio:"SPEED vs POWER",bike:"ON YOUR BIKE",world:"EVERYWHERE",outro:""};
+const sub=document.getElementById('sub'), chip=document.getElementById('chip'), head=document.getElementById('head');
+const big=document.getElementById('big'), big1=document.getElementById('big1'), big2=document.getElementById('big2');
+const chipEls=[...document.querySelectorAll('#chips span')];
+const tmp=V(0,0,0), dummy=new THREE.Object3D(); let lastLine=-2;
+
+function renderAt(t){
+  t=clamp(t,0,DURATION); camAt(t);
+  // ---- scene A ----
+  const thA1=1.1*t;
+  gA1.rotation.z=thA1; const thA2=meshAngle(gA1,thA1,gA2,aAng1+Math.PI*0);
+  // gA2 lies at angle (aAng1) from gA1? centre vector gA1->gA2:
+  const alpha12=Math.atan2(cA2.y-cA1.y,cA2.x-cA1.x), alpha23=Math.atan2(cA3.y-cA2.y,cA3.x-cA2.x);
+  const t2=meshAngle(gA1,thA1,gA2,alpha12); gA2.rotation.z=t2;
+  const t3=meshAngle(gA2,t2,gA3,alpha23); gA3.rotation.z=t3;
+  const in2=smooth(L(1).start+1.0,L(1).start+2.2,t), in3=smooth(L(3).start+0.1,L(3).start+1.1,t);
+  gA2.position.copy(cA2).add(V(4*(1-in2),0,0)); gA2.userData.mat.opacity=in2; gA2.visible=in2>0.01;
+  gA3.position.copy(cA3).add(V(-4*(1-in3),0,0)); gA3.userData.mat.opacity=in3; gA3.visible=in3>0.01;
+  contactA.position.copy(cA1).lerp(cA2,0.5).setZ(0.4); contactA.material.opacity=0.8*win(L(1).start+2.2,L(1).end+0.3,t)*(0.7+0.3*Math.sin(t*10));
+  const dO=win(L(2).start+0.2,L(3).end+0.6,t);
+  setDir(arA1,cA1.clone().setZ(0.45),true,dO); setDir(arA2,cA2.clone().setZ(0.45),false,dO,Math.PI); setDir(arA3,cA3.clone().setZ(0.45),true,win(L(3).start+0.9,L(3).end+0.6,t),Math.PI*0.95);
+
+  // ---- scene B ----
+  thS=integ(t,omegaB); thS_a=integ(B_A,omegaB);
+  gBs.rotation.z=thS; gBb.rotation.z=meshAngle(gBs,thS,gBb,-Math.PI/2);
+  const bIn=smooth(L(4).start-1.2,L(4).start+0.4,t);
+  gBs.userData.mat.opacity=gBb.userData.mat.opacity=bIn;
+  const dotGlow=win(L(5).start,L(5).end+0.4,t); gBs.userData.dot.scale.setScalar(1+1.5*dotGlow); gBb.userData.dot.scale.setScalar(1+1.5*dotGlow);
+  const tq=win(L(6).start+0.4,L(6).end+0.3,t);
+  setDir(torqueS,cBs.clone().setZ(0.45),true,tq*0.8,Math.PI*1.1); setDir(torqueB,cBb.clone().setZ(0.45),false,tq,Math.PI*0.95);
+  setDir(speedS,cBs.clone().setZ(0.45),true,win(L(7).start+0.8,L(7).end+0.4,t),t*3);
+
+  // ---- scene C ----
+  const sw=swC(t), thF=pedalW*t;
+  const thR=integ(t,x=>pedalW*Rf(x)/Rr(x)), sChain=integ(t,x=>pedalW*Rf(x));
+  [frontBig,frontSmall].forEach(g=>g.rotation.z=-thF); [rearSmall,rearBig].forEach(g=>g.rotation.z=-thR);
+  frontBig.scale.setScalar(Math.max(1-sw,0.001)); frontSmall.scale.setScalar(Math.max(sw,0.001));
+  rearSmall.scale.setScalar(Math.max(1-sw,0.001)); rearBig.scale.setScalar(Math.max(sw,0.001));
+  frontBig.visible=sw<0.999; frontSmall.visible=sw>0.001; rearSmall.visible=sw<0.999; rearBig.visible=sw>0.001;
+  wheel.rotation.z=-thR; crank.rotation.z=-thF;
+  { const rf=Rf(t)+0.04, rr=Rr(t)+0.04, P=[]; for(let i=0;i<90;i++){ const a=i*TAU/90; P.push({x:cF.x+Math.cos(a)*rf,y:cF.y+Math.sin(a)*rf}); P.push({x:cR.x+Math.cos(a)*rr,y:cR.y+Math.sin(a)*rr}); }
+    const Hh=hull(P); const cum=[0]; for(let i=1;i<=Hh.length;i++){ const a=Hh[i-1], b=Hh[i%Hh.length]; cum.push(cum[i-1]+Math.hypot(b.x-a.x,b.y-a.y)); }
+    const len=cum[cum.length-1], sp=0.2, n=Math.min(NL,Math.floor(len/sp)), step=len/n;
+    for(let i=0;i<NL;i++){ if(i>=n){ dummy.scale.setScalar(0); dummy.updateMatrix(); links.setMatrixAt(i,dummy.matrix); continue; }
+      // chain moves clockwise (same way as the sprockets)
+      let d=((i*step - sChain)%len+len)%len; let j=0; while(j<Hh.length-1 && cum[j+1]<d) j++;
+      const a=Hh[j], b=Hh[(j+1)%Hh.length], k=(d-cum[j])/Math.max(cum[j+1]-cum[j],1e-6);
+      dummy.position.set(lerp(a.x,b.x,k),lerp(a.y,b.y,k),0.3); dummy.rotation.set(0,0,Math.atan2(b.y-a.y,b.x-a.x)); dummy.scale.setScalar(1); dummy.updateMatrix(); links.setMatrixAt(i,dummy.matrix); }
+    links.instanceMatrix.needsUpdate=true; }
+  const fast=win(L(8).start+0.6,L(8).end,t);
+  streaks.forEach(s=>{ const k=(t*1.6+s.userData.ph)%1; s.position.set(cR.x+WR+0.6+k*2.2,cR.y+s.userData.y,0); s.material.opacity=fast*0.55*Math.sin(k*Math.PI); });
+
+  // ---- scene D ----
+  DG.forEach((g,i)=>{ if(i===0) g.rotation.z=0.8*t; else g.rotation.z=meshAngle(g.userData.parent,g.userData.parent.rotation.z,g,g.userData.alpha); });
+
+  renderer.render(scene,camera);
+
+  // ---- overlay ----
+  let li=-1; LINES.forEach((l,i)=>{ if(t>=l.start-0.05) li=i; });
+  const line=li>=0?LINES[li]:null;
+  if(li!==lastLine){ sub.textContent=line?line.text:''; chip.textContent=line?CHIPS[line.m]:''; chip.style.display=(line&&CHIPS[line.m])?'inline-block':'none'; lastLine=li; }
+  sub.style.opacity=(line && t<=line.end+0.3 && line.m!=='outro')?1:0;
+  head.style.opacity=smooth(L(1).start-0.6,L(1).start,t)*(1-smooth(L(11).start-0.4,L(11).start,t));
+  const intro=1-smooth(L(1).start-0.8,L(1).start-0.2,t), outro=smooth(L(11).start-0.2,L(11).start+0.4,t);
+  if(outro>0){ big1.textContent="SMALL TEETH,"; big2.textContent="HUGE WONDERS"; big.style.opacity=outro; }
+  else { big1.textContent="THE SECRET BEHIND"; big2.textContent="EVERY BIKE"; big.style.opacity=intro; }
+  chipEls.forEach((c,i)=>{ c.style.opacity=win(L(10).start+1.0+i*1.0,L(10).end+0.6,t,0.3); });
+  document.getElementById('bar').style.width=(t/DURATION*100)+'%';
+  const cw=W(), ch=H();
+  LBL.forEach(l=>{ const o=win(l.from,l.to,t,0.3); if(o<0.01){ l.d.style.display='none'; return; }
+    if(l.dyn) l.d.textContent=l.dyn();
+    tmp.copy(l.posFn()).project(camera); l.d.style.display=tmp.z<1?'block':'none'; l.d.style.opacity=o;
+    l.d.style.left=clamp((tmp.x+1)/2*cw,90,cw-90)+'px'; l.d.style.top=clamp((1-tmp.y)/2*ch,ch*0.2,ch*0.66)+'px'; });
+}
+window.renderAt=renderAt; window.DURATION=DURATION;
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize); resize();
+if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }
+else { let start=performance.now(); document.getElementById('replay').onclick=()=>{start=performance.now();};
+  (function loop(){ renderAt(Math.min((performance.now()-start)/1000,DURATION)); requestAnimationFrame(loop); })(); }
+})();
+</script>
+</body>
+</html>

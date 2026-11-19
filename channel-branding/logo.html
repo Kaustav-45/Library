@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>How It Spins logo</title>
+<style>
+  html,body{margin:0;width:1024px;height:1024px;overflow:hidden;
+    background:radial-gradient(circle at 50% 42%, #1d3a6e 0%, #0f1f3d 45%, #070d1c 100%);}
+  canvas{position:absolute;inset:0}
+</style></head>
+<body>
+<script src="../turbine-explainer/three.min.js"></script>
+<script>
+const S=1024;
+const r=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+r.setSize(S,S); r.setClearColor(0x000000,0); r.outputEncoding=THREE.sRGBEncoding; document.body.appendChild(r.domElement);
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(32,1,0.1,100); cam.position.set(0,0.2,18.5); cam.lookAt(0,0,0);
+scene.add(new THREE.HemisphereLight(0xffffff,0x223355,0.7));
+const key=new THREE.DirectionalLight(0xffffff,1.5); key.position.set(-5,7,9); scene.add(key);
+const rim=new THREE.DirectionalLight(0x7fb2ff,0.9); rim.position.set(6,-3,-4); scene.add(rim);
+
+function gear(R,teeth,depth,hole,mat){
+  const s=new THREE.Shape(), toothH=R*0.17, n=teeth*4;
+  for(let i=0;i<=n;i++){
+    const a=i/n*Math.PI*2, ph=i%4, rr=(ph===1||ph===2)?R+toothH:R;
+    const aa=a+(ph===1?0.02:ph===2?-0.02:0);
+    const x=Math.cos(aa)*rr, y=Math.sin(aa)*rr; i===0?s.moveTo(x,y):s.lineTo(x,y);
+  }
+  const h=new THREE.Path(); h.absarc(0,0,hole,0,Math.PI*2,true); s.holes.push(h);
+  // spoke cut-outs
+  for(let k=0;k<5;k++){ const a=k/5*Math.PI*2, cx=Math.cos(a)*R*0.58, cy=Math.sin(a)*R*0.58;
+    const p=new THREE.Path(); p.absarc(cx,cy,R*0.19,0,Math.PI*2,true); s.holes.push(p); }
+  const g=new THREE.ExtrudeGeometry(s,{depth,bevelEnabled:true,bevelThickness:0.12,bevelSize:0.08,bevelSegments:4,curveSegments:24});
+  g.center(); return new THREE.Mesh(g,mat);
+}
+const gold=new THREE.MeshStandardMaterial({color:0xffb21e,metalness:0.55,roughness:0.32,emissive:0x6b3a00,emissiveIntensity:0.35});
+const blue=new THREE.MeshStandardMaterial({color:0x2f8fff,metalness:0.5,roughness:0.3,emissive:0x0a3a8a,emissiveIntensity:0.45});
+const group=new THREE.Group(); scene.add(group);
+const big=gear(2.35,14,0.7,0.55,gold); big.position.set(-0.85,0.75,0); big.rotation.z=0.08; group.add(big);
+const small=gear(1.15,8,0.6,0.32,blue); small.position.set(1.85,-1.95,0.1); small.rotation.z=0.21; group.add(small);
+// hub caps
+const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,1.0,40),new THREE.MeshStandardMaterial({color:0xfff1c9,metalness:0.6,roughness:0.25}));
+hub.rotation.x=Math.PI/2; hub.position.copy(big.position); group.add(hub);
+// motion arc with arrow around the big gear
+const arcMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.92});
+const arc=new THREE.Mesh(new THREE.TorusGeometry(3.25,0.075,12,90,Math.PI*1.05),arcMat);
+arc.position.copy(big.position); arc.rotation.z=Math.PI*0.42; group.add(arc);
+const end=Math.PI*0.42+Math.PI*1.05;
+const head=new THREE.Mesh(new THREE.ConeGeometry(0.26,0.6,20),arcMat);
+head.position.set(big.position.x+Math.cos(end)*3.25,big.position.y+Math.sin(end)*3.25,0);
+head.rotation.z=end; group.add(head);
+group.rotation.set(-0.28,0.32,0);
+r.render(scene,cam);
+</script>
+</body></html>

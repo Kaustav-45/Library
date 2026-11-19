@@ -1,0 +1,186 @@
+{
+ "title": "World War One Explained, Part 1",
+ "voice": "kokoro:af_heart",
+ "speed": 1.0,
+ "grain": 4.0,
+ "maxrate": "20M",
+ "transitions": true,
+ "palette": {
+  "bg0": [
+   4,
+   12,
+   34
+  ],
+  "bg1": [
+   18,
+   62,
+   132
+  ],
+  "text": [
+   240,
+   246,
+   255
+  ],
+  "headline": [
+   255,
+   214,
+   102
+  ],
+  "accent": [
+   206,
+   38,
+   50
+  ],
+  "ink": [
+   4,
+   10,
+   26
+  ],
+  "line": [
+   60,
+   100,
+   170
+  ],
+  "liquid": [
+   24,
+   80,
+   150
+  ],
+  "steel": [
+   130,
+   150,
+   180
+  ],
+  "glow": [
+   50,
+   130,
+   255
+  ],
+  "pop": [
+   [
+    255,
+    214,
+    102
+   ],
+   [
+    130,
+    200,
+    255
+   ],
+   [
+    240,
+    246,
+    255
+   ],
+   [
+    255,
+    150,
+    120
+   ],
+   [
+    170,
+    210,
+    255
+   ]
+  ]
+ },
+ "scenes": [
+  {
+   "say": "In just four years, one war killed around twenty million people and redrew the map of the world. This is World War One, explained. Part one.",
+   "kicker": "WORLD WAR ONE",
+   "big": "1914 – 1918",
+   "sub": "part 1: how it started",
+   "visual": "poppies",
+   "count": false
+  },
+  {
+   "say": "By 1914, Europe was a powder keg. The great powers had split into two rival alliances, and each promised to defend its friends.",
+   "kicker": "THE SETUP",
+   "big": "2 ALLIANCES",
+   "sub": "a powder keg waiting for a spark",
+   "visual": "alliances"
+  },
+  {
+   "say": "June twenty eighth, 1914. In Sarajevo, a young Bosnian Serb named Gavrilo Princip shoots Archduke Franz Ferdinand, heir to Austria-Hungary's throne.",
+   "kicker": "JUNE 28, 1914",
+   "big": "THE SPARK",
+   "sub": "an archduke is shot in Sarajevo",
+   "visual": "photo",
+   "image": "assets/ww1/sarajevo.jpg",
+   "credit": "Illustration, 1914",
+   "zoom": [
+    1.0,
+    1.18
+   ],
+   "pan": [
+    0.0,
+    -0.4
+   ]
+  },
+  {
+   "say": "Austria-Hungary declares war on Serbia. Russia backs Serbia. Germany backs Austria, and invades Belgium to reach France. Britain joins in. In about a week, Europe is at war.",
+   "kicker": "JULY TO AUGUST 1914",
+   "big": "DOMINOES",
+   "sub": "one war becomes a world war",
+   "visual": "dominoes",
+   "labels": [
+    "AUSTRIA",
+    "RUSSIA",
+    "GERMANY",
+    "FRANCE",
+    "BRITAIN"
+   ]
+  },
+  {
+   "say": "Both sides expected a short war, over by Christmas. Instead, the Western Front froze into trenches stretching from the North Sea to Switzerland.",
+   "kicker": "THE WESTERN FRONT",
+   "big": "TRENCHES",
+   "sub": "from the North Sea to Switzerland",
+   "visual": "photo",
+   "image": "assets/ww1/trench.jpg",
+   "credit": "Somme, 1916",
+   "zoom": [
+    1.0,
+    1.15
+   ],
+   "pan": [
+    0.3,
+    0.0
+   ]
+  },
+  {
+   "say": "Soldiers lived in mud, with rats and disease. Between the trenches lay no man's land, where machine guns cut down almost any attack.",
+   "kicker": "LIFE AT THE FRONT",
+   "big": "NO MAN'S LAND",
+   "sub": "the deadly ground between trenches",
+   "visual": "photo",
+   "image": "assets/ww1/wasteland.jpg",
+   "credit": "Ypres, 1917",
+   "zoom": [
+    1.05,
+    1.2
+   ],
+   "pan": [
+    -0.4,
+    0.0
+   ]
+  },
+  {
+   "say": "On the first day of the Battle of the Somme alone, July first, 1916, the British Army suffered about fifty seven thousand casualties.",
+   "kicker": "JULY 1, 1916",
+   "big": "57,000",
+   "sub": "British casualties in a single day",
+   "visual": "people",
+   "n": 40,
+   "fade": 4
+  },
+  {
+   "say": "In part two: poison gas, the first tanks, and how the war finally ended. Follow so you don't miss it.",
+   "kicker": "COMING NEXT",
+   "big": "PART 2",
+   "sub": "gas, tanks, and the end of the war",
+   "visual": "follow_ww1",
+   "count": false
+  }
+ ]
+}

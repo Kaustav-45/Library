@@ -1104,12 +1104,12 @@ def card(d, x, y, w, h, title, col, tcol=None, size=50):
 
 def domino(d, x, ground, s, ang, label, col):
     """A domino standing on the ground at x, tipped by ang radians (pivot at its right foot)."""
-    w, h = 80 * s, 300 * s; px, py = x + w / 2, ground
+    w, h = 124 * s, 300 * s; px, py = x + w / 2, ground
     c_, s_ = math.cos(ang), math.sin(ang)
     R = lambda dx, dy: (px + dx * c_ - dy * s_, py + dx * s_ + dy * c_)
     d.polygon([R(-w, 0), R(0, 0), R(0, -h), R(-w, -h)], fill=col)
     lx, ly = R(-w / 2, -h / 2)
-    text_c(d, (lx, ly), label, font('anton', 34 * s), INK)
+    text_c(d, (lx, ly), label, font('anton', 27 * s), INK)
 
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330

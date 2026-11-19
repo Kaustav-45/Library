@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>How It Spins mascot</title>
+<style>
+  html,body{margin:0;width:1024px;height:1024px;overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 46%, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 38%),
+      radial-gradient(circle at 15% 12%, #ffb36b 0%, rgba(255,179,107,0) 40%),
+      radial-gradient(circle at 88% 90%, #33d6ff 0%, rgba(51,214,255,0) 42%),
+      linear-gradient(140deg, #6d2bff 0%, #d62bc0 55%, #ff5f45 100%);}
+  canvas{position:absolute;inset:0;filter:drop-shadow(0 26px 34px rgba(40,0,80,.45));}
+</style></head>
+<body>
+<script src="../turbine-explainer/three.min.js"></script>
+<script>
+const S=1024;
+const r=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+r.setSize(S,S); r.setClearColor(0,0); r.outputEncoding=THREE.sRGBEncoding; document.body.appendChild(r.domElement);
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(30,1,0.1,100); cam.position.set(0,0.3,15); cam.lookAt(0,0.1,0);
+scene.add(new THREE.HemisphereLight(0xffffff,0x7a3cff,0.55));
+const key=new THREE.DirectionalLight(0xffffff,1.05); key.position.set(-5,7,9); scene.add(key);
+const pink=new THREE.DirectionalLight(0xff5fd2,0.9); pink.position.set(8,-2,4); scene.add(pink);
+const cyan=new THREE.DirectionalLight(0x40e0ff,0.8); cyan.position.set(-8,-5,3); scene.add(cyan);
+
+const shell=new THREE.MeshPhysicalMaterial({color:0xf6f3ff,roughness:0.28,clearcoat:1,clearcoatRoughness:0.06});
+const visorM=new THREE.MeshPhysicalMaterial({color:0x10142c,roughness:0.15,metalness:0.3,clearcoat:1,clearcoatRoughness:0.03});
+const accent=new THREE.MeshPhysicalMaterial({color:0xff8a2b,roughness:0.3,clearcoat:1,clearcoatRoughness:0.1});
+const glowM=new THREE.MeshBasicMaterial({color:0x6ff6ff});
+const soft=c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.35,blending:THREE.AdditiveBlending,depthWrite:false});
+
+const bot=new THREE.Group(); scene.add(bot);
+// body
+const body=new THREE.Mesh(new THREE.SphereGeometry(1.6,64,48),shell); body.scale.set(1.15,0.9,0.95); body.position.y=-3.3; bot.add(body);
+const chest=new THREE.Mesh(new THREE.CircleGeometry(0.42,40),glowM); chest.position.set(0,-2.85,1.42); chest.rotation.x=-0.25; bot.add(chest);
+const chestGlow=new THREE.Mesh(new THREE.CircleGeometry(0.85,40),soft(0x6ff6ff)); chestGlow.position.set(0,-2.85,1.4); chestGlow.rotation.x=-0.25; bot.add(chestGlow);
+const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.7,0.5,32),visorM); neck.position.y=-1.85; bot.add(neck);
+// head
+const head=new THREE.Group(); head.position.y=0.2; head.rotation.set(0.05,-0.18,0.08); bot.add(head);
+const skull=new THREE.Mesh(new THREE.SphereGeometry(2.0,64,48),shell); skull.scale.set(1.28,1.0,1.0); head.add(skull);
+const visor=new THREE.Mesh(new THREE.SphereGeometry(2.0,64,48),visorM); visor.scale.set(1.08,0.7,0.62); visor.position.set(0,-0.05,1.05); head.add(visor);
+// eyes (glowing capsules) + glow
+[[-0.72,0.12],[0.72,0.12]].forEach(([x,y])=>{
+  const e=new THREE.Mesh(new THREE.CapsuleGeometry(0.2,0.38,8,20),glowM); e.position.set(x,y,2.3); e.scale.z=0.4; head.add(e);
+  const g=new THREE.Mesh(new THREE.CircleGeometry(0.62,32),soft(0x6ff6ff)); g.position.set(x,y,2.36); head.add(g);
+  const shine=new THREE.Mesh(new THREE.CircleGeometry(0.06,16),new THREE.MeshBasicMaterial({color:0xffffff})); shine.position.set(x-0.07,y+0.22,2.42); head.add(shine);
+});
+// smile
+const smile=new THREE.Mesh(new THREE.TorusGeometry(0.34,0.06,12,40,Math.PI*0.85),glowM);
+smile.position.set(0,-0.42,2.28); smile.rotation.z=Math.PI+Math.PI*0.075; head.add(smile);
+// cheeks
+[-1.25,1.25].forEach(x=>{ const c=new THREE.Mesh(new THREE.CircleGeometry(0.22,24),new THREE.MeshBasicMaterial({color:0xff6fb5,transparent:true,opacity:0.8}));
+  c.position.set(x,-0.38,2.05); c.rotation.y=x>0?0.55:-0.55; head.add(c); });
+// ears
+[-1,1].forEach(s=>{ const ear=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.4,40),accent); ear.rotation.z=Math.PI/2; ear.position.set(s*2.55,0,0); head.add(ear);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.12,32),shell); cap.rotation.z=Math.PI/2; cap.position.set(s*2.8,0,0); head.add(cap); });
+// antenna with spinning rings
+const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.9,16),visorM); ant.position.set(0,2.35,0); head.add(ant);
+const ball=new THREE.Mesh(new THREE.SphereGeometry(0.32,32,24),accent); ball.position.set(0,2.95,0); head.add(ball);
+const ringM=new THREE.MeshBasicMaterial({color:0x6ff6ff});
+const ring1=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.045,12,64,Math.PI*1.5),ringM); ring1.position.copy(ball.position); ring1.rotation.set(1.25,0.2,0.4); head.add(ring1);
+const ring2=new THREE.Mesh(new THREE.TorusGeometry(0.85,0.03,12,64,Math.PI*1.1),ringM); ring2.position.copy(ball.position); ring2.rotation.set(1.3,-0.35,2.4); head.add(ring2);
+// waving arm
+const arm=new THREE.Group(); arm.position.set(1.65,-2.7,0.2); arm.rotation.z=-0.55; bot.add(arm);
+const upper=new THREE.Mesh(new THREE.CapsuleGeometry(0.32,1.1,10,24),shell); upper.position.y=0.75; arm.add(upper);
+const hand=new THREE.Mesh(new THREE.SphereGeometry(0.42,32,24),accent); hand.position.y=1.6; arm.add(hand);
+const armL=new THREE.Mesh(new THREE.CapsuleGeometry(0.3,0.8,10,24),shell); armL.position.set(-1.85,-3.5,0.3); armL.rotation.z=-0.35; bot.add(armL);
+// sparkles
+const sp=new THREE.MeshBasicMaterial({color:0xffffff});
+[[3.6,2.6,0.2],[-3.7,1.6,0.15],[3.3,-0.6,0.1],[-3.2,3.4,0.1]].forEach(([x,y,s])=>{ const g=new THREE.Group();
+  [0,Math.PI/2].forEach(rz=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(s*0.45,s*4,0.02),sp); b.rotation.z=rz; g.add(b); });
+  g.position.set(x,y,0); g.rotation.z=Math.PI/4; scene.add(g); });
+bot.position.y=0.35;
+r.render(scene,cam);
+</script>
+</body></html>

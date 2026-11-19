@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>How It Spins concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@900&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;width:1024px;height:1024px;overflow:hidden;font-family:Poppins,"Segoe UI",Arial,sans-serif}
+  body.bulb{background:
+      radial-gradient(circle at 50% 44%, rgba(255,170,60,.38) 0%, rgba(255,120,40,.12) 26%, rgba(0,0,0,0) 48%),
+      radial-gradient(circle at 50% 50%, #1b1f4a 0%, #0c0e26 55%, #05060f 100%);}
+  body.quest{background:
+      radial-gradient(circle at 50% 50%, rgba(140,80,255,.45) 0%, rgba(0,0,0,0) 50%),
+      radial-gradient(circle at 50% 50%, #170c38 0%, #090519 60%, #030208 100%);}
+  canvas{position:absolute;inset:0}
+  #q{position:absolute;inset:0;display:none;align-items:center;justify-content:center}
+  body.quest #q{display:flex}
+  #q .mark{font-weight:900;font-size:720px;line-height:1;transform:translate(0,-10px) rotate(-6deg);
+    background:linear-gradient(160deg,#ffffff 0%,#9be9ff 30%,#7b5cff 70%,#e04bff 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 30px rgba(140,110,255,.8)) drop-shadow(0 18px 0 #3a1d8a) drop-shadow(0 30px 40px rgba(0,0,0,.6));}
+</style></head>
+<body>
+<div id="q"><div class="mark">?</div></div>
+<script src="../turbine-explainer/three.min.js"></script>
+<script>
+const MODE=location.hash.slice(1)||'bulb'; document.body.className=MODE;
+const S=1024;
+const r=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+r.setSize(S,S); r.setClearColor(0,0); r.outputEncoding=THREE.sRGBEncoding; document.body.appendChild(r.domElement);
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(30,1,0.1,100); cam.position.set(0,0,MODE==='bulb'?17.5:17); cam.lookAt(0,0,0);
+const add=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false});
+function glowSprite(color,size,op){ // soft radial glow
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; const g=cv.getContext('2d');
+  const gr=g.createRadialGradient(128,128,0,128,128,128); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.25,'rgba(255,255,255,.5)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr; g.fillRect(0,0,256,256);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),color,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false}));
+  sp.scale.set(size,size,1); return sp; }
+function atom(group,R,col,eCol,thick=0.05){
+  [0,1,2].forEach(i=>{ const p=new THREE.Group(); p.rotation.z=i*Math.PI/3+0.3; group.add(p);
+    const o=new THREE.Group(); o.rotation.x=1.22; p.add(o);
+    o.add(new THREE.Mesh(new THREE.TorusGeometry(R,thick,16,160),new THREE.MeshBasicMaterial({color:col})));
+    const og=new THREE.Mesh(new THREE.TorusGeometry(R,thick*3,16,160),add(col,0.12)); o.add(og);
+    const a=[0.6,2.4,4.3][i]; const e=new THREE.Mesh(new THREE.SphereGeometry(thick*3.4,24,16),new THREE.MeshBasicMaterial({color:eCol}));
+    e.position.set(Math.cos(a)*R,Math.sin(a)*R,0); o.add(e); const eg=glowSprite(eCol,thick*14,0.8); eg.position.copy(e.position); o.add(eg);
+  });
+}
+
+if(MODE==='bulb'){
+  scene.add(new THREE.HemisphereLight(0xbfc8ff,0x0a0a20,0.6));
+  const key=new THREE.DirectionalLight(0xffffff,1.0); key.position.set(-6,8,10); scene.add(key);
+  const warm=new THREE.PointLight(0xffa040,1.0,20); warm.position.set(0,0.9,0); scene.add(warm);
+  const bulb=new THREE.Group(); bulb.position.y=0.55; bulb.rotation.z=-0.12; scene.add(bulb);
+  // glass: globe + neck from a lathe profile
+  const pts=[]; for(let i=0;i<=40;i++){ const a=-Math.PI/2+ (i/40)*(Math.PI*1.32); pts.push(new THREE.Vector2(Math.cos(a)*2.6, Math.sin(a)*2.6+0.6)); }
+  // pts run from top to lower-side of globe; add neck
+  const prof=[new THREE.Vector2(0,3.2)];
+  for(let i=0;i<=48;i++){ const a=Math.PI/2-(i/48)*(Math.PI*0.86); prof.push(new THREE.Vector2(Math.cos(a)*2.6, Math.sin(a)*2.6+0.6)); }
+  prof.push(new THREE.Vector2(1.15,-2.75)); prof.push(new THREE.Vector2(1.05,-3.1));
+  const glassM=new THREE.MeshPhysicalMaterial({color:0x8fb4ff,roughness:0.05,metalness:0,clearcoat:1,clearcoatRoughness:0.02,transparent:true,opacity:0.07,side:THREE.DoubleSide,depthWrite:false});
+  const glass=new THREE.Mesh(new THREE.LatheGeometry(prof,96),glassM); bulb.add(glass);
+  // rim light on glass edge
+  const rimM=add(0x9fd8ff,0.28); const rim=new THREE.Mesh(new THREE.LatheGeometry(prof.map(p=>new THREE.Vector2(p.x*1.01,p.y)),96),rimM); rim.material.side=THREE.BackSide; bulb.add(rim);
+  // screw base
+  const metal=new THREE.MeshStandardMaterial({color:0xd8dde6,metalness:0.95,roughness:0.22});
+  for(let i=0;i<5;i++){ const t=new THREE.Mesh(new THREE.TorusGeometry(1.0-i*0.02,0.13,16,64),metal); t.rotation.x=Math.PI/2; t.position.y=-3.25-i*0.3; bulb.add(t);
+    const c=new THREE.Mesh(new THREE.CylinderGeometry(0.98-i*0.02,0.98-i*0.02,0.3,48),metal); c.position.y=-3.25-i*0.3; bulb.add(c); }
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(0.45,32,16,0,Math.PI*2,Math.PI/2,Math.PI/2),new THREE.MeshStandardMaterial({color:0x2a2d36,metalness:0.6,roughness:0.4}));
+  tip.position.y=-4.6; bulb.add(tip);
+  // atom inside
+  const at=new THREE.Group(); at.position.y=0.75; at.rotation.set(0.15,0.3,0.1); bulb.add(at);
+  atom(at,1.75,0x63e8ff,0xffffff,0.05);
+  const nuc=new THREE.Mesh(new THREE.SphereGeometry(0.38,32,24),new THREE.MeshBasicMaterial({color:0xfff1c2})); at.add(nuc);
+  const ng=glowSprite(0xffa640,2.4,0.85); at.add(ng); const ng2=glowSprite(0xffd38a,1.0,0.9); at.add(ng2);
+  const halo=glowSprite(0xff9a40,7.5,0.2); halo.position.y=0.75; bulb.add(halo);
+} else {
+  // orbit around the question mark (behind + front halves for depth)
+  const at=new THREE.Group(); at.rotation.set(1.05,0,-0.35); scene.add(at);
+  const R=3.5;
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(R,0.07,16,200),new THREE.MeshBasicMaterial({color:0x7ff0ff})); at.add(ring);
+  at.add(new THREE.Mesh(new THREE.TorusGeometry(R,0.24,16,200),add(0x7ff0ff,0.2)));
+  const e=new THREE.Mesh(new THREE.SphereGeometry(0.24,24,16),new THREE.MeshBasicMaterial({color:0xffffff})); e.position.set(Math.cos(-0.5)*R,Math.sin(-0.5)*R,0); at.add(e);
+  const eg=glowSprite(0x7ff0ff,2.6,1); eg.position.copy(e.position); at.add(eg);
+  const at2=new THREE.Group(); at2.rotation.set(1.05,0.0,0.75); scene.add(at2);
+  const ring2=new THREE.Mesh(new THREE.TorusGeometry(R*0.92,0.05,16,200),new THREE.MeshBasicMaterial({color:0xff6fe0})); at2.add(ring2);
+  at2.add(new THREE.Mesh(new THREE.TorusGeometry(R*0.92,0.2,16,200),add(0xff6fe0,0.18)));
+  const e2=new THREE.Mesh(new THREE.SphereGeometry(0.2,24,16),new THREE.MeshBasicMaterial({color:0xffffff})); e2.position.set(Math.cos(2.4)*R*0.92,Math.sin(2.4)*R*0.92,0); at2.add(e2);
+  const eg2=glowSprite(0xff6fe0,2.2,1); eg2.position.copy(e2.position); at2.add(eg2);
+}
+// tiny star dust
+const dust=new THREE.Group(); scene.add(dust);
+let seed=3; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
+for(let i=0;i<70;i++){ const a=rnd()*Math.PI*2, d=3.6+rnd()*2.6; const s=glowSprite(0xffffff,0.12+rnd()*0.22,0.5+rnd()*0.5);
+  s.position.set(Math.cos(a)*d,Math.sin(a)*d,-2); dust.add(s); }
+r.render(scene,cam);
+</script>
+</body></html>

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a Fridge Works</title>
+<style>
+  :root { --bg:#0b1624; --ink:#f4f7fb; --accent:#ffc94d; --cold:#5cc8ff; --hot:#ff6a4d; }
+  html,body { margin:0; height:100%; background:var(--bg); overflow:hidden;
+    font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); }
+  #stage { position:fixed; inset:0; } canvas { display:block; }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
+    background:linear-gradient(to top, rgba(6,11,20,.3) 0%, rgba(6,11,20,.9) 30%, rgba(6,11,20,.5) 62%, rgba(6,11,20,0) 100%); }
+  #topshade { position:absolute; left:0; right:0; top:0; height:19%; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(6,11,20,.85), rgba(6,11,20,0)); }
+  #head { position:absolute; top:5.2%; left:0; right:0; text-align:center; }
+  #head .t { font-size:28px; font-weight:900; letter-spacing:1px; text-shadow:0 3px 14px rgba(0,0,0,.7); }
+  #head .chip { display:inline-block; margin-top:8px; background:var(--accent); color:#1b1b1b; font-weight:800;
+    border-radius:999px; padding:5px 14px; font-size:15px; letter-spacing:1px; }
+  #sub { position:absolute; left:6%; right:6%; bottom:22%; text-align:center; font-weight:800;
+    font-size:27px; line-height:1.28; text-shadow:0 2px 0 #000, 0 0 12px rgba(0,0,0,.85); }
+  #big { position:absolute; left:5%; right:5%; top:10%; text-align:center; }
+  #big .l1 { font-size:28px; font-weight:800; color:var(--cold); letter-spacing:1px; }
+  #big .l2 { font-size:52px; font-weight:900; line-height:1.05; margin-top:6px; text-shadow:0 4px 18px rgba(0,0,0,.7); }
+  #big .l2 em { font-style:normal; color:var(--hot); }
+  #legend { position:absolute; left:0; right:0; top:15.5%; display:flex; justify-content:center; gap:10px; }
+  #legend div { display:flex; align-items:center; gap:8px; background:rgba(8,14,26,.75); border-radius:999px; padding:5px 12px; font-weight:800; font-size:15px; }
+  #legend i { display:block; width:72px; height:9px; border-radius:5px; background:linear-gradient(90deg,#2f8cff,#b06cff,#ff3b30); }
+  .label { position:absolute; transform:translate(-50%,-50%); background:rgba(8,14,26,.9);
+    border:2px solid var(--accent); color:var(--ink); border-radius:8px; padding:4px 11px;
+    font-weight:800; font-size:17px; white-space:nowrap; pointer-events:none; }
+  .label.cold { border-color:var(--cold); } .label.hot { border-color:var(--hot); } .label.green { border-color:#4ee28a; }
+  #bar { position:absolute; left:0; bottom:0; height:6px; background:linear-gradient(90deg,#2f8cff,#ff3b30); width:0; }
+  #replay { position:absolute; top:12px; right:12px; background:var(--accent); border:0; color:#1b1b1b;
+    font-weight:700; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:14px; }
+  body.capture #replay { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topshade"></div>
+<div id="shade"></div>
+<div id="head"><div class="t">HOW A FRIDGE WORKS</div><div class="chip" id="chip"></div></div>
+<div id="legend"><div>COLD <i></i> HOT</div></div>
+<div id="big"><div class="l1" id="big1"></div><div class="l2" id="big2"></div></div>
+<div id="labels"></div>
+<div id="sub"></div>
+<div id="bar"></div>
+<button id="replay">↻ Replay</button>
+<script src="three.min.js"></script>
+<script>
+const TIMING = {
+ "lines": [
+  {
+   "m": "hook",
+   "text": "Your fridge doesn't make cold. It actually steals heat! Here's how.",
+   "start": 0.5,
+   "end": 4.21
+  },
+  {
+   "m": "parts",
+   "text": "Hidden inside is a loop of pipe, filled with a special liquid called refrigerant.",
+   "start": 5.41,
+   "end": 10.0
+  },
+  {
+   "m": "parts",
+   "text": "It flows through four parts. A compressor, hot coils at the back, a tiny valve, and cold coils inside.",
+   "start": 10.3,
+   "end": 16.59
+  },
+  {
+   "m": "evap",
+   "text": "Inside the fridge, the refrigerant boils into a gas, even below freezing.",
+   "start": 17.79,
+   "end": 22.12
+  },
+  {
+   "m": "evap",
+   "text": "Just like sweat cooling your skin, evaporating soaks up heat, pulling warmth out of your food.",
+   "start": 22.42,
+   "end": 27.48
+  },
+  {
+   "m": "comp",
+   "text": "Next, the compressor squeezes this gas tightly. Squeezing makes it really hot.",
+   "start": 28.68,
+   "end": 33.09
+  },
+  {
+   "m": "cond",
+   "text": "The hot gas flows through the coils at the back, and gives its heat away to your kitchen.",
+   "start": 34.29,
+   "end": 38.75
+  },
+  {
+   "m": "cond",
+   "text": "As it cools down, it turns back into a liquid.",
+   "start": 39.05,
+   "end": 41.74
+  },
+  {
+   "m": "valve",
+   "text": "Then it squeezes through a tiny valve. The pressure suddenly drops, and the liquid becomes ice cold.",
+   "start": 42.94,
+   "end": 48.49
+  },
+  {
+   "m": "loop",
+   "text": "And the loop starts all over again, carrying heat out, again and again.",
+   "start": 49.69,
+   "end": 53.53
+  },
+  {
+   "m": "fact",
+   "text": "That's why the back of your fridge feels warm, and why it hums when the compressor runs.",
+   "start": 54.73,
+   "end": 59.08
+  },
+  {
+   "m": "tip",
+   "text": "So don't leave the door open. Warm air rushes in, and the motor has to work much harder.",
+   "start": 60.28,
+   "end": 65.44
+  },
+  {
+   "m": "outro",
+   "text": "Your fridge is really a heat mover. Follow for more science behind everyday things!",
+   "start": 66.64,
+   "end": 71.31
+  }
+ ],
+ "duration": 73.11
+};
+(function(){
+const LINES=TIMING.lines, DURATION=TIMING.duration, L=i=>LINES[i];
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const smooth=(a,b,x)=>{const k=clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+const win=(a,b,t,f=0.4)=>smooth(a,a+f,t)*(1-smooth(b-f,b,t));
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+let seed=7; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
+
+// ---------- renderer / scene ----------
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.outputEncoding=THREE.sRGBEncoding;
+document.getElementById('stage').appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b1624); scene.fog=new THREE.Fog(0x0b1624,22,48);
+const camera=new THREE.PerspectiveCamera(62,1,0.1,200);
+scene.add(new THREE.HemisphereLight(0xe6efff,0x1b2436,0.8));
+const sun=new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(6,12,9); scene.add(sun);
+const rimL=new THREE.DirectionalLight(0x8fb8ff,0.45); rimL.position.set(-8,6,-10); scene.add(rimL);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(40,64),new THREE.MeshStandardMaterial({color:0x16243a,roughness:0.6,metalness:0.2}));
+floor.rotation.x=-Math.PI/2; scene.add(floor);
+
+function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.3,'rgba(255,255,255,.55)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=r; g.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
+const GLOW=glowTex();
+function sprite(color,size,op=1){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false}));
+  s.scale.set(size,size,1); scene.add(s); return s; }
+// contact shadow
+{ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(0,0,0,.7)'); r.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=r; g.fillRect(0,0,128,128);
+  const sh=new THREE.Mesh(new THREE.PlaneGeometry(5,4.4),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));
+  sh.rotation.x=-Math.PI/2; sh.position.set(0,0.01,-0.2); scene.add(sh); }
+
+// ---------- fridge cabinet ----------
+const FW=2.4, FH=5.2, FD=2.2, ZF=1.1, ZB=-1.1, YB=0.12;
+const shellMats=[];
+const mkShell=(c,o={})=>{ const m=new THREE.MeshPhysicalMaterial(Object.assign({color:c,roughness:0.3,clearcoat:0.8,clearcoatRoughness:0.15,transparent:true,opacity:1},o)); shellMats.push(m); return m; };
+const bodyM=mkShell(0xf2f5f9), linerM=mkShell(0xdfe6ee,{roughness:0.6,clearcoat:0}), doorM=mkShell(0xf7f9fc);
+const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+const fridge=new THREE.Group(); scene.add(fridge);
+const T=0.09; // wall thickness
+const panels=[ [FW,T,FD, 0,YB+FH-T/2,0], [FW,T,FD, 0,YB+T/2,0], [T,FH,FD, -FW/2+T/2,YB+FH/2,0], [T,FH,FD, FW/2-T/2,YB+FH/2,0], [FW,FH,T, 0,YB+FH/2,ZB+T/2] ];
+panels.forEach(([w,h,d,x,y,z])=>{ const p=box(w,h,d,bodyM); p.position.set(x,y,z); fridge.add(p); });
+const divider=box(FW-2*T,0.12,FD-T,linerM); divider.position.set(0,YB+3.75,T/2); fridge.add(divider);
+const shelfM=new THREE.MeshPhysicalMaterial({color:0xcfe9ff,transparent:true,opacity:0.35,roughness:0.05,clearcoat:1,depthWrite:false});
+[1.35,2.55].forEach(y=>{ const s=box(FW-2*T-0.04,0.05,FD-0.3,shelfM); s.position.set(0,YB+y,0.05); fridge.add(s); });
+const legsM=new THREE.MeshStandardMaterial({color:0x2a3242});
+[[-1,0.9],[1,0.9],[-1,-0.9],[1,-0.9]].forEach(([x,z])=>{ const l=box(0.18,0.14,0.18,legsM); l.position.set(x,0.07,z); fridge.add(l); });
+// food
+const food=new THREE.Group(); fridge.add(food);
+const FM=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:0.45},o));
+{ const milk=box(0.42,0.85,0.42,FM(0xffffff)); milk.position.set(-0.6,YB+1.8,0.1); food.add(milk);
+  const cap=new THREE.Mesh(new THREE.ConeGeometry(0.31,0.25,4),FM(0x2f8cff)); cap.rotation.y=Math.PI/4; cap.position.set(-0.6,YB+2.35,0.1); food.add(cap);
+  const band=box(0.43,0.18,0.43,FM(0x2f8cff)); band.position.set(-0.6,YB+1.75,0.1); food.add(band);
+  [[0.15,0.25],[0.5,0.05]].forEach(([x,z])=>{ const a=new THREE.Mesh(new THREE.SphereGeometry(0.2,24,16),FM(0xe0302a,{roughness:0.3})); a.position.set(x,YB+1.58,z); food.add(a);
+    const st=box(0.03,0.1,0.03,FM(0x5a3a1a)); st.position.set(x,YB+1.8,z); food.add(st); });
+  const bottle=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.8,20),FM(0x2fae6a,{roughness:0.15,transparent:true,opacity:0.85})); bottle.position.set(0.55,YB+2.98,-0.3); food.add(bottle);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.15,0.3,16),FM(0x2fae6a,{roughness:0.15})); neck.position.set(0.55,YB+3.53,-0.3); food.add(neck);
+  const jar=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.26,0.42,24),FM(0xff9b2f)); jar.position.set(-0.35,YB+2.8,-0.1); food.add(jar);
+  const lid=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.08,24),FM(0x6b4a2f)); lid.position.set(-0.35,YB+3.05,-0.1); food.add(lid);
+  const cake=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.35,32),FM(0xf6d7e8)); cake.position.set(0.1,YB+0.5,0.1); food.add(cake);
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(0.46,0.46,0.06,32),FM(0xd6336c)); top.position.set(0.1,YB+0.7,0.1); food.add(top); }
+const foodHeatSrc=[V(-0.6,YB+1.9,0.2),V(0.3,YB+1.7,0.1),V(-0.35,YB+2.9,0),V(0.1,YB+0.7,0.2),V(0.55,YB+3.1,-0.2)];
+// doors (hinged on the left edge)
+function makeDoor(y0,h){ const pivot=new THREE.Group(); pivot.position.set(-FW/2,y0,ZF); fridge.add(pivot);
+  const d=box(FW,h,0.14,doorM); d.position.set(FW/2,h/2,0.07); pivot.add(d);
+  const hm=new THREE.MeshStandardMaterial({color:0xaab4c2,metalness:0.8,roughness:0.25,transparent:true}); shellMats.push(hm);
+  const handle=box(0.07,Math.min(1.2,h*0.6),0.1,hm);
+  handle.position.set(FW-0.18,h*0.5,0.2); pivot.add(handle); return pivot; }
+const doorLow=makeDoor(YB,3.72), doorTop=makeDoor(YB+3.76,FH-3.76);
+const innerLight=new THREE.PointLight(0xbfe6ff,0,6); innerLight.position.set(0,YB+3.2,0.6); fridge.add(innerLight);
+
+// ---------- refrigerant loop ----------
+const ZC=-1.38, ZE=-0.93, XS=1.06;
+const pts=[], key={};
+function P(x,y,z,name){ pts.push(V(x,y,z)); if(name) key[name]=pts.length-1; }
+P(0.45,0.98,-1.62,'compOut');
+P(0.85,1.15,-1.5); P(0.95,1.6,ZC); P(0.95,4.7,ZC,'condStart');
+const rows=8; for(let i=0;i<rows;i++){ const y=4.7-i*(3.2/(rows-1)); const xa=(i%2===0)?0.95:-0.95, xb=-xa; if(i>0) P(xa,y,ZC); P(xb,y,ZC); }
+key.condEnd=pts.length-1; // ends at x=+0.95 (rows even) y=1.5
+P(0.95,1.05,ZC); P(0.1,0.9,ZC,'valveIn'); P(-0.35,0.9,ZC,'valveOut');
+P(-0.9,0.95,-1.25); P(-1.0,2.0,-1.2); P(-0.95,3.85,ZE+0.02,'evapStart');
+const erows=5; for(let i=0;i<erows;i++){ const y=3.95+i*0.2; const xa=(i%2===0)?-0.9:0.9, xb=-xa; if(i>0) P(xa,y,ZE); P(xb,y,ZE); }
+key.evapEnd=pts.length-1; // ends at x=+0.9 y≈4.95
+P(1.0,5.0,-1.15); P(XS,4.7,-1.24,'suction'); P(XS,1.2,-1.24); P(0.85,0.85,-1.5); P(0.45,0.8,-1.62,'compIn');
+const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal');
+// arclength positions of the key points
+const NS=3000, samp=curve.getSpacedPoints(NS);
+const keyU={}; Object.entries(key).forEach(([k,i])=>{ let best=1e9,bi=0; samp.forEach((p,j)=>{ const d=p.distanceToSquared(pts[i]); if(d<best){best=d;bi=j;} }); keyU[k]=bi/NS; });
+// temperature along the loop (0 = icy, 1 = hot)
+const TK=[[0,1.0],[keyU.condStart,0.95],[lerp(keyU.condStart,keyU.condEnd,0.5),0.75],[keyU.condEnd,0.55],[keyU.valveIn,0.5],[keyU.valveOut,0.02],
+          [keyU.evapStart,0.03],[keyU.evapEnd,0.15],[keyU.compIn,0.3],[1,0.3]];
+function temp(u){ for(let i=0;i<TK.length-1;i++){ if(u<=TK[i+1][0]){ const k=(u-TK[i][0])/Math.max(TK[i+1][0]-TK[i][0],1e-6); return lerp(TK[i][1],TK[i+1][1],k); } } return 0.3; }
+const CCOLD=new THREE.Color(0x1f8bff), CMID=new THREE.Color(0x9b4dff), CHOT=new THREE.Color(0xff2a14);
+function tcol(tv,out){ if(tv<0.5) return out.copy(CCOLD).lerp(CMID,tv/0.5); return out.copy(CMID).lerp(CHOT,(tv-0.5)/0.5); }
+const isLiquid=u=>u>lerp(keyU.condStart,keyU.condEnd,0.55) && u<lerp(keyU.evapStart,keyU.evapEnd,0.4);
+
+const TS=900;
+const coreGeo=new THREE.TubeGeometry(curve,TS,0.05,10,false);
+{ const cols=[], c=new THREE.Color(); const per=coreGeo.attributes.position.count/(TS+1);
+  for(let i=0;i<=TS;i++){ tcol(temp(i/TS),c); for(let j=0;j<per;j++) cols.push(c.r,c.g,c.b); }
+  coreGeo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); }
+const coreM=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0.95});
+const core=new THREE.Mesh(coreGeo,coreM); scene.add(core);
+const pipeGeo=new THREE.TubeGeometry(curve,TS,0.085,12,false);
+const pipeM=new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0.1,roughness:0.1,transparent:true,opacity:0.16,depthWrite:false,clearcoat:1});
+const pipe=new THREE.Mesh(pipeGeo,pipeM); scene.add(pipe);
+const idxCount=coreGeo.index.count, idxCount2=pipeGeo.index.count;
+
+// components
+const compM=new THREE.MeshPhysicalMaterial({color:0x1d2330,metalness:0.5,roughness:0.35,clearcoat:1,emissive:0xff3b30,emissiveIntensity:0});
+const comp=new THREE.Group(); comp.position.set(0.45,0,-1.62); scene.add(comp);
+{ const c=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.46,0.62,40),compM); c.position.y=0.45; comp.add(c);
+  const d=new THREE.Mesh(new THREE.SphereGeometry(0.42,40,20,0,Math.PI*2,0,Math.PI/2),compM); d.position.y=0.76; comp.add(d);
+  const f=box(0.9,0.08,0.7,new THREE.MeshStandardMaterial({color:0x3a4558})); f.position.y=0.12; comp.add(f); }
+const valveM=new THREE.MeshPhysicalMaterial({color:0xd4a64a,metalness:0.85,roughness:0.25,emissive:0x5cc8ff,emissiveIntensity:0});
+const valve=new THREE.Group(); valve.position.copy(curve.getPointAt((keyU.valveIn+keyU.valveOut)/2)); scene.add(valve);
+{ const b=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.32,24),valveM); b.rotation.z=Math.PI/2; valve.add(b);
+  const k=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.18,16),valveM); k.position.y=0.2; valve.add(k); }
+// condenser wire fins (subtle)
+const finM=new THREE.MeshStandardMaterial({color:0x4a5466,metalness:0.6,roughness:0.4,transparent:true,opacity:0.6});
+for(let i=0;i<7;i++){ const f=box(0.025,3.4,0.025,finM); f.position.set(-0.75+i*0.25,3.1,ZC-0.06); scene.add(f); }
+
+// flowing refrigerant particles
+const NP=120;
+const pGeo=new THREE.SphereGeometry(1,12,8);
+const pMat=new THREE.MeshBasicMaterial({color:0xffffff});
+const parts=new THREE.InstancedMesh(pGeo,pMat,NP); parts.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(NP*3),3); scene.add(parts);
+const dummy=new THREE.Object3D(), tmpC=new THREE.Color();
+// effects
+const frost=[]; for(let i=0;i<40;i++){ const u=lerp(keyU.evapStart,keyU.evapEnd,rnd()); const p=curve.getPointAt(u).add(V((rnd()-0.5)*0.12,(rnd()-0.5)*0.12,0.06)); const s=sprite(0xdff6ff,0.16+rnd()*0.14,0); s.position.copy(p); s.userData.ph=rnd()*6; frost.push(s); }
+const foodHeat=[]; for(let i=0;i<46;i++){ const s=sprite(0xff8a3d,0.32,0); s.userData={src:foodHeatSrc[i%foodHeatSrc.length],ph:rnd(),wob:rnd()*6,dst:V((rnd()-0.5)*1.6,3.95+rnd()*1.0,ZE+0.15)}; foodHeat.push(s); }
+const backHeat=[]; for(let i=0;i<60;i++){ const s=sprite(0xff5a3a,0.36,0); s.userData={x:(rnd()-0.5)*1.9,y0:1.4+rnd()*3.2,ph:rnd(),wob:rnd()*6}; backHeat.push(s); }
+const mist=[]; for(let i=0;i<40;i++){ const s=sprite(0xbfe8ff,0.6,0); s.userData={x:(rnd()-0.5)*2,y:YB+0.6+rnd()*3.6,ph:rnd()}; mist.push(s); }
+const warmIn=[]; for(let i=0;i<44;i++){ const s=sprite(0xffa04d,0.45,0); s.userData={x:(rnd()-0.5)*2.2,y:YB+0.6+rnd()*3.0,ph:rnd(),wob:rnd()*6}; warmIn.push(s); }
+const valveBurst=[]; for(let i=0;i<24;i++){ const s=sprite(0x9fe3ff,0.22,0); s.userData={a:rnd()*Math.PI*2,ph:rnd()}; valveBurst.push(s); }
+const compGlow=sprite(0xff4d3d,2.4,0); compGlow.position.set(0.45,0.7,-1.62);
+const evapGlow=sprite(0x5cc8ff,3.4,0); evapGlow.position.set(0,4.45,ZE+0.2);
+
+// ---------- labels ----------
+const labelsEl=document.getElementById('labels'), LBL=[];
+function label(text,cls,posFn,from,to){ const d=document.createElement('div'); d.className='label '+cls; d.textContent=text; labelsEl.appendChild(d); LBL.push({d,posFn,from,to}); }
+const fixed=(x,y,z)=>()=>V(x,y,z);
+const l2=L(2), l2d=l2.end-l2.start;
+label("Refrigerant loop","",fixed(-1.35,2.2,-1.2),L(1).start+2.0,L(1).end+0.2);
+label("Compressor","hot",fixed(0.45,1.55,-1.62),l2.start+0.30*l2d,l2.end+0.3);
+label("Hot coils","hot",fixed(0,5.05,ZC),l2.start+0.50*l2d,l2.end+0.3);
+label("Tiny valve","green",fixed(-0.1,0.45,ZC-0.2),l2.start+0.70*l2d,l2.end+0.3);
+label("Cold coils","cold",fixed(0,5.3,ZE+0.3),l2.start+0.84*l2d,l2.end+0.3);
+label("Boils into gas","cold",fixed(0,5.3,ZE+0.3),L(3).start+0.6,L(3).end+0.3);
+label("−20°C","cold",fixed(1.25,4.4,ZE),L(3).start+1.6,L(4).end+0.3);
+label("Heat from food","hot",fixed(-0.9,2.9,0.5),L(4).start+1.5,L(4).end+0.3);
+label("Squeeze!","hot",fixed(0.45,1.55,-1.62),L(5).start+0.6,L(5).end+0.3);
+label("Very hot gas","hot",fixed(1.2,2.6,ZC),L(5).start+2.6,L(5).end+0.3);
+label("+45°C","hot",fixed(1.35,4.2,ZC),L(6).start+0.6,L(6).end+0.3);
+label("Heat goes out","hot",fixed(0,5.9,ZC-0.6),L(6).start+2.0,L(6).end+0.3);
+label("Gas → liquid","",fixed(0,3.1,ZC-0.2),L(7).start+0.3,L(7).end+0.4);
+label("Pressure drops","green",()=>valve.position.clone().add(V(0,0.55,0)),L(8).start+2.0,L(8).end+0.3);
+label("Ice cold!","cold",()=>valve.position.clone().add(V(-0.75,-0.45,0)),L(8).start+3.6,L(8).end+0.3);
+label("Heat IN","cold",fixed(0,5.35,ZE+0.3),L(9).start+0.4,L(9).end+0.3);
+label("Heat OUT","hot",fixed(0,5.6,ZC-0.4),L(9).start+1.2,L(9).end+0.3);
+label("Warm back","hot",fixed(0,4.8,ZC-0.5),L(10).start+0.5,L(10).start+3.0);
+label("Hmmmm...","",fixed(0.45,1.6,-1.62),L(10).start+2.6,L(10).end+0.3);
+label("Warm air rushes in!","hot",fixed(0.6,2.2,2.2),L(11).start+0.6,L(11).end+0.3);
+
+// ---------- timeline ----------
+const doorOpen=t=>Math.max(win(0.9,L(1).start+0.9,t,1.0), win(L(11).start,L(11).end+0.3,t,0.9));
+const xray=t=>smooth(L(1).start,L(1).start+1.6,t)*(1-smooth(L(12).start+0.2,L(12).start+1.6,t));
+const reveal=t=>smooth(L(1).start+0.4,L(1).start+3.6,t);
+const flowOn=t=>smooth(L(1).start+3.0,L(1).start+4.0,t);
+const speedAt=t=>0.075*(1+0.8*win(L(9).start,L(9).end,t,0.8)+0.7*win(L(11).start+1,L(11).end,t,0.8));
+function flowPhase(t){ let a=0,n=240,dt=t/n; for(let i=0;i<n;i++) a+=speedAt((i+0.5)*dt)*flowOn((i+0.5)*dt)*dt; return a; }
+
+const SHOTS=[
+  [0,           [0.6,2.4,11.5],  [-0.45,3.6,0]],
+  [L(1).start+0.6,[5.2,4.2,8.2], [0,2.7,-0.4]],
+  [L(2).start,  [6.6,4.4,-6.4],  [0,2.6,-0.8]],
+  [L(3).start,  [2.6,5.4,4.6],   [0,4.3,-0.8]],
+  [L(4).start,  [3.4,4.2,6.6],   [0,3.1,-0.4]],
+  [L(5).start,  [3.8,2.6,-5.8],  [0.3,1.3,-1.4]],
+  [L(6).start,  [-3.6,3.8,-7.6], [0,3.0,-1.3]],
+  [L(8).start,  [-2.9,2.3,-5.2], [-0.1,1.3,-1.38]],
+  [L(9).start,  [7.2,5.0,2.8],   [0,2.7,-0.5]],
+  [L(10).start, [4.4,3.4,-7.6],  [0,2.4,-1.2]],
+  [L(11).start, [1.6,3.3,9.2],   [0,2.6,0.3]],
+  [L(12).start, [4.5,2.6,10.5],  [0.7,3.5,0]],
+];
+function camAt(t){
+  let i=0; while(i<SHOTS.length-1 && t>=SHOTS[i+1][0]) i++;
+  const A=SHOTS[i], B=SHOTS[Math.min(i+1,SHOTS.length-1)];
+  const k=(B===A)?0:smooth(B[0]-1.5,B[0]+0.2,t);
+  const p=A[1].map((x,j)=>lerp(x,B[1][j],k)), g=A[2].map((x,j)=>lerp(x,B[2][j],k));
+  g[1]-=0.35;
+  // gentle orbit around the target while holding a shot
+  const ang=Math.sin(t*0.22)*0.12, dx=p[0]-g[0], dz=p[2]-g[2];
+  camera.position.set(g[0]+dx*Math.cos(ang)-dz*Math.sin(ang), p[1], g[2]+dx*Math.sin(ang)+dz*Math.cos(ang));
+  camera.lookAt(g[0],g[1],g[2]);
+}
+
+const CHIPS={hook:"",parts:"THE PARTS",evap:"1 · COLD COILS",comp:"2 · COMPRESSOR",cond:"3 · HOT COILS",valve:"4 · THE VALVE",loop:"THE LOOP",fact:"FUN FACT",tip:"QUICK TIP",outro:""};
+const sub=document.getElementById('sub'), chip=document.getElementById('chip'), head=document.getElementById('head');
+const big=document.getElementById('big'), big1=document.getElementById('big1'), big2=document.getElementById('big2');
+const legend=document.getElementById('legend');
+const tmp=V(0,0,0); let lastLine=-2;
+
+function renderAt(t){
+  t=clamp(t,0,DURATION); camAt(t);
+  // doors + x-ray
+  const dO=doorOpen(t); doorLow.rotation.y=-1.75*dO; doorTop.rotation.y=-1.75*smooth(0,1,dO*1.05-0.05);
+  innerLight.intensity=1.6*dO;
+  const xr=xray(t);
+  shellMats.forEach(m=>{ m.opacity=lerp(1,0.13,xr); m.depthWrite=xr<0.5; });
+  // loop reveal
+  const rv=reveal(t); core.geometry.setDrawRange(0,Math.floor(idxCount*rv/6)*6); pipe.geometry.setDrawRange(0,Math.floor(idxCount2*rv/6)*6);
+  core.visible=pipe.visible=rv>0.002;
+  // particles
+  const fo=flowOn(t), ph=flowPhase(t);
+  for(let i=0;i<NP;i++){ const u=((i/NP)+ph)%1; curve.getPointAt(u,dummy.position);
+    const liq=isLiquid(u); dummy.scale.setScalar((liq?0.05:0.07)*fo*rv);
+    dummy.updateMatrix(); parts.setMatrixAt(i,dummy.matrix); tcol(temp(u),tmpC); tmpC.offsetHSL(0,0.1,0.06); parts.setColorAt(i,tmpC); }
+  parts.instanceMatrix.needsUpdate=true; parts.instanceColor.needsUpdate=true;
+  // evaporator effects
+  const ev=win(L(3).start,L(4).end+0.6,t), evAlways=smooth(L(3).start,L(3).start+1.5,t)*(1-smooth(L(12).start+0.5,L(12).start+1.5,t));
+  evapGlow.material.opacity=0.55*ev+0.15*evAlways;
+  frost.forEach(s=>{ s.material.opacity=evAlways*(0.4+0.4*Math.sin(t*3+s.userData.ph)); });
+  const fh=win(L(4).start+0.8,L(4).end+0.6,t);
+  foodHeat.forEach(s=>{ const d=s.userData; const k=(t*0.35+d.ph)%1; s.position.copy(d.src).lerp(d.dst,k); s.position.x+=Math.sin(k*8+d.wob)*0.12;
+    s.material.color.setHex(0xff8a3d).lerp(new THREE.Color(0x5cc8ff),k*k); s.material.opacity=fh*Math.sin(k*Math.PI)*0.9; });
+  // compressor
+  const cp=win(L(5).start,L(5).end+0.4,t)+0.6*win(L(10).start+2,L(10).end,t)+0.8*win(L(11).start+1,L(11).end,t);
+  compM.emissiveIntensity=0.5*cp*(0.7+0.3*Math.sin(t*20));
+  compGlow.material.opacity=0.7*Math.min(cp,1);
+  const vib=Math.min(cp,1)*0.02*Math.sin(t*90); comp.position.x=0.45+vib; comp.scale.y=1-0.04*Math.min(cp,1)*(0.5+0.5*Math.sin(t*12));
+  // condenser heat
+  const bh=Math.max(win(L(6).start,L(7).end+0.4,t), 0.8*win(L(9).start,L(9).end,t), win(L(10).start,L(10).start+3.4,t), 0.7*win(L(11).start+1,L(11).end,t));
+  backHeat.forEach(s=>{ const d=s.userData, k=(t*0.3+d.ph)%1; s.position.set(d.x+Math.sin(k*6+d.wob)*0.18, d.y0+k*2.6, ZC-0.25-k*0.9);
+    s.material.opacity=bh*Math.sin(k*Math.PI)*0.5; });
+  // valve burst
+  const vb=win(L(8).start+1.8,L(8).end+0.3,t);
+  valveM.emissiveIntensity=0.8*vb;
+  valveBurst.forEach(s=>{ const d=s.userData, k=(t*0.9+d.ph)%1; const out=curve.getPointAt(keyU.valveOut);
+    s.position.set(out.x-0.5*k, out.y+Math.sin(d.a)*0.35*k, out.z+Math.cos(d.a)*0.35*k); s.material.opacity=vb*(1-k); });
+  // cold mist when door opens in the hook; warm air when left open
+  const ms=win(1.2,L(1).start+0.5,t);
+  mist.forEach(s=>{ const d=s.userData, k=(t*0.35+d.ph)%1; s.position.set(d.x*(1+k*0.6), d.y-k*1.1, ZF+0.2+k*1.6); s.material.opacity=ms*0.45*Math.sin(k*Math.PI); });
+  const wi=win(L(11).start+0.5,L(11).end+0.3,t);
+  warmIn.forEach(s=>{ const d=s.userData, k=(t*0.45+d.ph)%1; s.position.set(d.x*(1-k*0.5)+Math.sin(k*6+d.wob)*0.1, d.y+k*0.4, ZF+2.6-k*2.8); s.material.opacity=wi*0.7*Math.sin(k*Math.PI); });
+
+  renderer.render(scene,camera);
+
+  // overlay
+  let li=-1; LINES.forEach((l,i)=>{ if(t>=l.start-0.05) li=i; });
+  const line=li>=0?LINES[li]:null;
+  if(li!==lastLine){ sub.textContent=line?line.text:''; chip.textContent=line?CHIPS[line.m]:''; chip.style.display=(line&&CHIPS[line.m])?'inline-block':'none'; lastLine=li; }
+  sub.style.opacity=(line && t<=line.end+0.3 && line.m!=='outro')?1:0;
+  head.style.opacity=smooth(L(1).start-0.6,L(1).start,t)*(1-smooth(L(12).start-0.4,L(12).start,t));
+  legend.style.opacity=smooth(L(1).start+3,L(1).start+4,t)*(1-smooth(L(12).start-0.4,L(12).start,t));
+  const intro=1-smooth(L(1).start-0.8,L(1).start-0.2,t), outro=smooth(L(12).start-0.2,L(12).start+0.4,t);
+  if(outro>0){ big1.textContent="YOUR FRIDGE IS A"; big2.innerHTML="<em>HEAT</em> MOVER"; big.style.opacity=outro; }
+  else { big1.textContent="YOUR FRIDGE DOESN'T"; big2.innerHTML="MAKE COLD.<br>IT <em>STEALS HEAT</em>"; big.style.opacity=intro; }
+  document.getElementById('bar').style.width=(t/DURATION*100)+'%';
+  const cw=W(), ch=H();
+  LBL.forEach(l=>{ const o=win(l.from,l.to,t,0.3); if(o<0.01){ l.d.style.display='none'; return; }
+    tmp.copy(l.posFn()).project(camera); l.d.style.display=tmp.z<1?'block':'none'; l.d.style.opacity=o;
+    l.d.style.left=clamp((tmp.x+1)/2*cw,85,cw-85)+'px'; l.d.style.top=clamp((1-tmp.y)/2*ch,ch*0.2,ch*0.74)+'px'; });
+}
+window.renderAt=renderAt; window.DURATION=DURATION;
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize); resize();
+if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }
+else { let start=performance.now(); document.getElementById('replay').onclick=()=>{start=performance.now();};
+  (function loop(){ renderAt(Math.min((performance.now()-start)/1000,DURATION)); requestAnimationFrame(loop); })(); }
+})();
+</script>
+</body>
+</html>

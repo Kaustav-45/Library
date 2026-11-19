@@ -1,0 +1,15 @@
+[
+ ["hook","Your fridge doesn't make cold. It actually steals heat! Here's how."],
+ ["parts","Hidden inside is a loop of pipe, filled with a special liquid called refrigerant."],
+ ["parts","It flows through four parts. A compressor, hot coils at the back, a tiny valve, and cold coils inside."],
+ ["evap","Inside the fridge, the refrigerant boils into a gas, even below freezing."],
+ ["evap","Just like sweat cooling your skin, evaporating soaks up heat, pulling warmth out of your food."],
+ ["comp","Next, the compressor squeezes this gas tightly. Squeezing makes it really hot."],
+ ["cond","The hot gas flows through the coils at the back, and gives its heat away to your kitchen."],
+ ["cond","As it cools down, it turns back into a liquid."],
+ ["valve","Then it squeezes through a tiny valve. The pressure suddenly drops, and the liquid becomes ice cold."],
+ ["loop","And the loop starts all over again, carrying heat out, again and again."],
+ ["fact","That's why the back of your fridge feels warm, and why it hums when the compressor runs."],
+ ["tip","So don't leave the door open. Warm air rushes in, and the motor has to work much harder."],
+ ["outro","Your fridge is really a heat mover. Follow for more science behind everyday things!"]
+]

@@ -1,0 +1,38 @@
+{
+  "title": "The Man Who Sold the Eiffel Tower",
+  "voice": "kokoro:af_heart",
+  "speed": 1.0,
+  "grain": 5.0,
+  "maxrate": "24M",
+  "transitions": true,
+  "palette": {
+    "bg0": [8, 8, 10], "bg1": [62, 62, 70], "text": [246, 244, 238], "headline": [240, 198, 88],
+    "accent": [196, 30, 42], "ink": [14, 14, 18], "line": [96, 96, 104], "liquid": [60, 90, 130],
+    "steel": [140, 140, 150], "glow": [200, 200, 220],
+    "pop": [[240, 198, 88], [246, 244, 238], [196, 196, 206], [220, 90, 90], [170, 170, 180]]
+  },
+  "scenes": [
+    {"say": "In 1925, a con man sold the Eiffel Tower. Then he came back and tried to sell it again.",
+     "kicker": "TRUE STORY", "big": "SOLD", "sub": "the Eiffel Tower, 1925", "visual": "eiffel_sold"},
+    {"say": "His name was Victor Lustig. Charming, well dressed, and one of the smoothest con artists in history.",
+     "kicker": "MEET THE CON MAN", "big": "LUSTIG", "sub": "Victor Lustig, con artist", "visual": "conman"},
+    {"say": "In Paris, he read a newspaper story about how expensive the tower had become to repair. That gave him an idea.",
+     "kicker": "PARIS, 1925", "big": "AN IDEA", "sub": "from a newspaper story", "visual": "newspaper", "head": "THE TOWER|COSTS A|FORTUNE"},
+    {"say": "Posing as a government official, he invited six scrap metal dealers to a secret meeting at a luxury hotel.",
+     "kicker": "THE MEETING", "big": "6 DEALERS", "sub": "invited to a luxury hotel", "visual": "meeting"},
+    {"say": "He told them the city was tearing the tower down and selling it for scrap. And they must tell no one.",
+     "kicker": "THE PITCH", "big": "TELL NO ONE", "sub": "the deal was top secret", "visual": "secret"},
+    {"say": "One dealer, Andre Poisson, took the bait. Lustig even hinted he wanted a bribe, which made him seem like a real, corrupt official.",
+     "kicker": "THE MARK", "big": "A BRIBE", "sub": "made the lie believable", "visual": "bribe"},
+    {"say": "Lustig took the money and fled the country. Poisson was so embarrassed, he never told the police.",
+     "kicker": "THE ESCAPE", "big": "VANISHED", "sub": "and the victim stayed silent", "visual": "getaway"},
+    {"say": "So Lustig came back to Paris and tried the very same trick again. This time, his target went to the police. And Lustig escaped again.",
+     "kicker": "THE SEQUEL", "big": "AGAIN", "sub": "the same trick, a second time", "visual": "eiffel_sold", "tag": "SOLD x2", "police": true},
+    {"say": "Here is the lesson. Lustig's tricks still work today. An official sounding stranger. A secret deal. And pressure to act fast.",
+     "kicker": "THE LESSON", "big": "3 RED FLAGS", "sub": "authority, secrecy, urgency", "visual": "red_flags"},
+    {"say": "So if anyone asks you to keep a deal secret and decide fast, slow down. That is exactly how scams work.",
+     "kicker": "PROTECT YOURSELF", "big": "SLOW DOWN", "sub": "secret plus urgent means scam", "visual": "slow_down"},
+    {"say": "Follow Odd Archive for more history with a lesson.",
+     "kicker": "", "big": "FOLLOW", "sub": "for more history with a lesson", "visual": "follow_noir"}
+  ]
+}

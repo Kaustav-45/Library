@@ -966,6 +966,96 @@ def bulb(d, cx, cy, s, t):
     for i in range(3): d.rounded_rectangle([cx - 62 * s, cy + 190 * s + i * 30 * s, cx + 62 * s, cy + 214 * s + i * 30 * s], 10 * s, fill=(170, 166, 160))
     d.line([(cx - 40 * s, cy + 100 * s), (cx - 20 * s, cy - 10 * s), (cx, cy + 40 * s), (cx + 20 * s, cy - 10 * s), (cx + 40 * s, cy + 100 * s)], fill=shade(GOLD, 0.6), width=max(2, int(8 * s)), joint='curve')
 
+# ----- con man (Eiffel Tower) drawings -----
+def eiffel(d, cx, ground, s, col=None, gap=None):
+    """The Eiffel Tower lit at night, feet on the ground at cx. gap is the colour seen through the arch."""
+    col = col or mix(GOLD, INK, 0.4); gap = gap or mix(BG1, GOLD, 0.12); h = 620 * s
+    L = lambda u: 190 * s * (1 - u) ** 2.2 + 14 * s          # half-width at height fraction u
+    pts_l = [(cx - L(u), ground - h * u) for u in [i / 20 for i in range(21)]]
+    pts_r = [(cx + L(u), ground - h * u) for u in [i / 20 for i in range(21)]][::-1]
+    d.polygon(pts_l + pts_r, fill=col)
+    d.pieslice([cx - 110 * s, ground - 150 * s, cx + 110 * s, ground + 70 * s], 180, 360, fill=gap)     # the arch between the legs
+    for u in (0.24, 0.5):
+        y = ground - h * u; w_ = L(u) + 30 * s
+        d.rectangle([cx - w_, y - 14 * s, cx + w_, y + 8 * s], fill=col)
+    for i in range(14):                                                        # lattice lines
+        u = 0.04 + i * 0.066; y = ground - h * u
+        d.line([(cx - L(u), y), (cx + L(u + 0.066), y - h * 0.066)], fill=mix(col, BG0, 0.5), width=max(1, int(3 * s)))
+        d.line([(cx + L(u), y), (cx - L(u + 0.066), y - h * 0.066)], fill=mix(col, BG0, 0.5), width=max(1, int(3 * s)))
+    d.line([(cx, ground - h), (cx, ground - h - 60 * s)], fill=col, width=max(2, int(6 * s)))
+
+def tag(d, x, y, text, t, s=1.0):
+    sw = math.sin(t * 2.2) * 8
+    d.line([(x, y - 70 * s), (x + sw, y)], fill=CREAM, width=4)
+    d.rounded_rectangle([x - 120 * s + sw, y, x + 120 * s + sw, y + 90 * s], 14, fill=RED)
+    d.ellipse([x - 10 + sw, y + 10, x + 10 + sw, y + 30], fill=BG0)
+    text_c(d, (x + sw, y + 52 * s), text, font('anton', 60 * s), CREAM)
+
+def conman(d, x, ground, s, t, col=None):
+    col = col or INK
+    d.pieslice([x - 150 * s, ground - 330 * s, x + 150 * s, ground + 30 * s], 180, 360, fill=col)                  # shoulders / coat
+    d.polygon([(x - 30 * s, ground - 330 * s + 160 * s), (x, ground - 100 * s), (x + 30 * s, ground - 170 * s)], fill=CREAM)   # shirt
+    d.polygon([(x - 8 * s, ground - 160 * s), (x + 8 * s, ground - 160 * s), (x + 4 * s, ground - 100 * s), (x - 4 * s, ground - 100 * s)], fill=RED)   # tie
+    hy = ground - 300 * s
+    d.ellipse([x - 62 * s, hy - 80 * s, x + 62 * s, hy + 60 * s], fill=col)
+    d.ellipse([x - 120 * s, hy - 74 * s, x + 120 * s, hy - 40 * s], fill=col)                                    # fedora brim
+    d.rounded_rectangle([x - 70 * s, hy - 150 * s, x + 70 * s, hy - 54 * s], 26 * s, fill=col)
+    d.rectangle([x - 70 * s, hy - 82 * s, x + 70 * s, hy - 62 * s], fill=GOLD)                                     # hat band
+    cx_, cy_ = x + 70 * s, hy + 30 * s                                                                             # cigarette smoke
+    d.line([(x + 30 * s, hy + 26 * s), (cx_, cy_)], fill=CREAM, width=max(2, int(7 * s)))
+    for i in range(6):
+        a = (t * 0.6 + i / 6) % 1; px = cx_ + math.sin(a * 6 + i) * 24 * s; py = cy_ - a * 220 * s; r = (8 + a * 26) * s
+        d.ellipse([px - r, py - r, px + r, py + r], fill=mix(CREAM, BG1, 0.4 + 0.5 * a))
+
+def newspaper(d, cx, cy, s, head, sub_=''):
+    d.rectangle([cx - 270 * s, cy - 330 * s, cx + 270 * s, cy + 330 * s], fill=(236, 230, 214))
+    text_c(d, (cx, cy - 280 * s), 'LE JOURNAL', font('anton', 58 * s), INK)
+    d.line([(cx - 240 * s, cy - 240 * s), (cx + 240 * s, cy - 240 * s)], fill=INK, width=max(2, int(4 * s)))
+    for i, ln in enumerate(head.split('|')): text_c(d, (cx, cy - 175 * s + i * 76 * s), ln, font('anton', 70 * s), INK)
+    eiffel(d, cx - 120 * s, cy + 300 * s, 0.4 * s, col=shade(INK, 2.6), gap=(236, 230, 214))
+    for i in range(9):
+        y = cy + 30 * s + i * 30 * s; d.line([(cx - 10 * s, y), (cx + 240 * s, y)], fill=shade(INK, 3.5), width=max(2, int(6 * s)))
+
+def envelope(d, cx, cy, s, open_k=0.0):
+    w, h = 300 * s, 200 * s; paper_c = (236, 230, 214)
+    d.rectangle([cx - w, cy - h, cx + w, cy + h], fill=paper_c)
+    d.polygon([(cx - w, cy + h), (cx, cy + 10 * s), (cx + w, cy + h)], fill=shade(paper_c, 0.9))
+    fy = cy - h - (240 * s * open_k) + 0 * s
+    d.polygon([(cx - w, cy - h), (cx, cy - h + 190 * s * (1 - 2 * open_k)), (cx + w, cy - h)], fill=shade(paper_c, 0.82))
+    d.ellipse([cx - 44 * s, cy - h + 150 * s * (1 - 2 * open_k) - 4 * s, cx + 44 * s, cy - h + 150 * s * (1 - 2 * open_k) + 84 * s], fill=RED)
+
+def handshake(d, cx, cy, s, t):
+    sh = math.sin(t * 6) * 10 * s
+    skin, skin2 = (214, 176, 140), (180, 140, 108)
+    d.rounded_rectangle([cx - 420 * s, cy - 60 * s + sh, cx - 80 * s, cy + 60 * s + sh], 40 * s, fill=INK)          # left sleeve
+    d.rounded_rectangle([cx + 80 * s, cy - 60 * s + sh, cx + 420 * s, cy + 60 * s + sh], 40 * s, fill=mix(INK, CREAM, 0.25))
+    d.ellipse([cx - 140 * s, cy - 80 * s + sh, cx + 60 * s, cy + 70 * s + sh], fill=skin)
+    d.ellipse([cx - 60 * s, cy - 70 * s + sh, cx + 140 * s, cy + 80 * s + sh], fill=skin2)
+    for i in range(4): d.line([(cx - 40 * s + i * 30 * s, cy - 50 * s + sh), (cx - 30 * s + i * 30 * s, cy + 40 * s + sh)], fill=shade(skin2, 0.8), width=max(2, int(5 * s)))
+
+def banknote(d, x, y, s, a):
+    c_, s_ = math.cos(a), math.sin(a)
+    pts = [(x + dx * c_ - dy * s_, y + dx * s_ + dy * c_) for dx, dy in ((-90 * s, -44 * s), (90 * s, -44 * s), (90 * s, 44 * s), (-90 * s, 44 * s))]
+    d.polygon(pts, fill=(150, 196, 140)); d.ellipse([x - 22 * s, y - 22 * s, x + 22 * s, y + 22 * s], fill=(110, 160, 104))
+
+def old_car(d, x, ground, s, t):
+    body = mix(INK, CREAM, 0.15)
+    for wx in (-110, 110):
+        r = 50 * s; d.ellipse([x + wx * s - r, ground - 2 * r, x + wx * s + r, ground], fill=BG0); d.ellipse([x + wx * s - r * 0.5, ground - r * 1.5, x + wx * s + r * 0.5, ground - r * 0.5], fill=STEEL)
+    d.rounded_rectangle([x - 190 * s, ground - 150 * s, x + 200 * s, ground - 60 * s], 24 * s, fill=body)
+    d.rounded_rectangle([x - 130 * s, ground - 250 * s, x + 60 * s, ground - 140 * s], 20 * s, fill=body)
+    d.rectangle([x - 110 * s, ground - 230 * s, x - 40 * s, ground - 160 * s], fill=mix(BG1, CREAM, 0.3)); d.rectangle([x - 20 * s, ground - 230 * s, x + 40 * s, ground - 160 * s], fill=mix(BG1, CREAM, 0.3))
+    d.ellipse([x + 180 * s, ground - 140 * s, x + 214 * s, ground - 106 * s], fill=GOLD)
+    for i in range(3):
+        px = x - 230 * s - ((t * 200 + i * 60) % 180) * s; r = (14 + i * 6) * s
+        d.ellipse([px - r, ground - 70 * s - r, px + r, ground - 70 * s + r], fill=mix(CREAM, BG1, 0.6))
+
+def red_flag(d, x, ground, s, t, label):
+    d.line([(x, ground), (x, ground - 320 * s)], fill=CREAM, width=max(3, int(10 * s)))
+    wv = math.sin(t * 5 + x) * 14 * s
+    d.polygon([(x, ground - 320 * s), (x + 180 * s, ground - 286 * s + wv), (x + 170 * s, ground - 220 * s + wv), (x, ground - 196 * s)], fill=RED)
+    text_c(d, (x + 20 * s, ground + 50 * s), label, font('anton', 52 * s), CREAM, stroke=4)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -1911,6 +2001,66 @@ def visual(d, kind, t, dur, img, sc=None):
         d.rounded_rectangle([cx - bw / 2, VY0 + 90 - bh / 2, cx + bw / 2, VY0 + 90 + bh / 2], int(bh / 2), fill=RED)
         text_c(d, (cx, VY0 + 90), 'FOLLOW', font('anton', 96 * p), CREAM)
         film_strip(d, VY0 + 420, 200, t)
+    elif kind == 'eiffel_sold':
+        sparkles(d, t, 30)
+        d.ellipse([cx - 360, VY0 + 40, cx + 360, ground + 40], fill=mix(BG1, GOLD, 0.12))           # searchlight glow
+        eiffel(d, cx, ground - 20, 0.9)
+        d.rectangle([60, ground - 20, W - 60, ground + 4], fill=LINE)
+        p = back((t - 0.7) / 0.4)
+        if p > 0.02: tag(d, cx + 200, VY0 + 300, (sc or {}).get('tag', 'SOLD'), t, p)
+        if (sc or {}).get('police') and (t % 0.8) < 0.4:
+            d.ellipse([100, ground - 140, 220, ground - 20], fill=(60, 120, 255)); d.ellipse([W - 220, ground - 140, W - 100, ground - 20], fill=RED)
+    elif kind == 'conman':
+        d.polygon([(cx - 60, VY0 - 20), (cx + 60, VY0 - 20), (cx + 360, ground + 30), (cx - 360, ground + 30)], fill=mix(BG1, CREAM, 0.14))   # spotlight
+        conman(d, cx, ground + 20, 1.35, t)
+    elif kind == 'newspaper':
+        a = (1 - ease(t / 0.9)) * 6; sc_ = max(0.05, ease(t / 0.9))
+        newspaper(d, cx, VY0 + 340, 0.95 * sc_, (sc or {}).get('head', 'THE TOWER|IS FALLING|APART?'))
+    elif kind == 'meeting':
+        d.ellipse([cx - 420, ground - 230, cx + 420, ground - 90], fill=(96, 70, 50))
+        for i, (x, y) in enumerate(((180, ground - 230), (340, ground - 270), (540, ground - 290), (740, ground - 270), (900, ground - 230), (260, ground - 70))):
+            person(d, x, y, 1.4, mix(INK, CREAM, 0.12 + 0.06 * (i % 2)))
+        conman(d, cx, ground + 120, 0.6, t)
+        for i in range(3): d.rounded_rectangle([cx - 220 + i * 170, ground - 190, cx - 120 + i * 170, ground - 140], 6, fill=(236, 230, 214))
+        d.polygon([(cx - 260, VY0 + 30), (cx + 260, VY0 + 30), (cx + 220, VY0 + 120), (cx - 220, VY0 + 120)], fill=GOLD)   # chandelier
+        for i in range(7): d.line([(cx - 220 + i * 73, VY0 + 120), (cx - 220 + i * 73, VY0 + 170)], fill=GOLD, width=5); d.ellipse([cx - 230 + i * 73, VY0 + 166, cx - 210 + i * 73, VY0 + 186], fill=CREAM)
+    elif kind == 'secret':
+        sparkles(d, t, 16)
+        envelope(d, cx, VY0 + 380, 1.2, open_k=0.0)
+        p = back((t - 0.6) / 0.35)
+        if p > 0.02: img.alpha_composite(stamp('TOP SECRET', p), (int((cx - 330 + LAYOUT['vox']) * S), int((VY0 + 300 + LAYOUT['voy']) * S)))
+    elif kind == 'bribe':
+        sparkles(d, t, 14)
+        handshake(d, cx, VY0 + 360, 1.15, t)
+        rng = random.Random(5)
+        for i in range(int(9 * ease((t - 0.5) / 1.6))):
+            x = cx + rng.uniform(-260, 260); y = VY0 + 120 + (i * 37 % 100) + math.sin(t * 2 + i) * 12
+            banknote(d, x, y, 0.9, rng.uniform(-0.6, 0.6) + math.sin(t + i) * 0.1)
+    elif kind == 'getaway':
+        eiffel(d, 200, ground - 20, 0.55, gap=mix(BG0, BG1, 0.6))
+        d.rectangle([0, ground - 20, W, ground + 4], fill=LINE)
+        x = 420 + ease(t / max(dur * 0.9, 1.5)) * 420
+        old_car(d, x, ground - 20, 1.0, t)
+        for i in range(5):
+            lx = ((i * 260 - t * 400) % (W + 300)) - 150; d.rectangle([lx, ground - 12, lx + 120, ground - 6], fill=GOLD)
+    elif kind == 'red_flags':
+        labels = (sc or {}).get('labels', ['AUTHORITY', 'SECRECY', 'URGENCY'])
+        for i, lab in enumerate(labels):
+            p = back((t - 0.4 - i * 0.6) / 0.4)
+            if p > 0.02: red_flag(d, 130 + i * 320, ground - 100, p, t, lab)
+    elif kind == 'slow_down':
+        sparkles(d, t, 20)
+        hourglass(d, cx, VY0 + 340, 150, 230, t, period=8.0)
+        p = back((t - 0.8) / 0.35)
+        if p > 0.02:
+            d.rounded_rectangle([cx - 330 * p, ground - 120, cx + 330 * p, ground - 30], 45, fill=RED)
+            if p > 0.8: text_c(d, (cx, ground - 75), 'SECRET + URGENT = SCAM', font('anton', 52), CREAM)
+    elif kind == 'follow_noir':
+        sparkles(d, t, 22)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 90 - bh / 2, cx + bw / 2, VY0 + 90 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 90), 'FOLLOW', font('anton', 96 * p), CREAM)
+        eiffel(d, cx, ground - 20, 0.62)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

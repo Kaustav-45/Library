@@ -1,0 +1,15 @@
+[
+ ["hook","How can one small push lift a heavy car? Let's look inside a hydraulic lift."],
+ ["parts","It has two pistons. A small one here, and a big one here."],
+ ["parts","They're joined by a pipe, filled with oil."],
+ ["secret","Here's the secret: oil can't be squeezed into a smaller space."],
+ ["secret","So when you push the small piston down, the oil has to go somewhere."],
+ ["secret","The pressure spreads equally through all the oil, pushing on every surface with the same strength."],
+ ["force","The big piston has ten times more area, so it gets pushed up with ten times more force."],
+ ["force","Push with ten kilograms, and it lifts one hundred kilograms!"],
+ ["catch","But there's a catch. Push the small piston down ten centimetres, and the big one rises only one centimetre."],
+ ["catch","The same amount of oil just spreads out wider. You trade distance for force."],
+ ["pump","That's why real lifts pump again and again. A one way valve stops the oil from flowing back."],
+ ["uses","Hydraulics power car lifts, brakes, excavators, and even dentist chairs."],
+ ["outro","One small push, one huge lift. That's hydraulics!"]
+]

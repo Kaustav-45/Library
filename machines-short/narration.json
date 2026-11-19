@@ -1,0 +1,16 @@
+[
+ ["intro","3 amazing machines, explained in under a minute!"],
+ ["pulley","Number one: the pulley."],
+ ["pulley","This crate is heavy. Lifting it straight up takes a lot of force."],
+ ["pulley","But loop the rope around a few wheels, and now four ropes share the weight."],
+ ["pulley","You pull four times farther, but with just a quarter of the force!"],
+ ["hyd","Number two: the hydraulic lift."],
+ ["hyd","Push down on the small piston."],
+ ["hyd","The liquid can't be squeezed, so the pressure spreads everywhere."],
+ ["hyd","The big piston has a much bigger area, so it pushes up much harder. Enough to lift a car!"],
+ ["motor","Number three: the electric motor."],
+ ["motor","Electricity flows through a loop of wire, turning it into a magnet."],
+ ["motor","The magnets push one side up, and the other side down, so the loop spins."],
+ ["motor","Every half turn, the current flips, so it keeps on spinning."],
+ ["outro","Simple science, huge power! Which machine should we explain next?"]
+]

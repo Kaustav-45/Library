@@ -1056,6 +1056,61 @@ def red_flag(d, x, ground, s, t, label):
     d.polygon([(x, ground - 320 * s), (x + 180 * s, ground - 286 * s + wv), (x + 170 * s, ground - 220 * s + wv), (x, ground - 196 * s)], fill=RED)
     text_c(d, (x + 20 * s, ground + 50 * s), label, font('anton', 52 * s), CREAM, stroke=4)
 
+# ----- photos and WWI drawings -----
+_photos = {}
+def photo(img, path, t, dur, box, zoom=(1.0, 1.14), pan=(0.0, 0.0), credit=''):
+    """Paste a real photo into box (layout units) with a slow Ken Burns zoom and a rounded frame."""
+    if path not in _photos:
+        _photos[path] = Image.open(os.path.join(HERE, path)).convert('RGB')
+    src = _photos[path]
+    x0, y0, x1, y1 = box; bw, bh = int((x1 - x0) * S), int((y1 - y0) * S)
+    k = ease(t / max(dur, 1.0)); z = zoom[0] + (zoom[1] - zoom[0]) * k
+    ar = bw / bh; sw, sh = src.size
+    cw, ch = (sh * ar, sh) if sw / sh > ar else (sw, sw / ar)
+    cw, ch = cw / z, ch / z
+    cx_ = sw / 2 + pan[0] * (sw - cw) / 2 * k; cy_ = sh / 2 + pan[1] * (sh - ch) / 2 * k
+    crop = src.crop((int(cx_ - cw / 2), int(cy_ - ch / 2), int(cx_ + cw / 2), int(cy_ + ch / 2))).resize((bw, bh), Image.BICUBIC)
+    mask = Image.new('L', (bw, bh), 0); ImageDraw.Draw(mask).rounded_rectangle([0, 0, bw - 1, bh - 1], int(22 * S), fill=255)
+    px, py = int((x0 + LAYOUT['vox']) * S), int((y0 + LAYOUT['voy']) * S)
+    dr = ImageDraw.Draw(img); f = int(10 * S)
+    dr.rounded_rectangle([px - f, py - f, px + bw + f, py + bh + f], int(30 * S), fill=CREAM)
+    img.paste(crop, (px, py), mask)
+    if credit:
+        fnt = font('inter', 26); tw = dr.textlength(credit, font=fnt)
+        dr.rounded_rectangle([px + bw - tw - 34 * S, py + bh - 52 * S, px + bw - 10 * S, py + bh - 12 * S], int(16 * S), fill=INK)
+        dr.text((px + bw - 22 * S, py + bh - 32 * S), credit, font=fnt, fill=CREAM, anchor='rm')
+
+def poppy(d, x, y, s, t, i=0):
+    sw = math.sin(t * 1.6 + i) * 10 * s
+    d.line([(x, y + 160 * s), (x + sw, y)], fill=(70, 120, 70), width=max(2, int(6 * s)))
+    for k in range(4):
+        a = k * math.pi / 2 + 0.4
+        d.ellipse([x + sw + math.cos(a) * 26 * s - 30 * s, y + math.sin(a) * 26 * s - 30 * s, x + sw + math.cos(a) * 26 * s + 30 * s, y + math.sin(a) * 26 * s + 30 * s], fill=RED)
+    d.ellipse([x + sw - 14 * s, y - 14 * s, x + sw + 14 * s, y + 14 * s], fill=INK)
+
+def barbed_wire(d, y, t, col=None):
+    col = col or shade(STEEL, 0.9)
+    for k in range(2):
+        pts = [(x, y + k * 40 + math.sin(x * 0.03 + k) * 16) for x in range(0, W + 1, 20)]
+        d.line(pts, fill=col, width=4)
+        for x in range(30, W, 80):
+            yy = y + k * 40 + math.sin(x * 0.03 + k) * 16
+            d.line([(x - 12, yy - 12), (x + 12, yy + 12)], fill=col, width=4); d.line([(x - 12, yy + 12), (x + 12, yy - 12)], fill=col, width=4)
+    for x in (140, 520, 900): d.line([(x, y - 60), (x + 10, y + 120)], fill=(100, 80, 60), width=10)
+
+def card(d, x, y, w, h, title, col, tcol=None, size=50):
+    d.rounded_rectangle([x - w / 2, y - h / 2, x + w / 2, y + h / 2], 16, fill=col)
+    text_c(d, (x, y), title, font('anton', size), tcol or INK)
+
+def domino(d, x, ground, s, ang, label, col):
+    """A domino standing on the ground at x, tipped by ang radians (pivot at its right foot)."""
+    w, h = 80 * s, 300 * s; px, py = x + w / 2, ground
+    c_, s_ = math.cos(ang), math.sin(ang)
+    R = lambda dx, dy: (px + dx * c_ - dy * s_, py + dx * s_ + dy * c_)
+    d.polygon([R(-w, 0), R(0, 0), R(0, -h), R(-w, -h)], fill=col)
+    lx, ly = R(-w / 2, -h / 2)
+    text_c(d, (lx, ly), label, font('anton', 34 * s), INK)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -2061,6 +2116,83 @@ def visual(d, kind, t, dur, img, sc=None):
         d.rounded_rectangle([cx - bw / 2, VY0 + 90 - bh / 2, cx + bw / 2, VY0 + 90 + bh / 2], int(bh / 2), fill=RED)
         text_c(d, (cx, VY0 + 90), 'FOLLOW', font('anton', 96 * p), CREAM)
         eiffel(d, cx, ground - 20, 0.62)
+    elif kind == 'photo':
+        photo(img, sc['image'], t, dur, (70, VY0 + 30, W - 70, ground - 10), zoom=tuple(sc.get('zoom', (1.0, 1.14))), pan=tuple(sc.get('pan', (0.0, 0.0))), credit=sc.get('credit', ''))
+    elif kind == 'poppies':
+        sparkles(d, t, 20)
+        barbed_wire(d, ground - 330, t)
+        rng = random.Random(4)
+        for i in range(16):
+            x = 50 + i * 66 + rng.uniform(-14, 14); y = ground - 170 + rng.uniform(-40, 40)
+            poppy(d, x, y, 0.9 + rng.uniform(-0.15, 0.2), t, i)
+        d.rectangle([0, ground - 20, W, ground + 30], fill=(40, 80, 50))
+    elif kind == 'alliances':
+        sides = (sc or {}).get('sides', [['ALLIES', ['BRITAIN', 'FRANCE', 'RUSSIA']], ['CENTRAL POWERS', ['GERMANY', 'AUSTRIA-HUNGARY']]])
+        for j, (title, members) in enumerate(sides):
+            x = 290 + j * 500; p = back((t - 0.2 - j * 0.6) / 0.4)
+            if p <= 0.02: continue
+            col = (70, 140, 230) if j == 0 else RED
+            card(d, x, VY0 + 80, 400 * p, 100 * p, title, col, CREAM, 50 * p)
+            for i, mname in enumerate(members):
+                q = back((t - 0.5 - j * 0.6 - i * 0.25) / 0.35)
+                if q > 0.02: card(d, x, VY0 + 230 + i * 130, 380 * q, 100 * q, mname, CREAM, INK, 42 * q)
+        if t > 1.6: text_c(d, (W / 2, VY0 + 340), 'VS', font('anton', 96), GOLD, stroke=6)
+    elif kind == 'dominoes':
+        labels = (sc or {}).get('labels', ['AUSTRIA', 'RUSSIA', 'GERMANY', 'FRANCE', 'BRITAIN'])
+        n = len(labels); gap = (W - 200) / n
+        for i, lab in enumerate(labels):
+            k = ease((t - 0.6 - i * 0.45) / 0.45); ang = 1.2 * k
+            domino(d, 130 + i * gap, ground - 40, 1.0, ang, lab, POP[i % len(POP)] if i else RED)
+        d.rectangle([60, ground - 40, W - 60, ground - 30], fill=LINE)
+    elif kind == 'swap':
+        for j, (lab, sub_, col, inbound) in enumerate(((sc or {}).get('a', ['USA', 'JOINS', [70, 140, 230], True]), (sc or {}).get('b', ['RUSSIA', 'DROPS OUT', None, False]))):
+            col = tuple(col) if col else RED
+            k = ease((t - 0.3 - j * 1.0) / 0.9); x = 290 + j * 500
+            y = VY0 + 300 + ((1 - k) * -220 if inbound else k * 140)
+            alpha_col = col if inbound or k < 0.6 else mix(col, BG1, (k - 0.6) / 0.4)
+            card(d, x, y, 400, 170, lab, alpha_col, CREAM, 80)
+            text_c(d, (x, y + 150), sub_, font('anton', 54), GOLD if inbound else CREAM, stroke=5)
+    elif kind == 'offensive':
+        d.rectangle([80, VY0 + 60, W - 80, ground - 40], fill=mix(BG1, CREAM, 0.08))
+        d.line([(cx, VY0 + 60), (cx, ground - 40)], fill=CREAM, width=6)
+        text_c(d, (260, VY0 + 110), 'GERMANY', font('anton', 54), RED); text_c(d, (W - 260, VY0 + 110), 'ALLIES', font('anton', 54), (110, 170, 255))
+        k = ease(t / 1.4); back_k = ease((t - 2.0) / 1.6)
+        tip = 300 + 360 * k - 160 * back_k
+        for i, yy in enumerate((VY0 + 260, VY0 + 420, VY0 + 580)):
+            d.polygon([(140, yy - 34), (tip - 40, yy - 34), (tip - 40, yy - 70), (tip + 40, yy), (tip - 40, yy + 70), (tip - 40, yy + 34), (140, yy + 34)], fill=RED)
+        if back_k > 0:
+            for i, yy in enumerate((VY0 + 340, VY0 + 500)):
+                bx = W - 140 - 360 * back_k
+                d.polygon([(W - 140, yy - 30), (bx + 40, yy - 30), (bx + 40, yy - 64), (bx - 40, yy), (bx + 40, yy + 64), (bx + 40, yy + 30), (W - 140, yy + 30)], fill=(110, 170, 255))
+    elif kind == 'armistice':
+        sparkles(d, t, 16)
+        m_ = 58 + 2 * ease(t / 1.4)
+        clock_face(d, cx, VY0 + 300, 230, 11 if m_ >= 59.99 else 10, m_ % 60, ring=GOLD)
+        p = back((t - 1.6) / 0.4)
+        if p > 0.02:
+            d.rounded_rectangle([cx - 300 * p, ground - 130, cx + 300 * p, ground - 40], 45, fill=RED)
+            if p > 0.8: text_c(d, (cx, ground - 85), 'THE GUNS FALL SILENT', font('anton', 54), CREAM)
+    elif kind == 'treaty':
+        sparkles(d, t, 14)
+        d.rectangle([cx - 300, VY0 + 40, cx + 300, ground - 40], fill=(236, 230, 214))
+        text_c(d, (cx, VY0 + 110), 'TREATY OF', font('anton', 56), INK); text_c(d, (cx, VY0 + 180), 'VERSAILLES', font('anton', 80), INK)
+        for i in range(8):
+            y = VY0 + 270 + i * 44; d.line([(cx - 240, y), (cx + (240 if i % 3 else 140), y)], fill=shade(INK, 4.0), width=8)
+        k = ease((t - 0.6) / 1.6)
+        sx = cx - 200 + 300 * k; sy = ground - 160 + (math.sin(k * 20) * 10 if k < 1 else 0)
+        d.line([(cx - 200, ground - 140), (sx, sy + 20)], fill=INK, width=6)
+        d.polygon([(sx, sy + 20), (sx + 160, sy - 150), (sx + 176, sy - 134), (sx + 16, sy + 34)], fill=(240, 240, 240))
+        if t > 1.2:
+            p = back((t - 1.2) / 0.4); d.ellipse([cx + 140 - 60 * p, ground - 180 - 60 * p, cx + 140 + 60 * p, ground - 180 + 60 * p], fill=RED)
+    elif kind == 'follow_ww1':
+        sparkles(d, t, 20)
+        p = 1 + 0.06 * math.sin(t * 6); bw, bh = 560 * p, 150 * p
+        d.rounded_rectangle([cx - bw / 2, VY0 + 90 - bh / 2, cx + bw / 2, VY0 + 90 + bh / 2], int(bh / 2), fill=RED)
+        text_c(d, (cx, VY0 + 90), 'FOLLOW', font('anton', 96 * p), CREAM)
+        rng = random.Random(8)
+        for i in range(12):
+            poppy(d, 70 + i * 86 + rng.uniform(-10, 10), ground - 190 + rng.uniform(-30, 30), 0.85, t, i)
+        d.rectangle([0, ground - 20, W, ground + 30], fill=(40, 80, 50))
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -2132,7 +2264,7 @@ def compose(base, sc, lt, frac):
         text_c(d, (tx, L['ky']), sc['kicker'], f, CREAM + (int(255 * a),))
     # big headline: pops in, numbers count up
     p = back(lt / 0.45)
-    big = count_text(sc['big'], lt / 0.9)
+    big = count_text(sc['big'], lt / 0.9) if sc.get('count', True) else sc['big']
     size = 230 if len(sc['big']) <= 6 else (175 if len(sc['big']) <= 9 else 140)
     text_c(d, (tx, L['by']), big, font('anton', size * max(p, 0.05)), GOLD, stroke=8)
     text_c(d, (tx, L['sy']), sc['sub'], font('inter', 50 if len(sc['sub']) <= 30 else 40), CREAM + (int(255 * ease((lt - 0.2) / 0.4)),))

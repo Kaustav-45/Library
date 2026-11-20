@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Black Holes Explained</title>
+<style>
+  :root { --ink:#f4f7fb; --accent:#ffb347; --cold:#7fd8ff; --hot:#ff7a3d; }
+  html,body { margin:0; height:100%; background:#020308; overflow:hidden;
+    font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); }
+  #stage { position:fixed; inset:0; } canvas { display:block; }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
+    background:linear-gradient(to top, rgba(2,3,8,.3) 0%, rgba(2,3,8,.88) 30%, rgba(2,3,8,.45) 62%, rgba(2,3,8,0) 100%); }
+  #topshade { position:absolute; left:0; right:0; top:0; height:20%; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(2,3,8,.85), rgba(2,3,8,0)); }
+  #head { position:absolute; top:5.2%; left:0; right:0; text-align:center; }
+  #head .t { font-size:28px; font-weight:900; letter-spacing:1px; text-shadow:0 3px 14px rgba(0,0,0,.7); }
+  #chip { display:inline-block; margin-top:8px; background:var(--accent); color:#1b1b1b; font-weight:800;
+    border-radius:999px; padding:5px 14px; font-size:15px; letter-spacing:1px; }
+  #sub { position:absolute; left:6%; right:6%; bottom:22%; text-align:center; font-weight:800;
+    font-size:27px; line-height:1.28; text-shadow:0 2px 0 #000, 0 0 12px rgba(0,0,0,.85); }
+  #big { position:absolute; left:5%; right:5%; top:10%; text-align:center; }
+  #big .l1 { font-size:26px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+  #big .l2 { font-size:50px; font-weight:900; line-height:1.06; margin-top:6px; text-shadow:0 4px 18px rgba(0,0,0,.7); }
+  #big .l2 em { font-style:normal; color:var(--accent); }
+  .label { position:absolute; transform:translate(-50%,-50%); background:rgba(4,6,16,.9);
+    border:2px solid var(--accent); color:var(--ink); border-radius:8px; padding:4px 11px;
+    font-weight:800; font-size:17px; white-space:nowrap; pointer-events:none; }
+  .label.cold { border-color:var(--cold); } .label.hot { border-color:var(--hot); } .label.red { border-color:#ff5a5a; } .label.green { border-color:#4ee28a; }
+  .label.big { font-size:21px; padding:6px 14px; }
+  #bar { position:absolute; left:0; bottom:0; height:6px; background:linear-gradient(90deg,#7f5cff,#ffb347); width:0; }
+  #replay { position:absolute; top:12px; right:12px; background:var(--accent); border:0; color:#1b1b1b;
+    font-weight:700; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:14px; }
+  body.capture #replay { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topshade"></div>
+<div id="shade"></div>
+<div id="head"><div class="t">BLACK HOLES EXPLAINED</div><div id="chip"></div></div>
+<div id="big"><div class="l1" id="big1"></div><div class="l2" id="big2"></div></div>
+<div id="labels"></div>
+<div id="sub"></div>
+<div id="bar"></div>
+<button id="replay">↻ Replay</button>
+<script src="three.min.js"></script>
+<script>
+const TIMING = /*TIMING*/null;
+(function(){
+const LINES=TIMING.lines, DURATION=TIMING.duration, L=i=>LINES[i];
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const smooth=(a,b,x)=>{const k=clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+const win=(a,b,t,f=0.4)=>smooth(a,a+f,t)*(1-smooth(b-f,b,t));
+const V=(x,y,z)=>new THREE.Vector3(x,y,z), TAU=Math.PI*2;
+let seed=33; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
+
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.outputEncoding=THREE.sRGBEncoding;
+document.getElementById('stage').appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x020308);
+const camera=new THREE.PerspectiveCamera(62,1,0.1,3000);
+scene.add(new THREE.HemisphereLight(0xc8d6ff,0x0a0a18,0.5));
+const keyL=new THREE.DirectionalLight(0xffffff,0.9); keyL.position.set(-10,12,14); scene.add(keyL);
+
+function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.3,'rgba(255,255,255,.5)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=r; g.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
+const GLOW=glowTex();
+function sprite(color,size,op=1,add=true,parent=scene){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color,transparent:true,opacity:op,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false}));
+  s.scale.set(size,size,1); parent.add(s); return s; }
+function makeArrow(color,r=0.12){ const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false});
+  const g=new THREE.Group(); const body=new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,12),m); g.add(body); const head=new THREE.Mesh(new THREE.ConeGeometry(r*2.8,r*6,16),m); g.add(head);
+  g.set=(from,dir,len,op)=>{ const hl=r*6, bl=Math.max(len-hl,0.05); body.scale.y=bl; body.position.y=bl/2; head.position.y=bl+hl/2; g.position.copy(from); g.quaternion.setFromUnitVectors(V(0,1,0),dir.clone().normalize()); m.opacity=op; g.visible=op>0.01; };
+  scene.add(g); return g; }
+
+// ---------- starfield + nebula ----------
+{ const p=[], c=[]; for(let i=0;i<2500;i++){ const u=rnd()*2-1, a=rnd()*TAU, r=900+rnd()*300, s=Math.sqrt(1-u*u); p.push(Math.cos(a)*s*r,u*r,Math.sin(a)*s*r);
+    const tint=rnd(); c.push(0.75+0.25*tint,0.8+0.2*rnd(),1); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(p,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));
+  scene.add(new THREE.Points(g,new THREE.PointsMaterial({size:1.7,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:0.9}))); }
+for(let i=0;i<14;i++){ const s=sprite([0x5a2cff,0x2c6bff,0xb02cff,0xff3c8a][i%4],260+rnd()*260,0.07+rnd()*0.06); const a=rnd()*TAU, b=(rnd()-0.5)*1.4;
+  s.position.set(Math.cos(a)*700,Math.sin(b)*400,Math.sin(a)*700); }
+
+// ---------- SCENE A: the giant star ----------
+const A=V(-90,0,0);
+function starTex(){ const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d');
+  g.fillStyle='#ff9a2a'; g.fillRect(0,0,512,256);
+  for(let i=0;i<900;i++){ const x=rnd()*512, y=rnd()*256, r=3+rnd()*12; g.fillStyle=rnd()<0.5?'rgba(255,230,140,.35)':'rgba(190,60,0,.3)'; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill(); }
+  return new THREE.CanvasTexture(c); }
+const starMat=new THREE.MeshBasicMaterial({map:starTex(),color:0xffffff});
+const star=new THREE.Mesh(new THREE.SphereGeometry(4,64,48),starMat); star.position.copy(A); scene.add(star);
+const corona1=sprite(0xff8a2b,14,0.8), corona2=sprite(0xffc35a,22,0.35); corona1.position.copy(A); corona2.position.copy(A);
+const pressA=[], gravA=[]; for(let i=0;i<8;i++){ pressA.push(makeArrow(0xffb347,0.14)); gravA.push(makeArrow(0xff4a5a,0.14)); }
+const flash=sprite(0xffffff,10,0); flash.position.copy(A);
+const shell=[]; for(let i=0;i<260;i++){ const u=rnd()*2-1, a=rnd()*TAU, s=Math.sqrt(1-u*u); const sp=sprite(i%3?0x9fd8ff:0xffb347,0.7,0); sp.userData={d:V(Math.cos(a)*s,u,Math.sin(a)*s),v:0.7+rnd()*0.6}; shell.push(sp); }
+const coreBH=new THREE.Mesh(new THREE.SphereGeometry(0.55,32,24),new THREE.MeshBasicMaterial({color:0x000000})); coreBH.position.copy(A); scene.add(coreBH);
+const coreRing=new THREE.Mesh(new THREE.RingGeometry(0.6,0.75,64),new THREE.MeshBasicMaterial({color:0xffc35a,transparent:true,opacity:0,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,depthWrite:false})); coreRing.position.copy(A); scene.add(coreRing);
+const coreGlow=sprite(0xff9a2a,3.2,0); coreGlow.position.copy(A);
+// Earth + marble
+function earthTex(){ const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d');
+  g.fillStyle='#2a6fc4'; g.fillRect(0,0,512,256); let s2=9; const r2=()=>{s2=(s2*16807)%2147483647;return (s2-1)/2147483646;};
+  for(let k=0;k<6;k++){ const cx=r2()*512, cy=60+r2()*140; g.fillStyle=r2()<0.6?'#3f9a4b':'#8a7a45'; for(let i=0;i<22;i++){ const a=r2()*TAU, d=r2()*40; g.beginPath(); g.arc(cx+Math.cos(a)*d*1.2,cy+Math.sin(a)*d*0.6,4+r2()*10,0,TAU); g.fill(); } }
+  g.globalAlpha=0.4; g.fillStyle='#fff'; for(let i=0;i<40;i++){ g.beginPath(); g.ellipse(r2()*512,r2()*256,14+r2()*36,3+r2()*5,0,0,TAU); g.fill(); }
+  return new THREE.CanvasTexture(c); }
+const earth=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),new THREE.MeshStandardMaterial({map:earthTex(),roughness:1})); scene.add(earth);
+const marble=new THREE.Group(); scene.add(marble);
+{ const m=new THREE.Mesh(new THREE.SphereGeometry(1,40,30),new THREE.MeshPhysicalMaterial({color:0x9fe0ff,roughness:0.05,clearcoat:1,transparent:true,opacity:0.75})); marble.add(m);
+  const sw=new THREE.Mesh(new THREE.TorusGeometry(0.45,0.12,10,40,Math.PI*1.4),new THREE.MeshBasicMaterial({color:0xff4d8a})); sw.rotation.set(0.6,0.4,0); marble.add(sw); }
+
+// ---------- SCENE B: spacetime grid ----------
+const B=V(0,-60,0);
+const NLINES=61, NPTS=161, SPAN=20;
+const gentle=r=>3.0/Math.sqrt(1+(r/3.2)*(r/3.2));
+const steep=r=>Math.min(16,6/Math.pow(Math.max(r-0.8,0.04),0.9));
+const RH=1.7;
+function depth(r,m){ const d=lerp(gentle(r),steep(r),m)-lerp(gentle(SPAN),steep(SPAN),m); return d; }
+const gridLines=[];
+const gridMat=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false});
+for(let dir=0;dir<2;dir++) for(let i=0;i<NLINES;i++){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(NPTS*3),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(NPTS*3),3));
+  const ln=new THREE.Line(g,gridMat); ln.userData={dir,c:-SPAN+i*2*SPAN/(NLINES-1)}; scene.add(ln); gridLines.push(ln); }
+const C1=new THREE.Color(0x4fd8ff), C2=new THREE.Color(0x9b4dff), C3=new THREE.Color(0xff3c8a), tc=new THREE.Color();
+let lastM=-1;
+function updateGrid(m){ if(Math.abs(m-lastM)<1e-4) return; lastM=m;
+  gridLines.forEach(ln=>{ const {dir,c}=ln.userData, P=ln.geometry.attributes.position.array, Cc=ln.geometry.attributes.color.array;
+    for(let j=0;j<NPTS;j++){ const s=-SPAN+j*2*SPAN/(NPTS-1); const x=dir?c:s, z=dir?s:c, r=Math.hypot(x,z); const d=depth(r,m);
+      P[j*3]=B.x+x; P[j*3+1]=B.y-d; P[j*3+2]=B.z+z; const k=clamp(d/8,0,1); if(k<0.5) tc.copy(C1).lerp(C2,k*2); else tc.copy(C2).lerp(C3,(k-0.5)*2);
+      const fade=clamp(1-(r-12)/8,0.15,1); Cc[j*3]=tc.r*fade; Cc[j*3+1]=tc.g*fade; Cc[j*3+2]=tc.b*fade; }
+    ln.geometry.attributes.position.needsUpdate=true; ln.geometry.attributes.color.needsUpdate=true; }); }
+const ballMat=new THREE.MeshStandardMaterial({color:0xffb347,roughness:0.4,emissive:0xff8a2b,emissiveIntensity:0.5});
+const ball=new THREE.Mesh(new THREE.SphereGeometry(1.2,40,30),ballMat); scene.add(ball);
+const ballGlow=sprite(0xffa040,5,0.5);
+const orbiter=new THREE.Mesh(new THREE.SphereGeometry(0.28,20,14),new THREE.MeshStandardMaterial({color:0x7fd8ff,emissive:0x2f8cff,emissiveIntensity:0.6})); scene.add(orbiter);
+const orbGlow=sprite(0x7fd8ff,1.4,0.8);
+const horizon=new THREE.Mesh(new THREE.TorusGeometry(RH,0.07,12,96),new THREE.MeshBasicMaterial({color:0xffc35a,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+horizon.rotation.x=Math.PI/2; scene.add(horizon);
+const horizonGlow=sprite(0xff9a2a,6,0);
+// light rays in a plane above the grid
+const RAYY=B.y+0.6, KB=2.6;
+function rayPath(b){ let x=-19,z=b,vx=1,vz=0; const pts=[V(B.x+x,RAYY,B.z+z)], ds=0.05; let captured=false;
+  for(let i=0;i<2400;i++){ const r=Math.hypot(x,z); const ax=-KB*x/(r*r*r), az=-KB*z/(r*r*r); vx+=ax*ds; vz+=az*ds; const n=Math.hypot(vx,vz); vx/=n; vz/=n; x+=vx*ds; z+=vz*ds;
+    if(i%3===0) pts.push(V(B.x+x,RAYY,B.z+z)); if(Math.hypot(x,z)<RH*0.9){ captured=true; break; } if(Math.abs(x)>19||Math.abs(z)>19) break; }
+  return {pts,captured}; }
+const RAYS=[-7.5,-4.6,-3.1,-1.6,1.2,2.5,3.6,5.8,8.5].map((b,i)=>{ const p=rayPath(b); const geo=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p.pts),Math.max(20,p.pts.length),0.09,6,false);
+  const line=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:p.captured?0xff8a5a:0xfff3a8,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false})); scene.add(line);
+  const head=sprite(p.captured?0xff8a5a:0xfff3a8,1.1,0); return {...p,geo,line,head,delay:i*0.18}; });
+
+// ---------- SCENE C: the black hole ----------
+const C=V(90,0,0);
+function diskTex(inner,outer,boost){ const c=document.createElement('canvas'); c.width=c.height=1024; const g=c.getContext('2d'); const ri=inner*512, ro=outer*512;
+  const gr=g.createRadialGradient(512,512,ri,512,512,ro); gr.addColorStop(0,'rgba(255,250,225,1)'); gr.addColorStop(0.12,'rgba(255,215,140,.95)'); gr.addColorStop(0.35,'rgba(255,140,50,.75)'); gr.addColorStop(0.7,'rgba(200,60,10,.35)'); gr.addColorStop(1,'rgba(90,10,0,0)');
+  g.fillStyle=gr; g.beginPath(); g.arc(512,512,ro,0,TAU); g.arc(512,512,ri,0,TAU,true); g.fill();
+  g.globalCompositeOperation='lighter';
+  for(let i=0;i<700;i++){ const rr=ri+Math.pow(rnd(),1.6)*(ro-ri), a=rnd()*TAU, span=0.2+rnd()*1.4; const k=(rr-ri)/(ro-ri);
+    g.strokeStyle=`rgba(255,${Math.round(220-150*k)},${Math.round(150-130*k)},${(0.06+rnd()*0.22)*boost*(1-k*0.7)})`; g.lineWidth=1+rnd()*3; g.beginPath(); g.arc(512,512,rr,a,a+span); g.stroke(); }
+  const t=new THREE.CanvasTexture(c); return t; }
+const DIN=2.7, DOUT=10;
+const disk=new THREE.Mesh(new THREE.RingGeometry(DIN,DOUT,160,1),new THREE.MeshBasicMaterial({map:diskTex(DIN/DOUT,1,1),transparent:true,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,depthWrite:false}));
+const diskTilt=new THREE.Group(); diskTilt.position.copy(C); diskTilt.rotation.x=-Math.PI/2+0.2; diskTilt.rotation.z=0.08; scene.add(diskTilt); diskTilt.add(disk);
+const HIN=2.15, HOUT=6.2;
+const halo=new THREE.Mesh(new THREE.RingGeometry(HIN,HOUT,160,1),new THREE.MeshBasicMaterial({map:diskTex(HIN/HOUT,1,0.8),transparent:true,opacity:0.7,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,depthWrite:false}));
+halo.position.copy(C); scene.add(halo);
+const photonRing=new THREE.Mesh(new THREE.RingGeometry(2.02,2.16,160),new THREE.MeshBasicMaterial({color:0xfff0c8,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,depthWrite:false}));
+photonRing.position.copy(C); scene.add(photonRing);
+const shadow=new THREE.Mesh(new THREE.SphereGeometry(2.0,64,48),new THREE.MeshBasicMaterial({color:0x000000})); shadow.position.copy(C); scene.add(shadow);
+const bigGlow=sprite(0xff8a2b,26,0.22); bigGlow.position.copy(C);
+// clocks
+function makeClock(r,color){ const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.CircleGeometry(r,48),new THREE.MeshBasicMaterial({color:0xf6f3ea})));
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(r,r*0.08,10,48),new THREE.MeshStandardMaterial({color,metalness:0.6,roughness:0.3})); g.add(rim);
+  for(let i=0;i<12;i++){ const tk=new THREE.Mesh(new THREE.BoxGeometry(r*0.05,r*0.16,0.02),new THREE.MeshBasicMaterial({color:0x222222})); const a=i*TAU/12; tk.position.set(Math.sin(a)*r*0.82,Math.cos(a)*r*0.82,0.01); tk.rotation.z=-a; g.add(tk); }
+  const mh=new THREE.Group(), hh=new THREE.Group(); g.add(mh,hh);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(r*0.06,r*0.78,0.02),new THREE.MeshBasicMaterial({color:0x111111})); m.position.set(0,r*0.36,0.03); mh.add(m);
+  const h=new THREE.Mesh(new THREE.BoxGeometry(r*0.09,r*0.5,0.02),new THREE.MeshBasicMaterial({color:0x111111})); h.position.set(0,r*0.22,0.035); hh.add(h);
+  g.userData={mh,hh}; scene.add(g); return g; }
+const clockFar=makeClock(1.3,0x4ee28a), clockNear=makeClock(0.9,0xff7a3d);
+clockFar.position.copy(C).add(V(-5.6,6.2,2)); clockNear.position.copy(C).add(V(3.4,1.2,3.6));
+
+// ---------- labels ----------
+const labelsEl=document.getElementById('labels'), LBL=[];
+function label(text,cls,p,from,to){ const d=document.createElement('div'); d.className='label '+cls; d.textContent=text; labelsEl.appendChild(d); LBL.push({d,p:(typeof p==='function')?p:()=>p,from,to}); }
+const tc2=L(2).start+2.2, tf=L(2).start+3.7;
+label("Giant star: 20+ Suns heavy","",A.clone().add(V(0,6.2,0)),L(1).start+0.5,L(1).start+3.6);
+label("Fusion pushes OUT","hot",A.clone().add(V(5.2,4.4,0)),L(1).start+3.6,L(2).start+1.0);
+label("Gravity pulls IN","red",A.clone().add(V(-5.2,-4.6,0)),L(1).start+4.8,L(2).start+2.0);
+label("Out of fuel!","red",A.clone().add(V(0,5.8,0)),L(2).start+0.4,tc2);
+label("SUPERNOVA!","hot big",A.clone().add(V(0,7.0,0)),tf,tf+2.4);
+label("Black hole","",A.clone().add(V(0,-1.9,0)),tf+1.0,L(2).end+0.3);
+label("Earth","cold",()=>earth.position.clone().add(V(0,earth.scale.x+0.9,0)),L(3).start+0.5,L(3).start+3.2);
+label("Marble-sized!","green big",()=>V(A.x+4.5,A.y+1.2,0),L(3).start+3.6,L(3).end+0.3);
+label("Heavy object bends space","",B.clone().add(V(0,2.8,0)),L(4).start+1.6,L(4).end+0.2);
+label("A bottomless well","hot",B.clone().add(V(0,1.5,0)),L(5).start+1.2,L(5).end+0.3);
+label("Event horizon","big",()=>B.clone().add(V(RH+2.2,-depth(RH,1)+1.0,0)),L(6).start+0.6,L(6).end+0.2);
+label("Point of no return","red",()=>B.clone().add(V(-3.6,0.6,2)),L(6).start+3.0,L(6).end+0.2);
+label("Light bends","",B.clone().add(V(9,1.5,-8.6)),L(7).start+1.6,L(7).end+0.3);
+label("Trapped forever","hot",B.clone().add(V(-6,1.5,1.0)),L(7).start+3.4,L(7).end+0.3);
+label("Accretion disk","hot",C.clone().add(V(6.5,-1.6,2)),L(8).start+0.8,L(8).end+0.2);
+label("Millions of degrees!","",C.clone().add(V(-4.8,-2.4,2)),L(8).start+2.8,L(8).end+0.2);
+label("Earth: years pass","green",()=>clockFar.position.clone().add(V(0,1.9,0)),L(9).start+0.8,L(9).end+0.3);
+label("Near black hole: 1 hour","hot",()=>clockNear.position.clone().add(V(0,-1.5,0)),L(9).start+1.8,L(9).end+0.3);
+label("Recreation of the 2019 image (M87*)","big",()=>C.clone().add(V(0,0,-7.5)),L(10).start+2.0,L(10).end+0.3);
+
+// ---------- timeline helpers ----------
+const SHOTS=[
+  [0,            t=>[C.clone().add(V(Math.sin(t*0.08)*4,2.4,20)),C.clone().add(V(0,-1.4,0))]],
+  [L(1).start,   t=>[A.clone().add(V(1.5,1.0,23)),A.clone().add(V(0,-1.6,0))]],
+  [L(3).start,   t=>[A.clone().add(V(3.4,0.8,9.5)),A.clone().add(V(3.2,-1.6,0))]],
+  [L(4).start,   t=>[B.clone().add(V(2,10,23)),B.clone().add(V(0,-3.4,0))]],
+  [L(5).start,   t=>[B.clone().add(V(1,8.5,19)),B.clone().add(V(0,-5.5,0))]],
+  [L(6).start,   t=>[B.clone().add(V(0.5,5.5,12.5)),B.clone().add(V(0,-4.6,0))]],
+  [L(7).start,   t=>[B.clone().add(V(0,23,11)),B.clone().add(V(0,-2.0,3.0))]],
+  [L(8).start,   t=>[C.clone().add(V(-3,3.0,17)),C.clone().add(V(0,-1.2,0))]],
+  [L(9).start,   t=>[C.clone().add(V(-2.2,3.4,21)),C.clone().add(V(-0.8,-0.4,0))]],
+  [L(10).start,  t=>[C.clone().add(V(0,19,1.2)),C.clone().add(V(0,0,-2.6))]],
+  [L(11).start,  t=>[C.clone().add(V(4+Math.sin(t*0.1)*2,2.0,19)),C.clone().add(V(0,-1.4,0))]],
+];
+function camAt(t){
+  let i=0; while(i<SHOTS.length-1 && t>=SHOTS[i+1][0]) i++;
+  const Av=SHOTS[i][1](t); let p=Av[0], g=Av[1];
+  if(i<SHOTS.length-1){ const Bn=SHOTS[i+1]; const k=smooth(Bn[0]-1.6,Bn[0]+0.1,t); if(k>0){ const Bv=Bn[1](t); p=p.clone().lerp(Bv[0],k); g=g.clone().lerp(Bv[1],k); } }
+  camera.position.set(p.x+Math.sin(t*0.27)*0.4,p.y+Math.sin(t*0.19)*0.2,p.z); camera.lookAt(g);
+}
+const CHIPS={hook:"",birth:"HOW THEY'RE BORN",collapse:"HOW THEY'RE BORN",density:"INSANELY DENSE",space:"BENDING SPACE",horizon:"THE EVENT HORIZON",light:"WHY IT'S BLACK",disk:"THE GLOWING DISK",time:"TIME SLOWS DOWN",photo:"THE FIRST REAL IMAGE",outro:""};
+const sub=document.getElementById('sub'), chip=document.getElementById('chip'), head=document.getElementById('head');
+const big=document.getElementById('big'), big1=document.getElementById('big1'), big2=document.getElementById('big2');
+const tmp=V(0,0,0); let lastLine=-2;
+
+function renderAt(t){
+  t=clamp(t,0,DURATION); camAt(t);
+  // ----- star life and death -----
+  const outOff=smooth(L(2).start+0.3,L(2).start+1.3,t);
+  const col=smooth(tc2,tf,t); const R=lerp(4,0.5,col*col);
+  star.scale.setScalar(R/4); star.rotation.y=t*0.1; star.visible=t<tf+0.15;
+  starMat.color.setRGB(1,lerp(1,1.15,col),lerp(1,1.6,col));
+  const pulse=1+0.02*Math.sin(t*3);
+  corona1.scale.setScalar(14*R/4*pulse); corona2.scale.setScalar(22*R/4*pulse); corona1.material.opacity=0.8*(t<tf?1:0); corona2.material.opacity=0.35*(t<tf?1:0);
+  const arrOp=win(L(1).start+3.4,tf,t,0.4);
+  for(let i=0;i<8;i++){ const a=i*TAU/8, a2=a+TAU/16; const d=V(Math.cos(a),Math.sin(a),0), d2=V(Math.cos(a2),Math.sin(a2),0);
+    pressA[i].set(A.clone().addScaledVector(d,R+0.3),d,1.8*(1-outOff),win(L(1).start+3.4,L(2).start+1.4,t)*(1-outOff));
+    const gl=1.8+1.2*smooth(L(2).start+0.5,tc2,t); gravA[i].set(A.clone().addScaledVector(d2,R+0.4+gl),d2.clone().negate(),gl,arrOp*smooth(L(1).start+4.6,L(1).start+5.2,t)); }
+  const fl=t-tf; flash.material.opacity=fl>0?Math.max(0,1-fl/1.4):0; flash.scale.setScalar(fl>0?10+fl*28:10);
+  shell.forEach(s=>{ const d=s.userData; if(fl<=0){ s.material.opacity=0; return; } const r=0.5+fl*7*d.v; s.position.copy(A).addScaledVector(d.d,r);
+    s.material.opacity=Math.max(0,1-fl/4.5)*0.9; s.scale.setScalar(0.35+fl*0.12); });
+  const bh=smooth(tf-0.2,tf+0.6,t); coreBH.visible=bh>0.01; coreBH.scale.setScalar(Math.max(bh,0.01)); coreRing.material.opacity=0.9*bh; coreRing.quaternion.copy(camera.quaternion); coreGlow.material.opacity=0.5*bh*(1-smooth(L(3).end,L(3).end+1,t));
+  // Earth -> marble
+  const eOn=win(L(3).start,L(3).end+0.8,t,0.5), sq=smooth(L(3).start+1.6,L(3).start+3.6,t);
+  earth.position.copy(A).add(V(3.6,-0.4,0)); earth.scale.setScalar(Math.max(lerp(2.4,0.35,sq),0.001)*eOn); earth.rotation.y=t*0.3; earth.visible=eOn>0.01;
+  marble.position.copy(A).add(V(5.4,-0.4,0)); marble.scale.setScalar(0.35*smooth(L(3).start+3.0,L(3).start+3.6,t)*eOn+0.0001); marble.visible=t>L(3).start+3; marble.rotation.y=t;
+
+  // ----- spacetime -----
+  const m=smooth(L(5).start+0.2,L(5).start+2.6,t); updateGrid(m); gridMat.opacity=0.85-0.5*win(L(7).start,L(8).start-0.4,t,0.6);
+  const bD=depth(0,m);
+  ball.position.copy(B).add(V(0,-lerp(gentle(0)-gentle(SPAN),depth(RH,1)+0.8,m)+lerp(1.2,0,m),0)); ball.scale.setScalar(lerp(1,0.85,m));
+  ballMat.color.setRGB(lerp(1,0,m),lerp(0.7,0,m),lerp(0.28,0,m)); ballMat.emissiveIntensity=0.5*(1-m); ballGlow.position.copy(ball.position); ballGlow.material.opacity=0.5*(1-m);
+  // orbiter spirals in during the event-horizon line
+  const fall=smooth(L(6).start+2.6,L(6).end-0.3,t); const oR=lerp(6,0.2,fall*fall), oA=t*(0.9+3*fall);
+  orbiter.position.copy(B).add(V(Math.cos(oA)*oR,-depth(oR,m)+0.3,Math.sin(oA)*oR)); orbiter.visible=fall<0.98 && t<L(7).start; orbGlow.position.copy(orbiter.position); orbGlow.material.opacity=orbiter.visible?0.8*(1-fall):0;
+  const hz=smooth(L(6).start+0.3,L(6).start+1.0,t); horizon.position.copy(B).add(V(0,-depth(RH,m),0)); horizon.material.opacity=hz*(0.75+0.25*Math.sin(t*5)); horizonGlow.position.copy(horizon.position); horizonGlow.material.opacity=0.5*hz;
+  // light rays
+  const rOn=smooth(L(7).start,L(7).start+0.5,t)*(1-smooth(L(8).start-1.2,L(8).start-0.4,t));
+  RAYS.forEach(r=>{ const u=t-L(7).start-0.5-r.delay; const n=r.pts.length; const k=clamp(Math.floor(u*90),0,n); r.geo.setDrawRange(0,Math.floor(r.geo.index.count*(k/n)/3)*3);
+    r.line.material.opacity=rOn*0.95; r.head.material.opacity=(k>0&&k<n)?rOn:0; if(k>0) r.head.position.copy(r.pts[Math.min(k,n-1)]); });
+
+  // ----- black hole -----
+  disk.rotation.z=-t*0.35; halo.quaternion.copy(camera.quaternion); photonRing.quaternion.copy(camera.quaternion); halo.rotation.z+=t*0.1;
+  const glowBoost=1+0.4*win(L(8).start,L(8).end,t); disk.material.opacity=Math.min(1,0.9*glowBoost); bigGlow.material.opacity=0.22*glowBoost;
+  const cOn=win(L(9).start+0.4,L(9).end+0.4,t,0.4);
+  [clockFar,clockNear].forEach(c=>{ c.visible=cOn>0.01; c.scale.setScalar(Math.max(cOn,0.001)); c.quaternion.copy(camera.quaternion); });
+  const tt=Math.max(0,t-L(9).start);
+  clockFar.userData.mh.rotation.z=-tt*TAU*0.9; clockFar.userData.hh.rotation.z=-tt*TAU*0.075;
+  clockNear.userData.mh.rotation.z=-tt*TAU*0.03; clockNear.userData.hh.rotation.z=-tt*TAU*0.0025;
+  // the photo look
+  const ph=win(L(10).start+1.0,L(10).end+0.6,t,0.8);
+  renderer.domElement.style.filter=ph>0.01?`blur(${(7*ph).toFixed(2)}px) saturate(${(1+0.5*ph).toFixed(2)})`:'none';
+
+  renderer.render(scene,camera);
+
+  // overlay
+  let li=-1; LINES.forEach((l,i)=>{ if(t>=l.start-0.05) li=i; });
+  const line=li>=0?LINES[li]:null;
+  if(li!==lastLine){ sub.textContent=line?line.text:''; const cc=line&&CHIPS[line.m]; chip.textContent=cc||''; chip.style.display=cc?'inline-block':'none'; lastLine=li; }
+  sub.style.opacity=(line && t<=line.end+0.3 && line.m!=='outro')?1:0;
+  head.style.opacity=smooth(L(1).start-0.6,L(1).start,t)*(1-smooth(L(11).start-0.4,L(11).start,t));
+  const intro=1-smooth(L(1).start-0.8,L(1).start-0.2,t), outro=smooth(L(11).start-0.2,L(11).start+0.4,t);
+  if(outro>0){ big1.textContent="THE DEATH OF A STAR,"; big2.innerHTML="A <em>HOLE</em> IN SPACE"; big.style.opacity=outro; }
+  else { big1.textContent="NOT EVEN LIGHT CAN ESCAPE"; big2.innerHTML="WHAT IS A<br><em>BLACK HOLE?</em>"; big.style.opacity=intro; }
+  document.getElementById('bar').style.width=(t/DURATION*100)+'%';
+  const cw=W(), ch=H();
+  LBL.forEach(l=>{ const o=win(l.from,l.to,t,0.3); if(o<0.01){ l.d.style.display='none'; return; }
+    tmp.copy(l.p()).project(camera); l.d.style.display=tmp.z<1?'block':'none'; l.d.style.opacity=o;
+    const hw=l.d.offsetWidth/2+8; l.d.style.left=clamp((tmp.x+1)/2*cw,hw,cw-hw)+'px'; l.d.style.top=clamp((1-tmp.y)/2*ch,ch*0.2,ch*0.66)+'px'; });
+}
+window.renderAt=renderAt; window.DURATION=DURATION;
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize); resize();
+if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }
+else { let start=performance.now(); document.getElementById('replay').onclick=()=>{start=performance.now();};
+  (function loop(){ renderAt(Math.min((performance.now()-start)/1000,DURATION)); requestAnimationFrame(loop); })(); }
+})();
+</script>
+</body>
+</html>

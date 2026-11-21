@@ -1,0 +1,14 @@
+[
+ ["hook","Every time a car moves, thousands of tiny explosions are happening under the hood. Here's how a piston turns them into motion."],
+ ["parts","Inside the engine is a cylinder. A piston slides up and down inside it, linked by a rod to a crankshaft."],
+ ["parts","At the top are two valves, one to let air and fuel in, one to let exhaust out, and a spark plug."],
+ ["intake","Stroke one: intake. The piston moves down, the intake valve opens, and a mix of air and fuel is sucked in."],
+ ["compress","Stroke two: compression. Both valves close, and the piston squeezes the mixture into a tiny space."],
+ ["power","Stroke three: power. The spark plug fires! The mixture explodes and slams the piston down with huge force."],
+ ["exhaust","Stroke four: exhaust. The exhaust valve opens, and the piston pushes the burnt gas out."],
+ ["cycle","Intake, compression, power, exhaust. Then it repeats, over and over."],
+ ["crank","The crankshaft is the clever part. It turns the piston's up and down motion into spinning, just like your legs pedalling a bicycle."],
+ ["multi","Real engines have four, six, or even eight pistons, firing one after another, so the power flows smoothly."],
+ ["rpm","At highway speed, each piston completes this whole cycle about twenty five times every second!"],
+ ["outro","Tiny explosions, perfectly timed. That's what moves your car! Follow for more science made simple."]
+]

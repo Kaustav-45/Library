@@ -39,13 +39,16 @@ POP = [(255, 71, 133), (71, 214, 255), (255, 160, 60), (140, 255, 170), (190, 13
 
 def set_palette(pal):
     """Override colours from the script's "palette": bg0, bg1, text, headline, accent, ink, line, liquid, steel."""
-    global BG0, BG1, CREAM, GOLD, RED, INK, LINE, LIQ, STEEL, GLOW, POP
+    global BG0, BG1, CREAM, GOLD, RED, INK, LINE, LIQ, STEEL, GLOW, POP, BG2, BOKEH
     t = lambda k, d: tuple(pal.get(k, d))
+    BG2 = tuple(pal['bg2']) if 'bg2' in pal else None          # optional second colour for a diagonal gradient
+    BOKEH = [tuple(c) for c in pal.get('bokeh', [])]            # optional drifting soft lights behind the scene
     BG0, BG1, CREAM, GOLD, RED = t('bg0', BG0), t('bg1', BG1), t('text', CREAM), t('headline', GOLD), t('accent', RED)
     INK, LINE, LIQ, STEEL = t('ink', INK), t('line', LINE), t('liquid', LIQ), t('steel', STEEL)
     GLOW = tuple(pal['glow']) if 'glow' in pal else None
     POP = [tuple(c) for c in pal.get('pop', POP)]
 
+BG2, BOKEH = None, []
 DEFAULT_PAL = dict(bg0=BG0, bg1=BG1, text=CREAM, headline=GOLD, accent=RED, ink=INK, line=LINE, liquid=LIQ, steel=STEEL, pop=POP)
 
 def scene_palette(spec, sc):
@@ -159,6 +162,9 @@ def base_frames(k=6):
     RW, RH = FW * S, FH * S
     y = np.linspace(0, 1, RH)[:, None, None]
     img = (np.array(BG0) * (1 - y) + np.array(BG1) * y) * np.ones((1, RW, 1))
+    if BG2:                                     # diagonal blend toward a second colour (bottom right)
+        xx_ = np.linspace(0, 1, RW)[None, :, None]; diag = np.clip((xx_ + y) / 2, 0, 1) ** 1.6
+        img = img * (1 - 0.75 * diag) + np.array(BG2) * 0.75 * diag
     yy, xx = np.mgrid[0:RH, 0:RW]
     v = 1 - 0.55 * (((xx - RW / 2) / (RW * 0.75)) ** 2 + ((yy - RH / 2) / (RH * 0.62)) ** 2)
     img = (img * np.clip(v, 0.25, 1)[:, :, None]).astype(np.float32)
@@ -2389,9 +2395,28 @@ def caption(d, words, times, t):
         x += w
 
 # ---------- main ----------
-def compose(base, sc, lt, frac):
+_glow_sprites = {}
+def glow_sprite(col, r):
+    """A soft round light of colour col and radius r (real pixels), fading to transparent."""
+    key = (col, r)
+    if key not in _glow_sprites:
+        yy, xx = np.mgrid[-r:r, -r:r]; a = np.clip(1 - np.sqrt(xx ** 2 + yy ** 2) / r, 0, 1) ** 2.2 * 120
+        arr = np.zeros((2 * r, 2 * r, 4), np.uint8); arr[..., :3] = col; arr[..., 3] = a.astype(np.uint8)
+        _glow_sprites[key] = Image.fromarray(arr, 'RGBA')
+    return _glow_sprites[key]
+
+def bokeh(img, tt):
+    """Soft coloured lights drifting slowly behind everything."""
+    for i, col in enumerate(BOKEH * 2):
+        r = int((260 + 90 * (i % 3)) * S)
+        x = (0.5 + 0.42 * math.sin(tt * 0.11 + i * 1.9)) * FW * S; y = (0.5 + 0.40 * math.cos(tt * 0.08 + i * 2.7)) * FH * S
+        img.alpha_composite(glow_sprite(col, r), (int(x - r), int(y - r)))
+
+def compose(base, sc, lt, frac, tt=None):
     """Draw one frame: the scene's visual, kicker, headline, sub line, caption and progress bar."""
-    img = base.copy(); raw = ImageDraw.Draw(img); d = SD(raw)
+    img = base.copy()
+    if BOKEH: bokeh(img, tt if tt is not None else frac * 100)
+    raw = ImageDraw.Draw(img); d = SD(raw)
     L = LAYOUT; tx = L['tx']
     visual(SD(raw, L['vox'], L['voy']), sc['visual'], lt, sc['dur'], img, sc)
     # kicker pill
@@ -2469,7 +2494,7 @@ def main(script_path, out_path):
         key = json.dumps(scene_palette(spec, sc), sort_keys=True)
         if key != pal_key:                                   # this scene has its own colours
             set_palette(scene_palette(spec, sc)); bases = base_frames(3); pal_key = key
-        img = compose(bases[fi % len(bases)], sc, lt, t / total)
+        img = compose(bases[fi % len(bases)], sc, lt, t / total, t)
         if wipe and sc is not scenes[0] and lt < 0.28:        # a colour bar sweeps off to reveal the scene
             k = ease(lt / 0.28); dr = ImageDraw.Draw(img); x0 = FW * S * k
             dr.rectangle([x0, 0, FW * S, FH * S], fill=GOLD); dr.rectangle([x0, 0, x0 + 18 * S, FH * S], fill=RED)

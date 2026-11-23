@@ -1111,6 +1111,89 @@ def domino(d, x, ground, s, ang, label, col):
     lx, ly = R(-w / 2, -h / 2)
     text_c(d, (lx, ly), label, font('anton', 27 * s), INK)
 
+# ----- Operation Mincemeat drawings -----
+PAPER = (236, 230, 214)
+
+def briefcase(d, cx, cy, s, t, chain=True):
+    lea, dk = (110, 72, 44), (78, 50, 30)
+    d.rounded_rectangle([cx - 60 * s, cy - 190 * s, cx + 60 * s, cy - 130 * s], 22 * s, outline=dk, width=max(3, int(16 * s)))
+    d.rounded_rectangle([cx - 280 * s, cy - 150 * s, cx + 280 * s, cy + 170 * s], 30 * s, fill=lea)
+    d.rectangle([cx - 280 * s, cy - 40 * s, cx + 280 * s, cy - 20 * s], fill=dk)
+    for bx in (-150, 150): d.rounded_rectangle([cx + bx * s - 30 * s, cy - 56 * s, cx + bx * s + 30 * s, cy - 4 * s], 8 * s, fill=GOLD)
+    if chain:
+        for i in range(9):
+            a = i * 0.32 + 0.4; x = cx + 280 * s + i * 34 * s; y = cy + 40 * s + math.sin(a + t) * 10 * s + i * 12 * s
+            d.ellipse([x - 16 * s, y - 10 * s, x + 16 * s, y + 10 * s], outline=STEEL, width=max(2, int(6 * s)))
+
+def med_map(d, x0, y0, s, highlight=None, arrows=(), t=0.0):
+    """A simplified Mediterranean: Italy, Sicily, Sardinia and Greece."""
+    land = mix(BG1, CREAM, 0.35); hi = GOLD
+    P = lambda pts: [(x0 + px * s, y0 + py * s) for px, py in pts]
+    italy = [(150, 20), (330, 10), (360, 60), (330, 110), (380, 170), (450, 230), (520, 280), (560, 330), (530, 350), (500, 330), (480, 370), (510, 420), (470, 470), (440, 440), (450, 390), (400, 330), (340, 270), (280, 210), (230, 150), (190, 80)]
+    sicily = [(340, 505), (460, 495), (420, 560)]
+    sardinia = [(140, 250), (190, 240), (200, 350), (150, 370), (130, 310)]
+    greece = [(700, 260), (790, 270), (810, 370), (760, 470), (700, 450), (720, 370), (670, 320)]
+    d.polygon(P(italy), fill=land)
+    for nm, poly, lx, ly in (('SICILY', sicily, 230, 540), ('SARDINIA', sardinia, 165, 420), ('GREECE', greece, 750, 525)):
+        d.polygon(P(poly), fill=hi if nm == highlight else land)
+        text_c(d, (x0 + lx * s, y0 + ly * s), nm, font('anton', 44 * s), hi if nm == highlight else CREAM, stroke=4)
+    for k, (ax, ay, bx, by) in enumerate(arrows):
+        p = ease((t - 0.5 - k * 0.5) / 0.8)
+        if p <= 0: continue
+        ex, ey = ax + (bx - ax) * p, ay + (by - ay) * p
+        d.line([(x0 + ax * s, y0 + ay * s), (x0 + ex * s, y0 + ey * s)], fill=RED, width=max(3, int(12 * s)))
+        a = math.atan2(by - ay, bx - ax)
+        tip = (x0 + ex * s, y0 + ey * s)
+        d.polygon([tip, (tip[0] - math.cos(a - 0.5) * 40 * s, tip[1] - math.sin(a - 0.5) * 40 * s), (tip[0] - math.cos(a + 0.5) * 40 * s, tip[1] - math.sin(a + 0.5) * 40 * s)], fill=RED)
+
+def officer(d, x, ground, s, col=None):
+    col = col or INK
+    d.pieslice([x - 160 * s, ground - 340 * s, x + 160 * s, ground + 40 * s], 180, 360, fill=col)
+    hy = ground - 300 * s
+    d.ellipse([x - 62 * s, hy - 70 * s, x + 62 * s, hy + 70 * s], fill=col)
+    d.rounded_rectangle([x - 80 * s, hy - 110 * s, x + 80 * s, hy - 50 * s], 20 * s, fill=col)
+    d.rectangle([x - 90 * s, hy - 58 * s, x + 90 * s, hy - 46 * s], fill=col)
+    d.ellipse([x - 16 * s, hy - 100 * s, x + 16 * s, hy - 68 * s], fill=GOLD)                       # cap badge
+    for i in range(3): d.ellipse([x - 8 * s, ground - 180 * s + i * 50 * s, x + 8 * s, ground - 164 * s + i * 50 * s], fill=GOLD)
+
+def id_card(d, cx, cy, s, name, sub_, t):
+    d.rounded_rectangle([cx - 360 * s, cy - 230 * s, cx + 360 * s, cy + 230 * s], 24 * s, fill=PAPER)
+    d.rounded_rectangle([cx - 360 * s, cy - 230 * s, cx + 360 * s, cy - 150 * s], 24 * s, fill=RED); d.rectangle([cx - 360 * s, cy - 180 * s, cx + 360 * s, cy - 150 * s], fill=RED)
+    text_c(d, (cx, cy - 190 * s), 'NAVAL IDENTITY CARD', font('anton', 46 * s), CREAM)
+    d.rectangle([cx - 320 * s, cy - 110 * s, cx - 100 * s, cy + 180 * s], fill=mix(PAPER, INK, 0.15))
+    d.pieslice([cx - 300 * s, cy + 40 * s, cx - 120 * s, cy + 260 * s], 180, 360, fill=shade(INK, 2.2))
+    d.ellipse([cx - 255 * s, cy - 80 * s, cx - 165 * s, cy + 30 * s], fill=shade(INK, 2.2))
+    for i, ln in enumerate(name.split('|')): text_c(d, (cx + 120 * s, cy - 70 * s + i * 70 * s), ln, font('anton', 56 * s), INK)
+    text_c(d, (cx + 120 * s, cy + 90 * s), sub_, font('inter', 34 * s), shade(INK, 3.0))
+    d.line([(cx - 40 * s, cy + 150 * s), (cx + 300 * s, cy + 150 * s)], fill=shade(INK, 3.5), width=max(2, int(4 * s)))
+
+def ticket(d, x, y, s, a, label, col):
+    c_, s_ = math.cos(a), math.sin(a)
+    R = lambda dx, dy: (x + dx * c_ - dy * s_, y + dx * s_ + dy * c_)
+    d.polygon([R(-150 * s, -60 * s), R(150 * s, -60 * s), R(150 * s, 60 * s), R(-150 * s, 60 * s)], fill=col)
+    lx, ly = R(0, 0); text_c(d, (lx, ly), label, font('anton', 40 * s), INK)
+
+def submarine(d, x, wl, s):
+    col = INK
+    d.ellipse([x - 340 * s, wl - 50 * s, x + 340 * s, wl + 60 * s], fill=col)
+    d.rounded_rectangle([x - 70 * s, wl - 150 * s, x + 60 * s, wl - 20 * s], 16 * s, fill=col)
+    d.line([(x - 20 * s, wl - 150 * s), (x - 20 * s, wl - 240 * s)], fill=col, width=max(2, int(8 * s)))
+    d.line([(x - 20 * s, wl - 240 * s), (x + 20 * s, wl - 240 * s)], fill=col, width=max(2, int(8 * s)))
+
+def landing_craft(d, x, wl, s, t):
+    b = math.sin(t * 2 + x) * 6 * s
+    d.polygon([(x - 120 * s, wl - 40 * s + b), (x + 140 * s, wl - 40 * s + b), (x + 120 * s, wl + 20 * s + b), (x - 110 * s, wl + 20 * s + b)], fill=STEEL)
+    d.rectangle([x + 120 * s, wl - 90 * s + b, x + 140 * s, wl - 40 * s + b], fill=shade(STEEL, 0.8))
+    for i in range(5): d.ellipse([x - 90 * s + i * 42 * s, wl - 72 * s + b, x - 66 * s + i * 42 * s, wl - 46 * s + b], fill=INK)
+
+def gravestone(d, cx, ground, s, lines_):
+    stone = (206, 204, 196)
+    d.rectangle([cx - 240 * s, ground - 420 * s, cx + 240 * s, ground], fill=stone)
+    d.pieslice([cx - 240 * s, ground - 560 * s, cx + 240 * s, ground - 280 * s], 180, 360, fill=stone)
+    d.line([(cx, ground - 520 * s), (cx, ground - 400 * s)], fill=shade(stone, 0.6), width=max(2, int(10 * s))); d.line([(cx - 44 * s, ground - 480 * s), (cx + 44 * s, ground - 480 * s)], fill=shade(stone, 0.6), width=max(2, int(10 * s)))
+    for i, ln in enumerate(lines_):
+        text_c(d, (cx, ground - 340 * s + i * 62 * s), ln, font('anton', (42 if i in (0, 2) else 30) * s), shade(stone, 0.35))
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -2193,6 +2276,61 @@ def visual(d, kind, t, dur, img, sc=None):
         for i in range(12):
             poppy(d, 70 + i * 86 + rng.uniform(-10, 10), ground - 190 + rng.uniform(-30, 30), 0.85, t, i)
         d.rectangle([0, ground - 20, W, ground + 30], fill=(40, 80, 50))
+    elif kind == 'briefcase':
+        sparkles(d, t, 20)
+        briefcase(d, cx - 40, VY0 + 380, 1.2, t)
+        p = back((t - 0.7) / 0.35)
+        if p > 0.02: img.alpha_composite(stamp((sc or {}).get('stamp', 'TOP SECRET'), p), (int((cx - 330 + LAYOUT['vox']) * S), int((VY0 + 300 + LAYOUT['voy']) * S)))
+    elif kind == 'med_map':
+        d.rectangle([60, VY0 + 30, W - 60, ground - 10], fill=mix(LIQ, BG0, 0.3))
+        hl = (sc or {}).get('highlight'); arr = [tuple(a) for a in (sc or {}).get('arrows', [])]
+        med_map(d, 110, VY0 + 50, 0.95, highlight=hl, arrows=arr, t=t)
+        if hl and (t % 1.0) < 0.5 and not arr: d.ellipse([110 + 407 * 0.95 - 110, VY0 + 50 + 520 * 0.95 - 70, 110 + 407 * 0.95 + 110, VY0 + 50 + 520 * 0.95 + 70], outline=GOLD, width=6)
+    elif kind == 'disguise':
+        d.polygon([(cx - 60, VY0 - 20), (cx + 60, VY0 - 20), (cx + 360, ground + 30), (cx - 360, ground + 30)], fill=mix(BG1, CREAM, 0.12))
+        officer(d, cx - 60, ground + 20, 1.35)
+        briefcase(d, cx + 250, ground - 120, 0.42, t, chain=False)
+        for i in range(6): d.ellipse([cx + 60 + i * 22, ground - 250 + i * 18, cx + 80 + i * 22, ground - 238 + i * 18], outline=STEEL, width=4)
+    elif kind == 'id_card':
+        sparkles(d, t, 18)
+        p = back(t / 0.5)
+        if p > 0.02: id_card(d, cx, VY0 + 340, 1.15 * p, 'MAJOR|WILLIAM MARTIN', 'Royal Marines', t)
+    elif kind == 'pocket_litter':
+        sparkles(d, t, 14)
+        items = [('LOVE LETTER', PAPER, -0.25), ('THEATRE TICKET', GOLD, 0.15), ('UNPAID BILL', mix(PAPER, RED, 0.25), -0.08), ('PHOTO OF "PAM"', (200, 210, 230), 0.22)]
+        for i, (lab, col, a) in enumerate(items):
+            p = back((t - 0.3 - i * 0.55) / 0.4)
+            if p > 0.02: ticket(d, cx - 230 + (i % 2) * 460, VY0 + 170 + (i // 2) * 300 + math.sin(t * 2 + i) * 8, 1.3 * p, a, lab, col)
+    elif kind == 'submarine':
+        sparkles(d, t, 34); moon(d, 880, VY0 + 80, 50); wl = ground - 200
+        submarine(d, cx - 160, wl, 1.0)
+        k = ease((t - 0.8) / max(dur - 0.8, 1.5)); bx = cx + 160 + 260 * k
+        d.ellipse([bx - 80, wl - 10, bx + 80, wl + 30], fill=(214, 140, 40)); d.ellipse([bx + 50, wl - 30, bx + 100, wl + 20], fill=INK)        # body in a life jacket
+        water(d, wl + 10, t, dark=True)
+        text_c(d, (W - 220, ground - 40), 'HUELVA →', font('anton', 54), GOLD, stroke=4)
+    elif kind == 'copy':
+        sparkles(d, t, 14)
+        d.rectangle([cx - 380, VY0 + 80, cx - 40, ground - 120], fill=PAPER)
+        for i in range(9): d.line([(cx - 340, VY0 + 160 + i * 44), (cx - 80, VY0 + 160 + i * 44)], fill=shade(INK, 3.5), width=7)
+        text_c(d, (cx - 210, VY0 + 120), 'MOST SECRET', font('anton', 40), RED)
+        if (t % 1.2) < 0.12: d.rectangle([60, VY0 + 30, W - 60, ground - 10], fill=mix(CREAM, BG1, 0.2))      # camera flash
+        k = ease((t - 0.8) / 1.2)
+        if k > 0:
+            d.line([(cx, VY0 + 340), (cx + 160 * k, VY0 + 340)], fill=GOLD, width=12)
+            d.polygon([(cx + 160 * k, VY0 + 310), (cx + 160 * k + 50, VY0 + 340), (cx + 160 * k, VY0 + 370)], fill=GOLD)
+        if k > 0.9: card(d, cx + 300, VY0 + 340, 260, 120, 'BERLIN', RED, CREAM, 64)
+    elif kind == 'beach_landing':
+        sparkles(d, t, 14); wl = ground - 150
+        d.polygon([(0, ground + 40), (0, wl - 30), (W, wl + 20), (W, ground + 40)], fill=(206, 176, 120))
+        water(d, wl, t)
+        for i in range(5):
+            k = ease((t - i * 0.3) / max(dur * 0.8, 2)); landing_craft(d, 160 + i * 190, wl + 80 - k * 60 + (i % 2) * 40, 0.8, t)
+        n = int(12 * ease((t - 1.2) / 2.0))
+        for i in range(n): person(d, 100 + i * 80, wl - 40, 1.0, INK)
+    elif kind == 'grave':
+        sparkles(d, t, 18)
+        d.rectangle([60, ground - 30, W - 60, ground + 10], fill=(70, 110, 70))
+        gravestone(d, cx, ground - 30, 1.15, ['GLYNDWR MICHAEL', 'SERVED AS', 'MAJOR WILLIAM MARTIN', 'ROYAL MARINES'])
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How an Electric Car Works</title>
+<style>
+  :root { --ink:#f4f7fb; --accent:#3fe0a0; --cold:#6fd3ff; --hot:#ff7a3d; --volt:#ffd84d; }
+  html,body { margin:0; height:100%; background:#08101f; overflow:hidden;
+    font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); }
+  #stage { position:fixed; inset:0; } canvas { display:block; }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
+    background:linear-gradient(to top, rgba(4,8,16,.3) 0%, rgba(4,8,16,.9) 30%, rgba(4,8,16,.45) 62%, rgba(4,8,16,0) 100%); }
+  #topshade { position:absolute; left:0; right:0; top:0; height:21%; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(4,8,16,.88), rgba(4,8,16,0)); }
+  #head { position:absolute; top:5.2%; left:0; right:0; text-align:center; }
+  #head .t { font-size:26px; font-weight:900; letter-spacing:1px; text-shadow:0 3px 14px rgba(0,0,0,.7); }
+  #chip { display:inline-block; margin-top:8px; background:var(--accent); color:#0b1a14; font-weight:800;
+    border-radius:999px; padding:5px 14px; font-size:15px; letter-spacing:1px; }
+  #sub { position:absolute; left:6%; right:6%; bottom:22%; text-align:center; font-weight:800;
+    font-size:27px; line-height:1.28; text-shadow:0 2px 0 #000, 0 0 12px rgba(0,0,0,.85); }
+  #big { position:absolute; left:5%; right:5%; top:9%; text-align:center; }
+  #big .l1 { font-size:24px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+  #big .l2 { font-size:48px; font-weight:900; line-height:1.06; margin-top:6px; text-shadow:0 4px 18px rgba(0,0,0,.7); }
+  #big .l2 em { font-style:normal; color:var(--volt); }
+  #batt { position:absolute; right:5%; top:15.5%; display:flex; align-items:center; gap:8px; background:rgba(4,8,16,.85);
+    border:2px solid rgba(255,255,255,.2); border-radius:12px; padding:7px 11px; font-weight:900; font-size:18px; opacity:0; }
+  #batt .cell { position:relative; width:58px; height:24px; border:3px solid #e8eef6; border-radius:5px; }
+  #batt .cell:after { content:""; position:absolute; right:-8px; top:6px; width:5px; height:8px; background:#e8eef6; border-radius:0 2px 2px 0; }
+  #batt .fill { position:absolute; left:2px; top:2px; bottom:2px; background:var(--accent); border-radius:2px; }
+  #batt .plus { color:var(--accent); font-size:16px; }
+  #chart { position:absolute; left:7%; right:7%; top:16%; background:rgba(4,8,16,.88); border:2px solid rgba(255,255,255,.15);
+    border-radius:14px; padding:10px 12px 8px; opacity:0; }
+  #chart .ttl { font-weight:900; font-size:16px; margin-bottom:4px; }
+  #chart .leg { display:flex; gap:14px; font-weight:800; font-size:14px; margin-top:4px; }
+  #chart .leg i { display:inline-block; width:22px; height:5px; border-radius:3px; vertical-align:middle; margin-right:6px; }
+  .label { position:absolute; transform:translate(-50%,-50%); background:rgba(4,8,18,.9);
+    border:2px solid var(--accent); color:var(--ink); border-radius:8px; padding:4px 11px;
+    font-weight:800; font-size:17px; white-space:nowrap; pointer-events:none; }
+  .label.cold { border-color:var(--cold); } .label.hot { border-color:var(--hot); } .label.volt { border-color:var(--volt); } .label.red { border-color:#ff5a5a; }
+  .label.big { font-size:21px; padding:6px 14px; }
+  #bar { position:absolute; left:0; bottom:0; height:6px; background:linear-gradient(90deg,#3fe0a0,#6fd3ff); width:0; }
+  #replay { position:absolute; top:12px; right:12px; background:var(--accent); border:0; color:#0b1a14;
+    font-weight:700; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:14px; }
+  body.capture #replay { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topshade"></div>
+<div id="shade"></div>
+<div id="head"><div class="t">HOW AN ELECTRIC CAR WORKS</div><div id="chip"></div></div>
+<div id="big"><div class="l1" id="big1"></div><div class="l2" id="big2"></div></div>
+<div id="batt"><div class="cell"><div class="fill" id="bfill"></div></div><span id="bpct">80%</span><span class="plus" id="bplus"></span></div>
+<div id="chart"><div class="ttl">Pushing power (torque) vs speed</div>
+  <svg viewBox="0 0 300 120" width="100%" height="120">
+    <line x1="20" y1="105" x2="295" y2="105" stroke="#8b97ab" stroke-width="2"/><line x1="20" y1="5" x2="20" y2="105" stroke="#8b97ab" stroke-width="2"/>
+    <text x="290" y="118" fill="#8b97ab" font-size="11" text-anchor="end" font-weight="700">speed →</text>
+    <path id="cE" d="M20,22 L170,22 C210,22 240,45 295,70" fill="none" stroke="#3fe0a0" stroke-width="5" stroke-linecap="round"/>
+    <path id="cP" d="M20,100 C80,95 120,55 170,45 C220,38 250,50 295,72" fill="none" stroke="#ff7a3d" stroke-width="5" stroke-linecap="round"/>
+  </svg>
+  <div class="leg"><span><i style="background:#3fe0a0"></i>Electric: full push from 0</span><span><i style="background:#ff7a3d"></i>Petrol: builds up</span></div></div>
+<div id="labels"></div>
+<div id="sub"></div>
+<div id="bar"></div>
+<button id="replay">↻ Replay</button>
+<script src="three.min.js"></script>
+<script>
+const TIMING = /*TIMING*/null;
+(function(){
+const LINES=TIMING.lines, DURATION=TIMING.duration, L=i=>LINES[i];
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const smooth=(a,b,x)=>{const k=clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+const win=(a,b,t,f=0.4)=>smooth(a,a+f,t)*(1-smooth(b-f,b,t));
+const V=(x,y,z)=>new THREE.Vector3(x,y,z), TAU=Math.PI*2;
+let seed=55; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
+
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.outputEncoding=THREE.sRGBEncoding;
+document.getElementById('stage').appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x08101f); scene.fog=new THREE.Fog(0x08101f,14,40);
+const camera=new THREE.PerspectiveCamera(62,1,0.05,300);
+scene.add(new THREE.HemisphereLight(0xdfe9ff,0x141c2c,0.65));
+const keyL=new THREE.DirectionalLight(0xffffff,1.0); keyL.position.set(-4,8,7); scene.add(keyL);
+const rimL=new THREE.DirectionalLight(0x6fd3ff,0.6); rimL.position.set(6,3,-6); scene.add(rimL);
+
+function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.3,'rgba(255,255,255,.5)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=r; g.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
+const GLOW=glowTex();
+function sprite(color,size,op=1,add=true,parent=scene){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color,transparent:true,opacity:op,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false}));
+  s.scale.set(size,size,1); parent.add(s); return s; }
+const phys=(c,o={})=>new THREE.MeshPhysicalMaterial(Object.assign({color:c,roughness:0.3,metalness:0.4,clearcoat:0.6,clearcoatRoughness:0.15},o));
+const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+const cyl=(r,h,m,s=24)=>new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,s),m);
+
+// ---------- road ----------
+const road=new THREE.Mesh(new THREE.PlaneGeometry(200,9),new THREE.MeshStandardMaterial({color:0x1a2130,roughness:0.85})); road.rotation.x=-Math.PI/2; scene.add(road);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,200),new THREE.MeshStandardMaterial({color:0x0c1322,roughness:1})); ground.rotation.x=-Math.PI/2; ground.position.y=-0.01; scene.add(ground);
+const DASH=26, dashes=[]; for(let i=0;i<DASH;i++){ [-2.1,2.1].forEach(z=>{ const d=box(1.2,0.01,0.12,new THREE.MeshBasicMaterial({color:0xe8eef6})); d.position.set(0,0.005,z); scene.add(d); dashes.push(d); }); }
+const curbs=[-4.5,4.5].map(z=>{ const c=box(200,0.12,0.25,new THREE.MeshStandardMaterial({color:0x3a4558})); c.position.set(0,0.06,z); scene.add(c); return c; });
+const posts=[]; for(let i=0;i<10;i++){ const p=new THREE.Group(); const pole=cyl(0.06,4.2,new THREE.MeshStandardMaterial({color:0x6b778c})); pole.position.y=2.1; p.add(pole);
+  const lamp=sprite(0xffe4a8,1.6,0.7,true,p); lamp.position.y=4.25; p.position.z=-5.2; scene.add(p); posts.push(p); }
+const streaks=[]; for(let i=0;i<26;i++){ const s=box(2.6,0.02,0.02,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0})); s.userData={y:0.3+rnd()*2.4,z:-3.5+rnd()*7,ph:rnd()}; scene.add(s); streaks.push(s); }
+
+// ---------- car ----------
+const car=new THREE.Group(); scene.add(car);
+const WX=1.45, WR=0.37, WZ=0.86;
+function bodyShape(){ const s=new THREE.Shape();
+  s.moveTo(-2.25,0.34); s.lineTo(-WX-0.47,0.34); s.absarc(-WX,0.36,0.47,Math.PI,0,true); s.lineTo(WX-0.47,0.34); s.absarc(WX,0.36,0.47,Math.PI,0,true);
+  s.lineTo(2.2,0.34); s.quadraticCurveTo(2.36,0.36,2.34,0.6); s.quadraticCurveTo(2.3,0.78,2.0,0.84); s.lineTo(1.1,0.95);
+  s.quadraticCurveTo(0.75,0.98,0.55,1.1); s.quadraticCurveTo(0.2,1.38,-0.2,1.42); s.lineTo(-0.9,1.42); s.quadraticCurveTo(-1.5,1.38,-1.95,1.05);
+  s.lineTo(-2.22,0.98); s.quadraticCurveTo(-2.36,0.8,-2.3,0.5); s.lineTo(-2.25,0.34); return s; }
+const paintB=phys(0x1f8fff,{metalness:0.5,roughness:0.25,clearcoat:1,side:THREE.DoubleSide,transparent:true,opacity:1});
+const bodyGeo=new THREE.ExtrudeGeometry(bodyShape(),{depth:1.84,bevelEnabled:true,bevelThickness:0.08,bevelSize:0.06,bevelSegments:4,curveSegments:24}); bodyGeo.translate(0,0,-0.92);
+const body=new THREE.Mesh(bodyGeo,paintB); car.add(body);
+function glassShape(){ const s=new THREE.Shape(); s.moveTo(0.52,1.1); s.quadraticCurveTo(0.2,1.34,-0.2,1.37); s.lineTo(-0.88,1.37); s.quadraticCurveTo(-1.42,1.33,-1.82,1.04); s.lineTo(-1.4,1.0); s.lineTo(0.3,1.0); s.lineTo(0.52,1.1); return s; }
+const glassM=phys(0x0b1830,{metalness:0.2,roughness:0.05,clearcoat:1,transparent:true,opacity:0.92});
+const glassGeo=new THREE.ExtrudeGeometry(glassShape(),{depth:1.9,bevelEnabled:false}); glassGeo.translate(0,0,-0.95);
+const glass=new THREE.Mesh(glassGeo,glassM); car.add(glass);
+const headM=new THREE.MeshBasicMaterial({color:0xe8f6ff}); [-0.62,0.62].forEach(z=>{ const h=box(0.06,0.08,0.42,headM); h.position.set(2.33,0.7,z); car.add(h); });
+const tailM=new THREE.MeshBasicMaterial({color:0xff2a3a}); const tail=box(0.05,0.07,1.7,tailM); tail.position.set(-2.33,0.86,0); car.add(tail);
+const tailGlow=sprite(0xff2a3a,1.4,0.3,true,car); tailGlow.position.set(-2.5,0.86,0);
+const headGlow=[-0.62,0.62].map(z=>{ const s=sprite(0xcfefff,1.2,0.6,true,car); s.position.set(2.45,0.7,z); return s; });
+// wheels
+const wheels=[];
+[[WX,WZ],[WX,-WZ],[-WX,WZ],[-WX,-WZ]].forEach(([x,z])=>{ const w=new THREE.Group(); w.position.set(x,WR,z); car.add(w);
+  const spin=new THREE.Group(); w.add(spin);
+  const tire=new THREE.Mesh(new THREE.TorusGeometry(WR-0.09,0.1,16,40),new THREE.MeshStandardMaterial({color:0x14161b,roughness:0.9})); spin.add(tire);
+  const rim=cyl(WR-0.12,0.18,phys(0xc8d0dc,{metalness:0.9}),32); rim.rotation.x=Math.PI/2; spin.add(rim);
+  for(let k=0;k<5;k++){ const sp=box(0.05,WR-0.14,0.2,phys(0x6b7588)); const a=k*TAU/5; sp.position.set(Math.sin(a)*(WR-0.14)/2,Math.cos(a)*(WR-0.14)/2,z>0?0.02:-0.02); sp.rotation.z=-a; spin.add(sp); }
+  wheels.push(spin); });
+// battery pack under the floor
+const BX0=-1.25, BX1=1.15, BY=0.42;
+const packM=phys(0x2a3344,{transparent:true,opacity:0.35,depthWrite:false});
+const pack=box(BX1-BX0,0.2,1.5,packM); pack.position.set((BX0+BX1)/2,BY,0); car.add(pack);
+const NCX=18, NCZ=9, NC=NCX*NCZ;
+const cells=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.055,0.055,0.16,12),new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4,metalness:0.3}),NC);
+cells.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(NC*3),3); car.add(cells);
+{ const d=new THREE.Object3D(); let i=0; for(let a=0;a<NCX;a++) for(let b=0;b<NCZ;b++){ d.position.set(BX0+0.08+a*(BX1-BX0-0.16)/(NCX-1),BY,-0.64+b*1.28/(NCZ-1)); d.updateMatrix(); cells.setMatrixAt(i++,d.matrix); } }
+// inverter + motor + half-shafts
+const invM=phys(0x9aa6b8,{emissive:0xffd84d,emissiveIntensity:0}); const inverter=box(0.36,0.2,0.46,invM); inverter.position.set(-1.0,0.62,0); car.add(inverter);
+const motorM=phys(0x7f8ba0,{metalness:0.8,emissive:0x6fd3ff,emissiveIntensity:0}); const motor=cyl(0.24,0.5,motorM,32); motor.rotation.x=Math.PI/2; motor.position.set(-WX,WR,0); car.add(motor);
+const shaftM=phys(0xc8d0dc,{metalness:0.9}); [-1,1].forEach(s=>{ const h=cyl(0.05,0.6,shaftM,12); h.rotation.x=Math.PI/2; h.position.set(-WX,WR,s*0.55); car.add(h); });
+const cableM=phys(0xff7a1a,{metalness:0.2,roughness:0.5});
+const cable1=new THREE.CatmullRomCurve3([V(BX0+0.05,BY+0.05,0.35),V(-1.18,0.62,0.32),V(-1.0,0.62,0.2)]);
+const cable2=new THREE.CatmullRomCurve3([V(-1.0,0.6,-0.1),V(-1.25,0.55,-0.1),V(-WX,WR+0.2,-0.05)]);
+car.add(new THREE.Mesh(new THREE.TubeGeometry(cable1,30,0.035,8,false),cableM), new THREE.Mesh(new THREE.TubeGeometry(cable2,30,0.035,8,false),cableM));
+const flowPath=new THREE.CatmullRomCurve3([V(0.4,BY+0.12,0.35),V(BX0+0.05,BY+0.12,0.35),V(-1.18,0.66,0.32),V(-1.0,0.66,0.1),V(-1.25,0.58,-0.1),V(-WX,WR+0.24,-0.05)]);
+const flow=[]; for(let i=0;i<22;i++){ const s=sprite(0xffd84d,0.16,0,true,car); s.userData={ph:i/22}; flow.push(s); }
+const port=box(0.18,0.14,0.02,phys(0x111111)); port.position.set(-1.95,0.88,0.99); car.add(port);
+
+// ---------- motor close-up scene ----------
+const MS=V(40,2.4,0);
+const mot=new THREE.Group(); mot.position.copy(MS); scene.add(mot);
+const stator=new THREE.Mesh(new THREE.CylinderGeometry(2.7,2.7,0.9,64,1,true),phys(0x5b6576,{side:THREE.DoubleSide})); stator.rotation.x=Math.PI/2; mot.add(stator);
+const statorBack=new THREE.Mesh(new THREE.RingGeometry(1.0,2.7,64),phys(0x3a4354,{side:THREE.DoubleSide})); statorBack.position.z=-0.45; mot.add(statorBack);
+const coils=[]; for(let k=0;k<6;k++){ const a=k*TAU/6; const g=new THREE.Group(); g.rotation.z=a; mot.add(g);
+  const core=box(0.42,0.9,0.7,phys(0x8a95a8)); core.position.y=2.15; g.add(core);
+  const cm=phys(0xc77a3b,{metalness:0.85,emissive:0xff8a2b,emissiveIntensity:0});
+  for(let j=0;j<4;j++){ const w=new THREE.Mesh(new THREE.TorusGeometry(0.33,0.06,8,24),cm); w.rotation.x=Math.PI/2; w.position.y=1.85+j*0.17; g.add(w); }
+  const gl=sprite(0xffb04a,1.4,0,true,mot); gl.position.set(-Math.sin(a)*1.9,Math.cos(a)*1.9,0.5);
+  coils.push({cm,gl,a}); }
+const rotor=new THREE.Group(); mot.add(rotor);
+{ const core=cyl(1.45,0.8,phys(0x2a3140),48); core.rotation.x=Math.PI/2; rotor.add(core); }
+for(let k=0;k<4;k++){ const seg=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,0.82,32,1,false,k*TAU/4+0.08,TAU/4-0.16),phys(k%2?0x2d6be0:0xe0383b,{metalness:0.3}));
+  seg.rotation.x=Math.PI/2; rotor.add(seg); }
+const mShaft=cyl(0.18,2.4,shaftM,20); mShaft.rotation.x=Math.PI/2; mShaft.position.z=0.6; mot.add(mShaft);
+const nTag=sprite(0xffffff,0.001,0,true,rotor);
+const fieldArrowM=new THREE.MeshBasicMaterial({color:0xffd84d,transparent:true,opacity:0});
+const fieldArrow=new THREE.Group(); fieldArrow.position.z=0.55; mot.add(fieldArrow);
+{ const b=box(0.08,1.05,0.04,fieldArrowM); b.position.y=0.55; fieldArrow.add(b); const h=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.32,16),fieldArrowM); h.position.y=1.2; fieldArrow.add(h); }
+
+// ---------- efficiency scene ----------
+const EF=V(80,0,0);
+function barStack(x,parts){ const g=new THREE.Group(); g.position.copy(EF).add(V(x,0,0)); scene.add(g); let y=0; const meshes=[];
+  parts.forEach(([h,c])=>{ const m=box(1.4,1,1.0,phys(c,{metalness:0.2,emissive:c,emissiveIntensity:0.25})); g.add(m); meshes.push({m,h,y0:y}); y+=h; }); return {g,meshes}; }
+const barEV=barStack(-1.9,[[4.5,0x3fe0a0],[0.5,0xff7a3d]]), barICE=barStack(1.9,[[1.5,0x3fe0a0],[3.5,0xff3b2b]]);
+const heatS=[]; for(let i=0;i<30;i++){ const s=sprite(0xff5a2b,0.6,0); s.userData={ph:rnd(),x:(rnd()-0.5)*1.2}; heatS.push(s); }
+const efFloor=new THREE.Mesh(new THREE.CircleGeometry(6,48),new THREE.MeshStandardMaterial({color:0x111a2c})); efFloor.rotation.x=-Math.PI/2; efFloor.position.copy(EF).add(V(0,0.01,0)); scene.add(efFloor);
+
+// ---------- charger ----------
+const charger=new THREE.Group(); charger.position.set(-2.2,0,2.1); scene.add(charger);
+{ const post=box(0.5,1.6,0.35,phys(0xe8eef6,{metalness:0.2})); post.position.y=0.8; charger.add(post);
+  const scr=box(0.3,0.36,0.02,new THREE.MeshBasicMaterial({color:0x3fe0a0})); scr.position.set(0,1.25,0.18); charger.add(scr);
+  const ring=sprite(0x3fe0a0,0.9,0.6,true,charger); ring.position.set(0,1.25,0.25); }
+const chCurve=new THREE.CatmullRomCurve3([V(-2.2,1.0,1.95),V(-2.15,0.5,1.6),V(-2.0,0.7,1.2),V(-1.95,0.88,1.0)]);
+const chCable=new THREE.Mesh(new THREE.TubeGeometry(chCurve,30,0.04,8,false),phys(0x1b1f27)); scene.add(chCable);
+const chFlow=[]; for(let i=0;i<12;i++){ const s=sprite(0x3fe0a0,0.18,0); s.userData={ph:i/12}; chFlow.push(s); }
+
+// ---------- timeline ----------
+function integ(t0,t,f,dt=1/120){ let a=0; for(let x=t0+dt/2;x<t;x+=dt) a+=f(x)*dt; return a; }
+const speed=t=>{ // car speed (road units/s)
+  let v=6;
+  v=lerp(v,2.2,smooth(L(1).start-0.5,L(1).start+0.5,t));
+  v=lerp(v,0,smooth(L(6).start-0.6,L(6).start,t));
+  v=lerp(v,14,smooth(L(6).start+1.4,L(6).start+3.6,t));
+  v=lerp(v,1.0,smooth(L(7).start+0.4,L(8).end,t));
+  v=lerp(v,0,smooth(L(10).start-1.2,L(10).start,t));
+  v=lerp(v,6,smooth(L(11).start+0.5,L(11).start+2.5,t));
+  return v; };
+const xray=t=>Math.max(win(L(1).start+0.3,L(5).end+0.3,t,1.0), win(L(7).start,L(8).end+0.4,t,0.8), win(L(10).start,L(10).end+0.4,t,0.8));
+const regen=t=>win(L(7).start+1.0,L(8).end+0.3,t,0.6);
+const drive=t=>Math.max(win(L(3).start+1.2,L(5).start+0.6,t,0.6), win(L(6).start+1.2,L(7).start+0.6,t,0.6), win(L(11).start+0.5,DURATION,t,0.6));
+const charging=t=>win(L(10).start+0.6,L(10).end+0.6,t,0.4);
+function battery(t){ let b=80; b-=4*smooth(L(3).start,L(6).end,t); b+=5*smooth(L(8).start,L(8).end,t); b=lerp(b,100,smooth(L(10).start+0.8,L(10).end+0.4,t)); return b; }
+
+// ---------- labels ----------
+const labelsEl=document.getElementById('labels'), LBL=[];
+function label(text,cls,p,from,to){ const d=document.createElement('div'); d.className='label '+cls; d.textContent=text; labelsEl.appendChild(d); LBL.push({d,p:(typeof p==='function')?p:()=>p,from,to}); }
+label("Battery","",V(0.5,0.85,1.3),L(1).start+2.2,L(2).end+0.2);
+label("Electric motor","cold",V(-WX,1.25,0.8),L(1).start+3.8,L(1).end+0.4);
+label("Thousands of cells","",V(-0.2,1.0,1.2),L(2).start+1.2,L(2).end+0.2);
+label("Inverter","volt",V(-0.9,1.15,0.6),L(3).start+2.6,L(3).end+0.2);
+label("Electricity flows","volt",V(0.3,1.05,1.3),L(3).start+1.2,L(3).start+3.8);
+label("Coils = electromagnets","hot",MS.clone().add(V(0,3.4,0.5)),L(4).start+1.2,L(4).end+0.2);
+label("Magnet rotor","red",MS.clone().add(V(0,-0.1,1.2)),L(4).start+4.6,L(4).end+0.2);
+label("Rotor turns the wheels","cold",V(-WX,1.2,1.0),L(5).start+1.0,L(5).end+0.2);
+label("Motor → generator","",V(-WX,1.2,1.0),L(7).start+1.6,L(7).end+0.4);
+label("Energy back into battery!","",V(0.0,1.15,1.4),L(8).start+1.5,L(8).end+0.3);
+label("Electric: ~90%","big",EF.clone().add(V(-1.9,5.7,0.6)),L(9).start+1.2,L(9).end+0.3);
+label("Petrol: ~30%","hot big",EF.clone().add(V(1.9,6.6,0.6)),L(9).start+3.6,L(9).end+0.3);
+label("Wasted as heat","red",EF.clone().add(V(1.9,3.4,0.9)),L(9).start+4.8,L(9).end+0.3);
+label("Charging...","",V(-2.2,2.0,2.1),L(10).start+0.8,L(10).end+0.4);
+
+// ---------- camera ----------
+const SHOTS=[
+  [0,            [4.4,1.7,7.4],  [0,0.25,0]],
+  [L(1).start,   [3.0,3.2,7.0],  [0,0.5,0]],
+  [L(2).start,   [1.4,2.9,4.6],  [-0.1,0.4,0]],
+  [L(3).start,   [-0.2,2.6,5.0], [-0.7,0.5,0]],
+  [L(4).start,   [MS.x+1.4,MS.y+1.0,8.6], [MS.x,MS.y-0.6,0]],
+  [L(5).start,   [0.2,2.3,5.0],  [-1.2,0.45,0]],
+  [L(6).start,   [5.2,1.4,6.6],  [0.3,0.7,0]],
+  [L(7).start,   [-0.6,2.8,5.6], [-0.6,0.5,0]],
+  [L(9).start,   [EF.x+0.6,3.6,13.5], [EF.x,3.0,0]],
+  [L(10).start,  [0.4,2.2,6.8],  [-1.0,0.6,0.6]],
+  [L(11).start,  [4.8,1.9,8.0],  [0,0.3,0]],
+];
+function camAt(t){
+  let i=0; while(i<SHOTS.length-1 && t>=SHOTS[i+1][0]) i++;
+  const P=SHOTS[i], N=SHOTS[Math.min(i+1,SHOTS.length-1)];
+  const k=(N===P)?0:smooth(N[0]-1.5,N[0]+0.1,t);
+  const p=P[1].map((x,j)=>lerp(x,N[1][j],k)), g=P[2].map((x,j)=>lerp(x,N[2][j],k));
+  camera.position.set(p[0]+Math.sin(t*0.3)*0.4,p[1]+Math.sin(t*0.2)*0.12,p[2]); camera.lookAt(g[0],g[1]-0.45,g[2]);
+}
+const CHIPS={hook:"",xray:"LOOK INSIDE",battery:"THE BATTERY",motor:"THE MOTOR",torque:"INSTANT POWER",regen:"REGENERATIVE BRAKING",eff:"SUPER EFFICIENT",charge:"CHARGING",outro:""};
+const sub=document.getElementById('sub'), chip=document.getElementById('chip'), head=document.getElementById('head');
+const big=document.getElementById('big'), big1=document.getElementById('big1'), big2=document.getElementById('big2');
+const batt=document.getElementById('batt'), bfill=document.getElementById('bfill'), bpct=document.getElementById('bpct'), bplus=document.getElementById('bplus');
+const chart=document.getElementById('chart'), cE=document.getElementById('cE'), cP=document.getElementById('cP');
+const lenE=360, lenP=330; cE.style.strokeDasharray=lenE; cP.style.strokeDasharray=lenP;
+const tmp=V(0,0,0), tc=new THREE.Color(), dmy=new THREE.Object3D(); let lastLine=-2;
+
+function renderAt(t){
+  t=clamp(t,0,DURATION); camAt(t);
+  // road motion
+  const s=integ(0,t,speed), v=speed(t);
+  dashes.forEach((d,i)=>{ const k=Math.floor(i/2); d.position.x=((k*3-s)%(DASH*3)+DASH*3)%(DASH*3)-DASH*1.5; });
+  posts.forEach((p,i)=>{ p.position.x=((i*8-s)%80+80)%80-40; });
+  wheels.forEach(w=>w.rotation.z=-s/WR);
+  streaks.forEach(st=>{ const d=st.userData, k=(t*1.3+d.ph)%1; st.position.set(8-k*18,d.y,d.z); st.material.opacity=clamp((v-7)/7,0,1)*0.5*Math.sin(k*Math.PI); });
+  car.position.y=0.012*Math.sin(t*9)*clamp(v/6,0,1);
+  // x-ray
+  const xr=xray(t); paintB.opacity=lerp(1,0.14,xr); paintB.depthWrite=xr<0.5; glassM.opacity=lerp(0.92,0.12,xr);
+  // battery cells colour = charge level
+  const bl=battery(t), filled=Math.round(NC*bl/100), ch=charging(t);
+  for(let i=0;i<NC;i++){ const col=Math.floor(i/NCZ)/(NCX-1); const on=col<=bl/100; tc.setHex(on?0x3fe0a0:0x2a3344); if(on && ch>0) tc.offsetHSL(0,0,0.18*ch*(0.5+0.5*Math.sin(t*6-col*8))); cells.setColorAt(i,tc); }
+  cells.instanceColor.needsUpdate=true;
+  // energy flow battery <-> motor
+  const dr=drive(t), rg=regen(t), fop=Math.max(dr,rg)*smooth(0.1,0.5,xr);
+  flow.forEach(f=>{ let u=(f.userData.ph+t*0.9)%1; if(rg>dr) u=1-u; flowPath.getPointAt(u,f.position); f.material.opacity=fop; f.material.color.setHex(rg>dr?0x3fe0a0:0xffd84d); });
+  invM.emissiveIntensity=0.6*fop; motorM.emissiveIntensity=0.5*Math.max(dr,rg)*xr; motorM.emissive.setHex(rg>dr?0x3fe0a0:0x6fd3ff);
+  tailM.color.setHex(rg>0.3?0xff5a66:0xc0202e); tailGlow.material.opacity=0.3+0.6*rg;
+  // motor close-up: rotating magnetic field
+  const psi=integ(0,t,x=>1.6+2.4*win(L(4).start+3,L(5).start,x,1));
+  coils.forEach(c=>{ const k=Math.max(0,Math.cos(psi-c.a)); c.cm.emissiveIntensity=1.2*k*k; c.gl.material.opacity=0.8*k*k; });
+  rotor.rotation.z=psi-0.5; fieldArrow.rotation.z=psi; fieldArrowM.opacity=win(L(4).start+2.0,L(4).end+0.3,t);
+  // efficiency bars
+  const eb=smooth(L(9).start+0.4,L(9).start+1.8,t), ei=smooth(L(9).start+2.6,L(9).start+4.0,t);
+  [[barEV,eb],[barICE,ei]].forEach(([b,g])=>{ b.meshes.forEach(({m,h,y0})=>{ const hh=Math.max(h*g,0.001); m.scale.y=hh; m.position.y=y0*g+hh/2; }); b.g.visible=g>0.01; });
+  heatS.forEach(hs=>{ const d=hs.userData, k=(t*0.6+d.ph)%1; hs.position.copy(EF).add(V(1.9+d.x,5*ei+k*2,0.4)); hs.material.opacity=ei*0.7*Math.sin(k*Math.PI); });
+  // charger
+  const cg=smooth(L(10).start-0.6,L(10).start+0.6,t)*(1-smooth(L(11).start-0.2,L(11).start+0.6,t));
+  charger.visible=chCable.visible=cg>0.01; charger.position.y=-1.8*(1-cg); chCable.visible=cg>0.98;
+  chFlow.forEach(f=>{ const u=(f.userData.ph+t*0.8)%1; chCurve.getPointAt(u,f.position); f.material.opacity=ch; });
+
+  renderer.render(scene,camera);
+
+  // overlay
+  let li=-1; LINES.forEach((l,i)=>{ if(t>=l.start-0.05) li=i; });
+  const line=li>=0?LINES[li]:null;
+  if(li!==lastLine){ sub.textContent=line?line.text:''; const cc=line&&CHIPS[line.m]; chip.textContent=cc||''; chip.style.display=cc?'inline-block':'none'; lastLine=li; }
+  sub.style.opacity=(line && t<=line.end+0.3 && line.m!=='outro')?1:0;
+  head.style.opacity=smooth(L(1).start-0.6,L(1).start,t)*(1-smooth(L(11).start-0.4,L(11).start,t));
+  const bo=Math.max(win(L(2).start,L(3).end+0.3,t), win(L(8).start,L(8).end+0.4,t), win(L(10).start,L(10).end+0.6,t));
+  batt.style.opacity=bo; bfill.style.width=(Math.max(0,bl)/100*52)+'px'; bpct.textContent=Math.round(bl)+'%'; bplus.textContent=(rg>0.3||ch>0.3)?'⚡ +':'';
+  const co=win(L(6).start+0.6,L(6).end+0.4,t); chart.style.opacity=co;
+  cE.style.strokeDashoffset=lenE*(1-smooth(L(6).start+0.8,L(6).start+2.4,t)); cP.style.strokeDashoffset=lenP*(1-smooth(L(6).start+1.4,L(6).start+3.4,t));
+  const intro=1-smooth(L(1).start-0.8,L(1).start-0.2,t), outro=smooth(L(11).start-0.2,L(11).start+0.4,t);
+  if(outro>0){ big1.textContent="BATTERY · MOTOR · WHEELS"; big2.innerHTML="SIMPLE, SMART,<br><em>SILENT</em>"; big.style.opacity=outro; }
+  else { big1.textContent="NO ENGINE · NO GEARS · NO EXHAUST"; big2.innerHTML="HOW DOES AN<br><em>ELECTRIC CAR</em> GO?"; big.style.opacity=intro; }
+  document.getElementById('bar').style.width=(t/DURATION*100)+'%';
+  const cw=W(), chh=H();
+  LBL.forEach(l=>{ const o=win(l.from,l.to,t,0.3); if(o<0.01){ l.d.style.display='none'; return; }
+    tmp.copy(l.p()).project(camera); l.d.style.display=tmp.z<1?'block':'none'; l.d.style.opacity=o;
+    const hw=l.d.offsetWidth/2+8; l.d.style.left=clamp((tmp.x+1)/2*cw,hw,cw-hw)+'px'; l.d.style.top=clamp((1-tmp.y)/2*chh,chh*0.22,chh*0.66)+'px'; });
+}
+window.renderAt=renderAt; window.DURATION=DURATION;
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize); resize();
+if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }
+else { let start=performance.now(); document.getElementById('replay').onclick=()=>{start=performance.now();};
+  (function loop(){ renderAt(Math.min((performance.now()-start)/1000,DURATION)); requestAnimationFrame(loop); })(); }
+})();
+</script>
+</body>
+</html>

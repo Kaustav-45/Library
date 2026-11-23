@@ -1,0 +1,14 @@
+[
+ ["hook","An electric car has no engine, no gears to shift, no exhaust pipe. Yet it's quicker off the line than many sports cars. How?"],
+ ["xray","Let's look inside. Under the floor sits a giant battery, and at the wheels, an electric motor."],
+ ["battery","The battery is made of thousands of small cells, like the ones in your phone, all packed together."],
+ ["battery","Press the pedal, and electricity flows from the battery to an inverter, which turns it into the right kind of power for the motor."],
+ ["motor","Inside the motor, coils of wire become electromagnets. They switch on and off in a spinning pattern, pulling a magnet rotor round and round."],
+ ["motor","The spinning rotor turns the wheels. No explosions, no pistons. That's why electric cars are so quiet and smooth."],
+ ["torque","And an electric motor gives full pushing power instantly, right from zero speed. That's why it shoots off the line!"],
+ ["regen","Here's the coolest trick. When you slow down, the motor flips roles and becomes a generator."],
+ ["regen","The car's motion spins it, making electricity that flows back into the battery. This is called regenerative braking."],
+ ["eff","Electric motors turn about ninety percent of their energy into motion. A petrol engine wastes most of its energy as heat."],
+ ["charge","Then just plug it in, and the battery fills back up, ready for the next drive."],
+ ["outro","Battery, motor, wheels. Simple, smart, and silent. Follow for more science made simple!"]
+]

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a Nuclear Power Plant Works</title>
+<style>
+  :root { --ink:#f4f7fb; --accent:#4fd8ff; --hot:#ff7a3d; --volt:#ffd84d; --green:#4ee28a; }
+  html,body { margin:0; height:100%; background:#070b16; overflow:hidden;
+    font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); }
+  #stage { position:fixed; inset:0; } canvas { display:block; }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
+    background:linear-gradient(to top, rgba(4,6,14,.3) 0%, rgba(4,6,14,.9) 30%, rgba(4,6,14,.45) 62%, rgba(4,6,14,0) 100%); }
+  #topshade { position:absolute; left:0; right:0; top:0; height:21%; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(4,6,14,.88), rgba(4,6,14,0)); }
+  #head { position:absolute; top:5.2%; left:0; right:0; text-align:center; }
+  #head .t { font-size:24px; font-weight:900; letter-spacing:1px; text-shadow:0 3px 14px rgba(0,0,0,.7); }
+  #chip { display:inline-block; margin-top:8px; background:var(--accent); color:#06121a; font-weight:800;
+    border-radius:999px; padding:5px 14px; font-size:15px; letter-spacing:1px; }
+  #sub { position:absolute; left:6%; right:6%; bottom:22%; text-align:center; font-weight:800;
+    font-size:27px; line-height:1.28; text-shadow:0 2px 0 #000, 0 0 12px rgba(0,0,0,.85); }
+  #big { position:absolute; left:5%; right:5%; top:9%; text-align:center; }
+  #big .l1 { font-size:24px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+  #big .l2 { font-size:48px; font-weight:900; line-height:1.06; margin-top:6px; text-shadow:0 4px 18px rgba(0,0,0,.7); }
+  #big .l2 em { font-style:normal; color:var(--volt); }
+  .label { position:absolute; transform:translate(-50%,-50%); background:rgba(4,6,16,.9);
+    border:2px solid var(--accent); color:var(--ink); border-radius:8px; padding:4px 11px;
+    font-weight:800; font-size:17px; white-space:nowrap; pointer-events:none; }
+  .label.hot { border-color:var(--hot); } .label.volt { border-color:var(--volt); } .label.green { border-color:var(--green); } .label.red { border-color:#ff5a5a; } .label.gray { border-color:#b8bec9; }
+  .label.big { font-size:21px; padding:6px 14px; }
+  #bar { position:absolute; left:0; bottom:0; height:6px; background:linear-gradient(90deg,#4fd8ff,#ffd84d); width:0; }
+  #replay { position:absolute; top:12px; right:12px; background:var(--accent); border:0; color:#06121a;
+    font-weight:700; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:14px; }
+  body.capture #replay { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topshade"></div>
+<div id="shade"></div>
+<div id="head"><div class="t">HOW A NUCLEAR POWER PLANT WORKS</div><div id="chip"></div></div>
+<div id="big"><div class="l1" id="big1"></div><div class="l2" id="big2"></div></div>
+<div id="labels"></div>
+<div id="sub"></div>
+<div id="bar"></div>
+<button id="replay">↻ Replay</button>
+<script src="three.min.js"></script>
+<script>
+const TIMING = /*TIMING*/null;
+(function(){
+const LINES=TIMING.lines, DURATION=TIMING.duration, L=i=>LINES[i];
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const smooth=(a,b,x)=>{const k=clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+const win=(a,b,t,f=0.4)=>smooth(a,a+f,t)*(1-smooth(b-f,b,t));
+const V=(x,y,z)=>new THREE.Vector3(x,y,z), TAU=Math.PI*2;
+let seed=71; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
+
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.outputEncoding=THREE.sRGBEncoding;
+document.getElementById('stage').appendChild(renderer.domElement);
+const scene=new THREE.Scene(); const DARK=new THREE.Color(0x070b16), DAY=new THREE.Color(0x5f93c9), NIGHT=new THREE.Color(0x0b1430);
+scene.background=DARK.clone(); const FOG=new THREE.Fog(0x5f93c9,40,110);
+const camera=new THREE.PerspectiveCamera(62,1,0.05,600);
+const hemi=new THREE.HemisphereLight(0xe8f0ff,0x26303e,0.7); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff4e0,1.0); sun.position.set(-10,18,12); scene.add(sun);
+const rimL=new THREE.DirectionalLight(0x7fb0ff,0.45); rimL.position.set(10,6,-10); scene.add(rimL);
+
+function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.3,'rgba(255,255,255,.5)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=r; g.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
+const GLOW=glowTex();
+function sprite(color,size,op=1,add=true,parent=scene){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color,transparent:true,opacity:op,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false}));
+  s.scale.set(size,size,1); parent.add(s); return s; }
+const phys=(c,o={})=>new THREE.MeshPhysicalMaterial(Object.assign({color:c,roughness:0.35,metalness:0.4,clearcoat:0.5,clearcoatRoughness:0.2},o));
+const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+const cyl=(r,h,m,s=32,r2)=>new THREE.Mesh(new THREE.CylinderGeometry(r,r2===undefined?r:r2,h,s),m);
+
+// ============ SCENE P: pellet vs coal ============
+const P=V(-60,0,0);
+const pFloor=new THREE.Mesh(new THREE.CircleGeometry(8,48),new THREE.MeshStandardMaterial({color:0x1a2232,roughness:0.9})); pFloor.rotation.x=-Math.PI/2; pFloor.position.copy(P); scene.add(pFloor);
+const pedestal=cyl(0.45,0.6,phys(0xe8eef6,{metalness:0.1}),40); pedestal.position.copy(P).add(V(-1.5,0.3,0)); scene.add(pedestal);
+const pellet=cyl(0.1,0.14,phys(0x4a4f57,{metalness:0.6,roughness:0.45}),24); pellet.position.copy(P).add(V(-1.5,0.67,0)); scene.add(pellet);
+const pelletGlow=sprite(0x4fd8ff,0.9,0.55); pelletGlow.position.copy(pellet.position);
+const coalM=new THREE.MeshStandardMaterial({color:0x17181c,roughness:0.75,metalness:0.2,flatShading:true});
+for(let i=0;i<170;i++){ const a=rnd()*TAU, r=Math.sqrt(rnd())*1.5, h=(1-r/1.5)*1.25*rnd()+0.05; const c=new THREE.Mesh(new THREE.IcosahedronGeometry(0.13+rnd()*0.1,0),coalM);
+  c.position.copy(P).add(V(1.2+Math.cos(a)*r,h,Math.sin(a)*r*0.8)); c.rotation.set(rnd()*3,rnd()*3,rnd()*3); scene.add(c); }
+
+// ============ SCENE A: fission + chain reaction ============
+const A=V(60,4,0);
+const PROT=phys(0xff4a5a,{metalness:0.1,roughness:0.3}), NEUT=phys(0xb8c2d0,{metalness:0.1,roughness:0.3});
+const nucleus=new THREE.Group(); nucleus.position.copy(A); scene.add(nucleus);
+const halves=[new THREE.Group(),new THREE.Group()]; halves.forEach(h=>nucleus.add(h));
+[[0.32,7],[0.66,15],[0.98,24]].forEach(([r,n])=>{ for(let i=0;i<n;i++){ const y=1-2*(i+0.5)/n, rr=Math.sqrt(1-y*y), ph=i*2.39996+r*3;
+  const p=V(Math.cos(ph)*rr*r,y*r,Math.sin(ph)*rr*r); const s=new THREE.Mesh(new THREE.SphereGeometry(0.25,20,14),rnd()<0.42?PROT:NEUT); s.position.copy(p);
+  halves[p.x<0?0:1].add(s); } });
+const inN=new THREE.Mesh(new THREE.SphereGeometry(0.22,20,14),new THREE.MeshStandardMaterial({color:0x9fd8ff,emissive:0x4fd8ff,emissiveIntensity:0.8})); scene.add(inN);
+const inNG=sprite(0x4fd8ff,1.2,0);
+const outN=[0,1,2].map(()=>({m:Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.2,16,12),inN.material),{}),g:sprite(0x4fd8ff,1.1,0)}));
+outN.forEach(o=>scene.add(o.m));
+const OUTDIR=[V(0.5,1,0.3),V(0.35,-1,-0.2),V(-0.6,-0.5,0.9)].map(v=>v.normalize());
+const flash=sprite(0xffffff,3,0), heatGlow=sprite(0xff8a3d,6,0);
+// chain reaction cluster
+const CC=A.clone().add(V(0,0,-1.5)), NN=44, chainN=[];
+for(let i=0;i<NN && chainN.length<NN;i++){ let p, ok=false, tries=0; while(!ok && tries<200){ tries++; const r=Math.cbrt(rnd())*5.4, u=rnd()*2-1, a=rnd()*TAU, s=Math.sqrt(1-u*u);
+    p=V(Math.cos(a)*s*r*1.1,u*r*1.2,Math.sin(a)*s*r*0.5); ok=chainN.every(c=>c.p.distanceTo(p)>1.15)&&(chainN.length>0||true); }
+  if(chainN.length===0) p=V(0,0,0); chainN.push({p,gen:-1,parent:-1}); }
+chainN[0].gen=0; { const q=[0]; while(q.length){ const i=q.shift(); const cand=chainN.map((c,j)=>({j,d:c.p.distanceTo(chainN[i].p)})).filter(o=>chainN[o.j].gen<0).sort((a,b)=>a.d-b.d).slice(0,3);
+  cand.forEach(o=>{ if(o.d<4.2){ chainN[o.j].gen=chainN[i].gen+1; chainN[o.j].parent=i; q.push(o.j); } }); } }
+const chainMat=phys(0x8fe07a,{metalness:0.1,emissive:0x2a6a20,emissiveIntensity:0.4});
+chainN.forEach(c=>{ c.g=new THREE.Group(); c.g.position.copy(CC).add(c.p); scene.add(c.g);
+  c.a=new THREE.Mesh(new THREE.SphereGeometry(0.3,18,12),chainMat); c.b=c.a.clone(); c.g.add(c.a,c.b);
+  c.fl=sprite(0xffb04a,1.6,0); c.n=sprite(0x4fd8ff,0.55,0); });
+
+// ============ SCENE R: core + control rods ============
+const R=V(120,0,0);
+const rFloor=new THREE.Mesh(new THREE.CircleGeometry(9,48),new THREE.MeshStandardMaterial({color:0x121a2a})); rFloor.rotation.x=-Math.PI/2; rFloor.position.copy(R); scene.add(rFloor);
+const tank=box(4.6,3.6,3.2,new THREE.MeshPhysicalMaterial({color:0x2f8cff,transparent:true,opacity:0.18,roughness:0.05,depthWrite:false})); tank.position.copy(R).add(V(0,1.8,0)); scene.add(tank);
+const fuelM=phys(0xd0a060,{metalness:0.6,emissive:0xff8a3d,emissiveIntensity:0.5});
+const fuelRods=[]; for(let i=0;i<5;i++) for(let j=0;j<3;j++){ const f=cyl(0.13,3.0,fuelM,16); f.position.copy(R).add(V(-1.8+i*0.9,1.7,-0.9+j*0.9)); scene.add(f); fuelRods.push(f); }
+const ctrlM=phys(0x2a2e36,{metalness:0.7});
+const ctrl=new THREE.Group(); ctrl.position.copy(R); scene.add(ctrl);
+for(let i=0;i<4;i++) for(let j=0;j<2;j++){ const c=cyl(0.1,3.0,ctrlM,14); c.position.set(-1.35+i*0.9,0,-0.45+j*0.9); ctrl.add(c); }
+const ctrlBar=box(3.4,0.12,1.3,ctrlM); ctrlBar.position.y=1.56; ctrl.add(ctrlBar);
+const cher=sprite(0x3fa9ff,7,0); cher.position.copy(R).add(V(0,1.8,0.4));
+const rNeut=[]; for(let i=0;i<70;i++){ const s=sprite(0x9fe8ff,0.22,0); s.userData={ph:rnd(),x:rnd(),y:rnd(),z:rnd(),vx:rnd()*2-1,vy:rnd()*2-1,vz:rnd()*2-1}; rNeut.push(s); }
+
+// ============ SCENE plant (origin) ============
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(90,70),new THREE.MeshStandardMaterial({color:0x56704f,roughness:1})); ground.rotation.x=-Math.PI/2; ground.position.set(5,-0.01,-10); scene.add(ground);
+const padG=box(36,0.1,16,new THREE.MeshStandardMaterial({color:0x8a8f98,roughness:0.9})); padG.position.set(3,0.05,-3); scene.add(padG);
+const fadeM=[];
+const concB=phys(0xd8d4cc,{metalness:0.05,roughness:0.8,side:THREE.DoubleSide}), concF=phys(0xd8d4cc,{metalness:0.05,roughness:0.8,side:THREE.DoubleSide,transparent:true,opacity:1}); fadeM.push(concF);
+const CX=-8;
+[[concB,Math.PI/2],[concF,-Math.PI/2]].forEach(([m,ts])=>{ const w=new THREE.Mesh(new THREE.CylinderGeometry(4,4,5,64,1,true,ts,Math.PI),m); w.position.set(CX,2.5,0); scene.add(w);
+  const d=new THREE.Mesh(new THREE.SphereGeometry(4,64,24,ts===Math.PI/2?Math.PI:0,Math.PI,0,Math.PI/2),m); d.position.set(CX,5,0); scene.add(d); });
+const vessel=cyl(1.1,3.8,phys(0x9aa6b8,{metalness:0.8,transparent:true,opacity:0.55,depthWrite:false}),40); vessel.position.set(-9.3,2.3,0); scene.add(vessel);
+const vesselTop=new THREE.Mesh(new THREE.SphereGeometry(1.1,40,16,0,TAU,0,Math.PI/2),phys(0x9aa6b8,{metalness:0.8})); vesselTop.position.set(-9.3,4.2,0); scene.add(vesselTop);
+const coreM=new THREE.MeshBasicMaterial({color:0x4fb8ff,transparent:true,opacity:0.9});
+const core=cyl(0.75,1.8,coreM,32); core.position.set(-9.3,1.8,0); scene.add(core);
+const coreGlow=sprite(0x3fa9ff,4.5,0); coreGlow.position.set(-9.3,1.9,0.6);
+for(let i=0;i<9;i++){ const a=i*TAU/9; const r=cyl(0.05,1.9,new THREE.MeshBasicMaterial({color:0xffc070}),8); r.position.set(-9.3+Math.cos(a)*0.45,1.8,Math.sin(a)*0.45); scene.add(r); }
+const sg=cyl(0.8,4.4,phys(0xb7c0cc,{metalness:0.7,transparent:true,opacity:0.55,depthWrite:false}),40); sg.position.set(-6.2,2.7,0); scene.add(sg);
+[4.9,0.5].forEach((y,i)=>{ const c=new THREE.Mesh(new THREE.SphereGeometry(0.8,32,12,0,TAU,i?Math.PI/2:0,Math.PI/2),phys(0xb7c0cc,{metalness:0.7})); c.position.set(-6.2,y,0); scene.add(c); });
+// turbine hall
+const TUR_X0=1, TUR_X1=5.2, TY=2.4;
+const hall=box(10,0.3,4.4,new THREE.MeshStandardMaterial({color:0x6b7380})); hall.position.set(4.2,0.15,0); scene.add(hall);
+const turb=new THREE.Group(); turb.position.set(0,TY,0); scene.add(turb);
+const bladeM=phys(0xd0d8e4,{metalness:0.85,emissive:0x6fd3ff,emissiveIntensity:0});
+[[1.4,0.7],[2.3,0.85],[3.2,1.0],[4.1,1.15]].forEach(([x,rad])=>{ const d=new THREE.Group(); d.position.x=x; turb.add(d); const n=22;
+  for(let i=0;i<n;i++){ const h=new THREE.Group(); h.rotation.x=i*TAU/n; const b=box(0.22,rad-0.2,0.04,bladeM); b.position.y=0.2+(rad-0.2)/2; b.rotation.y=0.6; h.add(b); d.add(h); } });
+const tShaft=cyl(0.16,6.6,phys(0xaab3c2,{metalness:0.9}),20); tShaft.rotation.z=Math.PI/2; tShaft.position.set(3.7,TY,0); scene.add(tShaft);
+const casingB=new THREE.Mesh(new THREE.CylinderGeometry(1.3,0.85,4.4,40,1,true,Math.PI/2,Math.PI),phys(0x5d6878,{side:THREE.DoubleSide})); casingB.rotation.z=-Math.PI/2; casingB.position.set(2.8,TY,0); scene.add(casingB);
+const genM=phys(0x2f6fd8,{metalness:0.6,emissive:0xffd84d,emissiveIntensity:0});
+const gen=cyl(1.0,2.0,genM,40); gen.rotation.z=Math.PI/2; gen.position.set(7.0,TY,0); scene.add(gen);
+const genGlow=sprite(0xffd84d,3.2,0); genGlow.position.set(7.0,TY,1.0);
+const condenser=box(4.6,1.0,2.0,phys(0x4f7fb0,{metalness:0.4})); condenser.position.set(3.0,0.8,0); scene.add(condenser);
+// cooling tower
+const TW=V(3.5,0,-11);
+{ const prof=[]; for(let i=0;i<=24;i++){ const y=i/24*10; const r=2.0+1.4*Math.pow((y-6.5)/6.5,2)*(y<6.5?1:0.55); prof.push(new THREE.Vector2(r,y)); }
+  const tower=new THREE.Mesh(new THREE.LatheGeometry(prof,64),phys(0xd9d6cf,{metalness:0.05,roughness:0.85,side:THREE.DoubleSide})); tower.position.copy(TW); scene.add(tower); }
+const vapour=[]; for(let i=0;i<46;i++){ const s=sprite(0xf4f6fa,3,0,false); s.userData={ph:rnd(),a:rnd()*TAU,r:rnd()}; vapour.push(s); }
+// pylons + city
+const pylonM=new THREE.MeshStandardMaterial({color:0x9aa3b2,metalness:0.6});
+const pylonXs=[11.5,17.5];
+pylonXs.forEach(x=>{ const g=new THREE.Group(); g.position.set(x,0,-0.5); scene.add(g); const p=cyl(0.12,6.5,pylonM,8,0.35); p.position.y=3.25; g.add(p); const arm=box(2.6,0.12,0.12,pylonM); arm.position.y=6.0; g.add(arm); });
+const wirePts=[V(8.0,TY+0.4,0),V(11.5,6.0,-0.5),V(14.5,5.0,-0.5),V(17.5,6.0,-0.5),V(21.0,1.8,-1)];
+const wireCurve=new THREE.CatmullRomCurve3(wirePts);
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(wireCurve,80,0.04,6,false),new THREE.MeshStandardMaterial({color:0x2a2e36})));
+const sparks=[]; for(let i=0;i<20;i++){ const s=sprite(0xffe066,0.45,0); s.userData={ph:i/20}; sparks.push(s); }
+const winM=new THREE.MeshStandardMaterial({color:0x223044,emissive:0xffd25a,emissiveIntensity:0});
+const city=new THREE.Group(); city.position.set(23,0,-1.5); scene.add(city);
+for(let i=0;i<14;i++){ const w=0.9+rnd()*0.8, h=1.2+rnd()*4.5, d=0.9+rnd()*0.8; const b=box(w,h,d,new THREE.MeshStandardMaterial({color:0x56607a,roughness:0.8}));
+  b.position.set((i%5)*1.6-3+rnd()*0.3,h/2,Math.floor(i/5)*1.7-1.6); city.add(b);
+  for(let k=0;k<Math.floor(h/0.6);k++){ const wv=box(w*0.7,0.18,0.02,winM); wv.position.set(b.position.x,0.4+k*0.55,b.position.z+d/2+0.01); city.add(wv); } }
+// loops (pipes + flowing particles)
+const pipeMat=c=>new THREE.MeshPhysicalMaterial({color:c,transparent:true,opacity:0.45,roughness:0.2,metalness:0.3,depthWrite:false});
+function loop(pts,color,closed,r=0.16){ const c=new THREE.CatmullRomCurve3(pts,closed,'catmullrom',0.2); scene.add(new THREE.Mesh(new THREE.TubeGeometry(c,200,r,10,closed),pipeMat(color))); return c; }
+const primary=loop([V(-9.3,3.4,0.35),V(-8.2,3.5,0.35),V(-7.0,3.7,0.35),V(-6.4,4.4,0.35),V(-6.4,1.2,0.35),V(-7.0,0.9,0.35),V(-8.2,0.9,0.35),V(-9.3,0.6,0.35),V(-9.5,1.8,0.35)],0xff5a3a,true,0.17);
+const secondary=loop([V(-6.0,1.0,-0.35),V(-6.0,4.6,-0.35),V(-6.0,6.3,-0.2),V(-3,6.5,0),V(-0.4,4.2,0),V(0.8,TY,0),V(5.2,TY,0),V(5.4,1.3,0),V(3.5,0.6,0.6),V(0,0.6,1.0),V(-4,0.6,0.8),V(-6.0,1.0,-0.35)],0xbfd8ff,true,0.15);
+const cooling=loop([V(4.6,0.6,-0.9),V(4.6,0.5,-6),V(3.5,0.8,-9.5),V(3.5,2.2,-10.4),V(2.4,0.8,-9.5),V(1.6,0.5,-6),V(1.6,0.6,-0.9),V(4.6,0.6,-0.9)],0x6fd3ff,true,0.14);
+function flowSet(n,size){ const a=[]; for(let i=0;i<n;i++){ const s=sprite(0xffffff,size,0); s.userData={ph:i/n}; a.push(s); } return a; }
+const fP=flowSet(46,0.36), fS=flowSet(64,0.38), fC=flowSet(36,0.3);
+const tmpC=new THREE.Color();
+// secondary colour by position along loop: water (blue) -> steam (white) -> water
+function secCol(u,out){ if(u<0.12) return out.setHex(0x4f9bff).lerp(new THREE.Color(0xffffff),u/0.12); if(u<0.58) return out.setHex(0xffffff); if(u<0.66) return out.setHex(0xffffff).lerp(new THREE.Color(0x4f9bff),(u-0.58)/0.08); return out.setHex(0x4f9bff); }
+function priCol(u,out){ return out.setHex(0xff3b20).lerp(new THREE.Color(0xffa040),clamp((u-0.35)/0.5,0,1)); }
+
+// ---------- labels ----------
+const labelsEl=document.getElementById('labels'), LBL=[];
+function label(text,cls,p,from,to){ const d=document.createElement('div'); d.className='label '+cls; d.textContent=text; labelsEl.appendChild(d); LBL.push({d,p:(typeof p==='function')?p:()=>p,from,to}); }
+const tHit=L(1).start+3.8, tSplit=L(1).start+4.7;
+label("Uranium pellet","",P.clone().add(V(-1.5,-0.3,1.0)),L(0).start+2.2,L(0).end+0.4);
+label("= 1 ton of coal!","hot big",P.clone().add(V(1.2,-0.3,1.4)),L(0).start+4.4,L(0).end+0.4);
+label("Neutron","",()=>inN.position.clone().add(V(0,0.9,0)),L(1).start+1.6,tHit);
+label("Uranium atom","red",A.clone().add(V(0,1.8,0)),L(1).start+2.6,tSplit);
+label("SPLIT!","hot big",A.clone().add(V(0,2.2,0)),tSplit,L(1).end+0.3);
+label("Heat energy","hot",A.clone().add(V(0,-2.0,0.5)),L(2).start+0.8,L(2).end+0.2);
+label("New neutrons","",A.clone().add(V(2.6,2.4,0)),L(2).start+2.4,L(2).end+0.2);
+label("Chain reaction!","volt big",CC.clone().add(V(0,6.4,0)),L(3).start+2.6,L(3).end+0.3);
+label("Control rods","gray",R.clone().add(V(0,5.6,0)),L(4).start+1.2,L(4).end+0.2);
+label("Rods IN → slower","",R.clone().add(V(0,-0.4,1.8)),L(4).start+3.0,L(4).start+5.4);
+label("Rods OUT → faster","hot",R.clone().add(V(0,-0.4,1.8)),L(4).start+5.6,L(4).end+0.2);
+label("Reactor core","",V(-9.3,0.2,1.4),L(5).start+1.0,L(5).end+0.3);
+label("Containment dome","gray",V(-8,9.6,0),L(5).start+2.6,L(5).end+0.3);
+label("Super hot water ~300°C","hot",V(-7.6,4.6,0.8),L(6).start+1.2,L(6).end+0.2);
+label("Steam generator","",V(-6.2,5.9,1.0),L(7).start+1.0,L(7).end+0.2);
+label("Steam!","gray",V(-3.0,7.2,0),L(7).start+3.2,L(7).end+0.2);
+label("Turbine","",V(2.8,4.4,0.5),L(8).start+1.0,L(8).end+0.2);
+label("Generator","volt",V(7.0,4.0,0.8),L(8).start+3.6,L(8).end+0.2);
+label("Electricity!","volt big",V(14.5,6.4,-0.5),L(8).start+5.4,L(8).end+0.4);
+label("Cooling tower","",TW.clone().add(V(0,10.8,0)),L(9).start+1.2,L(9).start+4.0);
+label("Just water vapour","",TW.clone().add(V(0,13.4,0)),L(9).start+4.2,L(9).end+0.3);
+label("Almost zero CO₂","green big",V(-2,10,-2),L(10).start+1.2,L(10).end+0.3);
+label("~1 million homes","volt big",V(23,7,-1.5),L(10).start+3.4,L(10).end+0.3);
+
+// ---------- timeline ----------
+function integ(t0,t,f,dt=1/60){ let a=0; for(let x=t0+dt/2;x<t;x+=dt) a+=f(x)*dt; return a; }
+const cut=t=>smooth(L(5).start,L(5).start+1.4,t)*(1-smooth(L(9).start,L(9).start+1.5,t));
+const priOn=t=>smooth(L(5).start+1.5,L(5).start+2.5,t), secOn=t=>smooth(L(7).start+0.8,L(7).start+2,t), turOn=t=>smooth(L(8).start+0.2,L(8).start+2.0,t);
+const elecOn=t=>smooth(L(8).start+4.0,L(8).start+5.4,t), coolOn=t=>smooth(L(9).start+0.6,L(9).start+1.8,t);
+const night=t=>smooth(L(10).start+0.5,L(10).start+2.5,t);
+const rodIn=t=>{ let d=0.55; d=lerp(d,1.0,smooth(L(4).start+1.5,L(4).start+3.0,t)); d=lerp(d,0.15,smooth(L(4).start+5.2,L(4).start+6.6,t)); return d; };
+
+const SHOTS=[
+  [0,            t=>[P.clone().add(V(0.4,2.0,6.4)),P.clone().add(V(-0.1,-0.4,0))]],
+  [L(1).start,   t=>[A.clone().add(V(0.4,0.6,9.5)),A.clone().add(V(0,-0.8,0))]],
+  [L(3).start,   t=>[A.clone().add(V(0.6,1.0,17)),CC.clone().add(V(0,-1.6,0))]],
+  [L(4).start,   t=>[R.clone().add(V(2.2,4.0,8.2)),R.clone().add(V(0,1.2,0))]],
+  [L(5).start,   t=>[V(-4.6,5.0,10.5),V(-8.0,2.6,0)]],
+  [L(6).start,   t=>[V(-6.4,3.8,6.6),V(-8.6,2.2,0)]],
+  [L(7).start,   t=>[V(-3.0,5.4,9.5),V(-5.6,3.0,0)]],
+  [L(8).start,   t=>[V(6.5,4.8,10.5),V(4.6,2.0,0)]],
+  [L(9).start,   t=>[V(15,9.5,13),V(4.0,9.5,-9.5)]],
+  [L(10).start,  t=>[V(-14,16,22),V(6,1.5,-3)]],
+  [L(11).start,  t=>[V(-12+Math.sin(t*0.15)*3,14,24),V(6,1.5,-3)]],
+];
+function camAt(t){
+  let i=0; while(i<SHOTS.length-1 && t>=SHOTS[i+1][0]) i++;
+  const Av=SHOTS[i][1](t); let p=Av[0], g=Av[1];
+  if(i<SHOTS.length-1){ const N=SHOTS[i+1]; const k=smooth(N[0]-1.5,N[0]+0.1,t); if(k>0){ const Bv=N[1](t); p=p.clone().lerp(Bv[0],k); g=g.clone().lerp(Bv[1],k); } }
+  camera.position.set(p.x+Math.sin(t*0.3)*0.4,p.y+Math.sin(t*0.2)*0.15,p.z); camera.lookAt(g);
+}
+const CHIPS={hook:"",fission:"SPLITTING THE ATOM",chain:"CHAIN REACTION",control:"CONTROL RODS",reactor:"THE REACTOR",heat:"HEAT",steam:"STEAM",turbine:"TURBINE + GENERATOR",cooling:"COOLING TOWERS",green:"CLEAN POWER",outro:""};
+const sub=document.getElementById('sub'), chip=document.getElementById('chip'), head=document.getElementById('head');
+const big=document.getElementById('big'), big1=document.getElementById('big1'), big2=document.getElementById('big2');
+const tmp=V(0,0,0), bgC=new THREE.Color(); let lastLine=-2;
+
+function renderAt(t){
+  t=clamp(t,0,DURATION); camAt(t);
+  // sky: dark for the "lab" scenes, daylight over the plant, night at the end
+  const atPlant=Math.abs(camera.position.x)<35 ? 1:0;
+  bgC.copy(DARK); if(atPlant){ bgC.copy(DAY).lerp(NIGHT,night(t)); } scene.background=bgC; scene.fog=atPlant?FOG:null; FOG.color.copy(bgC);
+  hemi.intensity=atPlant?lerp(0.75,0.25,night(t)):0.6; sun.intensity=atPlant?lerp(1.0,0.2,night(t)):0.9;
+  pelletGlow.material.opacity=0.45+0.2*Math.sin(t*3);
+
+  // ----- single fission -----
+  const nIn=smooth(L(1).start+1.2,L(1).start+1.6,t)*(t<tHit?1:0);
+  const k=smooth(L(1).start+1.4,tHit,t); inN.position.copy(A).add(V(lerp(-7,-0.9,k),lerp(0.6,0.1,k),0)); inN.visible=nIn>0.01; inNG.position.copy(inN.position); inNG.material.opacity=nIn*0.8;
+  const wob=win(tHit,tSplit+0.1,t,0.2); nucleus.scale.set(1+0.35*wob*(0.6+0.4*Math.sin(t*30)),1-0.12*wob,1);
+  const sp=Math.max(0,t-tSplit), fadeN=1-smooth(L(3).start,L(3).start+0.8,t);
+  halves[0].position.set(-Math.min(sp*1.1,2.6),0,0); halves[1].position.set(Math.min(sp*1.1,2.6),0,0); halves[0].rotation.z=sp*0.8; halves[1].rotation.z=-sp*0.8;
+  nucleus.visible=fadeN>0.02; nucleus.children.forEach(h=>h.scale.setScalar(Math.max(fadeN,0.01)));
+  flash.position.copy(A); flash.material.opacity=sp>0?Math.max(0,1-sp/0.8):0; flash.scale.setScalar(3+sp*10);
+  heatGlow.position.copy(A); heatGlow.material.opacity=(sp>0?0.6*Math.max(0,1-sp/5):0)*fadeN; heatGlow.scale.setScalar(4+sp*2.5);
+  outN.forEach((o,i)=>{ const on=sp>0&&fadeN>0.02; o.m.visible=on; o.g.material.opacity=on?0.8*fadeN:0; o.m.position.copy(A).addScaledVector(OUTDIR[i],0.8+Math.min(sp*1.2,3.4)); o.g.position.copy(o.m.position); });
+  // ----- chain reaction -----
+  const c0=L(3).start+0.6, GT=0.72;
+  chainN.forEach(c=>{ const vis=smooth(L(3).start,L(3).start+0.6,t)*(1-smooth(L(4).start-0.8,L(4).start,t)); c.g.visible=vis>0.01; if(!c.g.visible){ c.fl.material.opacity=0; c.n.material.opacity=0; return; }
+    if(c.gen<0){ c.a.position.set(0,0,0); c.b.position.set(0,0,0); c.fl.material.opacity=0; c.n.material.opacity=0; return; }
+    const ts=c0+c.gen*GT, u=t-ts; const sep=u>0?Math.min(u*0.9,0.7):0;
+    c.a.position.set(-sep,0,0); c.b.position.set(sep,0,0); c.a.scale.setScalar(u>0?0.75:1); c.b.scale.setScalar(u>0?0.75:1);
+    c.fl.position.copy(c.g.position); c.fl.material.opacity=u>0?Math.max(0,1-u/0.7)*vis:0;
+    if(c.parent>=0){ const pp=chainN[c.parent], u0=ts-GT; const kk=clamp((t-u0)/GT,0,1); c.n.position.copy(pp.g.position).lerp(c.g.position,kk); c.n.material.opacity=(kk>0&&kk<1)?vis:0; } else c.n.material.opacity=0; });
+
+  // ----- control rods -----
+  const ri=rodIn(t), lvl=lerp(1.0,0.15,clamp((ri-0.15)/0.85,0,1));
+  ctrl.position.copy(R).add(V(0,lerp(4.9,1.75,ri),0)); fuelM.emissiveIntensity=0.2+0.8*lvl; cher.material.opacity=0.55*lvl;
+  rNeut.forEach((s,i)=>{ const d=s.userData; const on=(i/rNeut.length)<lvl; const tt=t*0.7+d.ph*10;
+    const bx=(Math.abs(((d.x+tt*d.vx*0.3)%2+2)%2-1)), by=(Math.abs(((d.y+tt*d.vy*0.3)%2+2)%2-1)), bz=(Math.abs(((d.z+tt*d.vz*0.3)%2+2)%2-1));
+    s.position.copy(R).add(V(-2.1+bx*4.2,0.2+by*3.2,-1.4+bz*2.8)); s.material.opacity=on?0.9:0; });
+
+  // ----- plant -----
+  const c=cut(t); concF.opacity=lerp(1,0.08,c); concF.depthWrite=c<0.5;
+  coreM.opacity=0.6+0.3*Math.sin(t*4); coreGlow.material.opacity=0.6*priOn(t)+0.2;
+  const po=priOn(t), so=secOn(t), co=coolOn(t), eo=elecOn(t);
+  fP.forEach(s=>{ const u=(s.userData.ph+t*0.12)%1; primary.getPointAt(u,s.position); priCol(u,s.material.color); s.material.opacity=0.9*po; });
+  fS.forEach(s=>{ const u=(s.userData.ph+t*0.09)%1; secondary.getPointAt(u,s.position); secCol(u,s.material.color); s.material.opacity=0.85*so; s.scale.setScalar(u<0.6&&u>0.1?0.5:0.34); });
+  fC.forEach(s=>{ const u=(s.userData.ph+t*0.1)%1; cooling.getPointAt(u,s.position); s.material.color.setHex(0x8fe4ff); s.material.opacity=0.8*co; });
+  const turAng=integ(0,t,x=>9*turOn(x)); turb.children.forEach(d=>d.rotation.x=turAng); tShaft.rotation.x=0;
+  bladeM.emissiveIntensity=0.3*win(L(8).start,L(8).start+3.5,t);
+  genM.emissiveIntensity=0.5*eo*(0.8+0.2*Math.sin(t*12)); genGlow.material.opacity=0.6*eo;
+  sparks.forEach(s=>{ const u=(s.userData.ph+t*0.35)%1; wireCurve.getPointAt(u,s.position); s.material.opacity=eo; });
+  winM.emissiveIntensity=eo*(0.6+1.4*night(t));
+  const vp=Math.max(0.35,co);
+  vapour.forEach(s=>{ const d=s.userData, k=(t*0.12+d.ph)%1; s.position.copy(TW).add(V(Math.cos(d.a)*d.r*1.6+k*4,10+k*7,Math.sin(d.a)*d.r*1.6)); s.scale.setScalar(2.5+k*6); s.material.opacity=vp*0.75*Math.sin(k*Math.PI); s.material.color.setHex(night(t)>0.5?0x9aa6c0:0xffffff); });
+
+  renderer.render(scene,camera);
+
+  // overlay
+  let li=-1; LINES.forEach((l,i)=>{ if(t>=l.start-0.05) li=i; });
+  const line=li>=0?LINES[li]:null;
+  if(li!==lastLine){ sub.textContent=line?line.text:''; const cc=line&&CHIPS[line.m]; chip.textContent=cc||''; chip.style.display=cc?'inline-block':'none'; lastLine=li; }
+  sub.style.opacity=(line && t<=line.end+0.3 && line.m!=='outro')?1:0;
+  head.style.opacity=smooth(L(1).start-0.6,L(1).start,t)*(1-smooth(L(11).start-0.4,L(11).start,t));
+  const intro=1-smooth(L(1).start-0.8,L(1).start-0.2,t), outro=smooth(L(11).start-0.2,L(11).start+0.4,t);
+  if(outro>0){ big1.textContent="SPLITTING ATOMS"; big2.innerHTML="TO LIGHT UP<br><em>CITIES</em>"; big.style.opacity=outro; }
+  else { big1.textContent="TINY PELLET, HUGE POWER"; big2.innerHTML="HOW DOES <em>NUCLEAR</em><br>POWER WORK?"; big.style.opacity=intro; }
+  document.getElementById('bar').style.width=(t/DURATION*100)+'%';
+  const cw=W(), chh=H();
+  LBL.forEach(l=>{ const o=win(l.from,l.to,t,0.3); if(o<0.01){ l.d.style.display='none'; return; }
+    tmp.copy(l.p()).project(camera); l.d.style.display=tmp.z<1?'block':'none'; l.d.style.opacity=o;
+    const hw=l.d.offsetWidth/2+8; l.d.style.left=clamp((tmp.x+1)/2*cw,hw,cw-hw)+'px'; l.d.style.top=clamp((1-tmp.y)/2*chh,chh*0.22,chh*0.66)+'px'; });
+}
+window.renderAt=renderAt; window.DURATION=DURATION;
+function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize); resize();
+if(location.hash==='#capture'){ document.body.classList.add('capture'); renderAt(0); }
+else { let start=performance.now(); document.getElementById('replay').onclick=()=>{start=performance.now();};
+  (function loop(){ renderAt(Math.min((performance.now()-start)/1000,DURATION)); requestAnimationFrame(loop); })(); }
+})();
+</script>
+</body>
+</html>

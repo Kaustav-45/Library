@@ -1,0 +1,14 @@
+[
+ ["hook","One tiny pellet of uranium, about the size of your fingertip, holds as much energy as a ton of coal. How do we unlock it?"],
+ ["fission","It starts with an atom. A tiny particle called a neutron hits a uranium atom, and the atom splits in two."],
+ ["fission","This is called fission. It releases a burst of heat, and two or three new neutrons fly out."],
+ ["chain","Those neutrons hit more atoms, which split and release even more neutrons. This is a chain reaction."],
+ ["control","To keep it safe and steady, control rods soak up spare neutrons. Push them in to slow the reaction down, pull them out to speed it up."],
+ ["reactor","All of this happens inside the reactor core, in long fuel rods, surrounded by water."],
+ ["heat","The heat from fission makes the water super hot. It's kept under high pressure, so it doesn't boil."],
+ ["steam","That hot water flows to a steam generator, where it boils a separate loop of water into steam."],
+ ["turbine","The steam blasts through a turbine, spinning it at high speed. The turbine turns a generator, and that makes electricity."],
+ ["cooling","Then the steam is cooled back into water, using giant cooling towers. That white cloud is just water vapour, not smoke."],
+ ["green","A nuclear plant releases almost no carbon dioxide, and can power around a million homes, day and night."],
+ ["outro","Splitting atoms to light up cities. Follow for more science made simple!"]
+]

@@ -28,6 +28,10 @@
     font-weight:800; font-size:17px; white-space:nowrap; pointer-events:none; }
   .label.hot { border-color:var(--hot); } .label.volt { border-color:var(--volt); } .label.green { border-color:var(--green); } .label.red { border-color:#ff5a5a; } .label.gray { border-color:#b8bec9; }
   .label.big { font-size:21px; padding:6px 14px; }
+  #fact { position:absolute; left:6%; right:6%; top:15.2%; display:flex; gap:10px; align-items:flex-start; background:rgba(4,8,20,.88);
+    border:2px solid rgba(79,216,255,.55); border-radius:14px; padding:9px 13px; opacity:0; }
+  #fact .k { flex:none; background:var(--volt); color:#1b1b1b; font-weight:900; font-size:12px; letter-spacing:1px; border-radius:7px; padding:4px 7px; margin-top:2px; }
+  #fact .v { font-weight:800; font-size:17px; line-height:1.3; }
   #bar { position:absolute; left:0; bottom:0; height:6px; background:linear-gradient(90deg,#4fd8ff,#ffd84d); width:0; }
   #replay { position:absolute; top:12px; right:12px; background:var(--accent); border:0; color:#06121a;
     font-weight:700; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:14px; }
@@ -40,6 +44,7 @@
 <div id="shade"></div>
 <div id="head"><div class="t">HOW A NUCLEAR POWER PLANT WORKS</div><div id="chip"></div></div>
 <div id="big"><div class="l1" id="big1"></div><div class="l2" id="big2"></div></div>
+<div id="fact"><div class="k">DID YOU KNOW?</div><div class="v" id="factv"></div></div>
 <div id="labels"></div>
 <div id="sub"></div>
 <div id="bar"></div>
@@ -211,6 +216,7 @@ const CX=-8;
 [[concB,Math.PI/2],[concF,-Math.PI/2]].forEach(([m,ts])=>{ const w=new THREE.Mesh(new THREE.CylinderGeometry(4,4,5,64,1,true,ts,Math.PI),m); w.position.set(CX,2.5,0); scene.add(w);
   const d=new THREE.Mesh(new THREE.SphereGeometry(4,64,24,ts===Math.PI/2?Math.PI:0,Math.PI,0,Math.PI/2),m); d.position.set(CX,5,0); scene.add(d); });
 const vessel=cyl(1.1,3.8,phys(0x9aa6b8,{metalness:0.8,transparent:true,opacity:0.55,depthWrite:false}),40); vessel.position.set(-9.3,2.3,0); scene.add(vessel);
+const vesselBot=new THREE.Mesh(new THREE.SphereGeometry(1.1,40,16,0,TAU,Math.PI/2,Math.PI/2),phys(0x9aa6b8,{metalness:0.8,transparent:true,opacity:0.55,depthWrite:false})); vesselBot.position.set(-9.3,0.4,0); scene.add(vesselBot);
 const vesselTop=new THREE.Mesh(new THREE.SphereGeometry(1.1,40,16,0,TAU,0,Math.PI/2),phys(0x9aa6b8,{metalness:0.8})); vesselTop.position.set(-9.3,4.2,0); scene.add(vesselTop);
 const coreM=new THREE.MeshBasicMaterial({color:0x4fb8ff,transparent:true,opacity:0.9});
 const core=cyl(0.75,1.8,coreM,32); core.position.set(-9.3,1.8,0); scene.add(core);
@@ -275,8 +281,8 @@ label("Heat energy","hot",A.clone().add(V(0,-2.0,0.5)),L(2).start+0.8,L(2).end+0
 label("New neutrons","",A.clone().add(V(2.6,2.4,0)),L(2).start+2.4,L(2).end+0.2);
 label("Chain reaction!","volt big",CC.clone().add(V(0,6.4,0)),L(3).start+2.6,L(3).end+0.3);
 label("Control rods","gray",R.clone().add(V(0,5.6,0)),L(4).start+1.2,L(4).end+0.2);
-label("Rods IN → slower","",R.clone().add(V(0,-0.4,1.8)),L(4).start+3.0,L(4).start+5.4);
-label("Rods OUT → faster","hot",R.clone().add(V(0,-0.4,1.8)),L(4).start+5.6,L(4).end+0.2);
+label("Rods IN → slower","",R.clone().add(V(1.6,4.3,1.8)),L(4).start+3.0,L(4).start+5.4);
+label("Rods OUT → faster","hot",R.clone().add(V(1.6,4.3,1.8)),L(4).start+5.6,L(4).end+0.2);
 label("Reactor core","",V(-9.3,0.2,1.4),L(5).start+1.0,L(5).end+0.3);
 label("Containment dome","gray",V(-8,9.6,0),L(5).start+2.6,L(5).end+0.3);
 label("Super hot water ~300°C","hot",V(-7.6,4.6,0.8),L(6).start+1.2,L(6).end+0.2);
@@ -319,6 +325,17 @@ function camAt(t){
 }
 const CHIPS={hook:"",fission:"SPLITTING THE ATOM",chain:"CHAIN REACTION",control:"CONTROL RODS",reactor:"THE REACTOR",heat:"HEAT",steam:"STEAM",turbine:"TURBINE + GENERATOR",cooling:"COOLING TOWERS",green:"CLEAN POWER",outro:""};
 const sub=document.getElementById('sub'), chip=document.getElementById('chip'), head=document.getElementById('head');
+const FACTS={1:"Uranium-235 is one of the few atoms that split when hit by a slow neutron.",
+ 2:"A tiny bit of mass turns into energy: Einstein's E = mc².",
+ 3:"Each split frees 2–3 neutrons, so splits multiply: 1 → 3 → 9 → 27…",
+ 4:"Control rods contain boron or cadmium, which soak up neutrons like a sponge.",
+ 5:"Each fuel rod is about 4 metres long and holds hundreds of pellets.",
+ 6:"The water is at ~300°C but stays liquid at ~150× normal air pressure.",
+ 7:"The two water loops never mix, so radioactive water stays inside the dome.",
+ 8:"The turbine spins up to 3,000 times a minute: magnets + coils = electricity.",
+ 9:"A large cooling tower can be over 150 metres tall, taller than a 40-storey building.",
+ 10:"Nuclear power makes about 10% of the world's electricity."};
+const fact=document.getElementById('fact'), factv=document.getElementById('factv'); let factOp=0, lastFact=-1;
 const big=document.getElementById('big'), big1=document.getElementById('big1'), big2=document.getElementById('big2');
 const tmp=V(0,0,0), bgC=new THREE.Color(); let lastLine=-2;
 
@@ -327,6 +344,7 @@ function renderAt(t){
   // sky: dark for the "lab" scenes, daylight over the plant, night at the end
   const atPlant=Math.abs(camera.position.x)<35 ? 1:0;
   bgC.copy(DARK); if(atPlant){ bgC.copy(DAY).lerp(NIGHT,night(t)); } scene.background=bgC; scene.fog=atPlant?FOG:null; FOG.color.copy(bgC);
+  ground.visible=padG.visible=!!atPlant;
   hemi.intensity=atPlant?lerp(0.75,0.25,night(t)):0.6; sun.intensity=atPlant?lerp(1.0,0.2,night(t)):0.9;
   pelletGlow.material.opacity=0.45+0.2*Math.sin(t*3);
 
@@ -378,6 +396,8 @@ function renderAt(t){
   const line=li>=0?LINES[li]:null;
   if(li!==lastLine){ sub.textContent=line?line.text:''; const cc=line&&CHIPS[line.m]; chip.textContent=cc||''; chip.style.display=cc?'inline-block':'none'; lastLine=li; }
   sub.style.opacity=(line && t<=line.end+0.3 && line.m!=='outro')?1:0;
+  { let fo=0, fi=-1; for(const k in FACTS){ const l=L(+k), nx=LINES[+k+1]; const end=nx?nx.start-0.15:l.end; const o=win(l.start+0.9,end,t,0.35); if(o>fo){ fo=o; fi=+k; } }
+    if(fi!==lastFact && fi>=0){ factv.textContent=FACTS[fi]; lastFact=fi; } factOp=fo; fact.style.opacity=fo; }
   head.style.opacity=smooth(L(1).start-0.6,L(1).start,t)*(1-smooth(L(11).start-0.4,L(11).start,t));
   const intro=1-smooth(L(1).start-0.8,L(1).start-0.2,t), outro=smooth(L(11).start-0.2,L(11).start+0.4,t);
   if(outro>0){ big1.textContent="SPLITTING ATOMS"; big2.innerHTML="TO LIGHT UP<br><em>CITIES</em>"; big.style.opacity=outro; }
@@ -386,7 +406,7 @@ function renderAt(t){
   const cw=W(), chh=H();
   LBL.forEach(l=>{ const o=win(l.from,l.to,t,0.3); if(o<0.01){ l.d.style.display='none'; return; }
     tmp.copy(l.p()).project(camera); l.d.style.display=tmp.z<1?'block':'none'; l.d.style.opacity=o;
-    const hw=l.d.offsetWidth/2+8; l.d.style.left=clamp((tmp.x+1)/2*cw,hw,cw-hw)+'px'; l.d.style.top=clamp((1-tmp.y)/2*chh,chh*0.22,chh*0.66)+'px'; });
+    const hw=l.d.offsetWidth/2+8; l.d.style.left=clamp((tmp.x+1)/2*cw,hw,cw-hw)+'px'; l.d.style.top=clamp((1-tmp.y)/2*chh,chh*(factOp>0.05?0.29:0.22),chh*0.66)+'px'; });
 }
 window.renderAt=renderAt; window.DURATION=DURATION;
 function resize(){ renderer.setSize(W(),H()); camera.aspect=W()/H(); camera.fov=camera.aspect<1?62:45; camera.updateProjectionMatrix(); }

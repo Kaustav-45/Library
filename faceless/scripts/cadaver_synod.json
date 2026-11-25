@@ -1,0 +1,24 @@
+{
+  "title": "The Corpse That Was Put on Trial",
+  "style": "fast",
+  "gap": 0.08,
+  "voice": "kokoro:am_michael",
+  "speed": 1.08,
+  "grain": 4.0,
+  "maxrate": "24M",
+  "transitions": true,
+  "palette": {"bg0": [22, 12, 4], "bg1": [92, 52, 18], "bg2": [150, 98, 20], "text": [255, 246, 224], "headline": [255, 212, 60],
+    "accent": [196, 64, 30], "ink": [24, 14, 6], "line": [160, 110, 50], "liquid": [52, 80, 104], "steel": [176, 160, 136], "glow": [255, 170, 50],
+    "pop": [[255, 212, 60], [255, 170, 90], [255, 246, 224], [230, 120, 60], [250, 220, 150]],
+    "bokeh": [[255, 200, 60], [255, 140, 40], [255, 230, 150]]},
+  "scenes": [
+    {"say": "In 897, a pope put a corpse on trial.", "kicker": "", "big": "", "sub": "", "visual": "synod_throne"},
+    {"say": "The dead man was his rival, Pope Formosus. Dead for nine months.", "kicker": "", "big": "", "sub": "", "visual": "grave_dig"},
+    {"say": "They dug him up, dressed him in his papal robes, and propped him on a throne.", "kicker": "", "big": "", "sub": "", "visual": "synod_throne"},
+    {"say": "A deacon stood beside the body, answering for the dead man.", "kicker": "", "big": "", "sub": "", "visual": "synod_throne", "deacon": true},
+    {"say": "The verdict? Guilty.", "kicker": "", "big": "", "sub": "", "visual": "verdict"},
+    {"say": "They stripped off his robes, and threw his body into the river Tiber.", "kicker": "", "big": "", "sub": "", "visual": "tiber"},
+    {"say": "Then Rome turned on the judge. Pope Stephen was thrown in prison, and strangled.", "kicker": "", "big": "", "sub": "", "visual": "revolt"},
+    {"say": "History calls it the Cadaver Synod. And yes, it really happened.", "kicker": "", "big": "", "sub": "", "visual": "synod_throne", "banner": "THE CADAVER SYNOD"}
+  ]
+}

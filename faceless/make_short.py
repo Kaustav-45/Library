@@ -27,6 +27,9 @@ def set_layout(name, spec):
         FW, FH = 1920, 1080
         LAYOUT.update(vox=30, voy=-490, tx=1510, ky=250, by=440, sy=600, cx=960, cy=975, cw=1500, cn=7, cap=74,
                       glow=(0.3, 0.5, 0.3, 0.42))
+    LAYOUT['fast'] = spec.get('style') == 'fast'
+    if LAYOUT['fast']:                              # big pop-in captions at the top, no headline clutter
+        LAYOUT.update(cy=500, cap=132, cw=980, cn=3, voy=150)
     LAYOUT['grain'] = spec.get('grain', LAYOUT['grain']); LAYOUT['crf'] = spec.get('crf', LAYOUT['crf'])
     LAYOUT['maxrate'] = spec.get('maxrate')        # e.g. "5800k" caps the video bitrate (and so the file size)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1200,6 +1203,68 @@ def gravestone(d, cx, ground, s, lines_):
     for i, ln in enumerate(lines_):
         text_c(d, (cx, ground - 340 * s + i * 62 * s), ln, font('anton', (42 if i in (0, 2) else 30) * s), shade(stone, 0.35))
 
+# ----- Cadaver Synod drawings -----
+BONE, ROBE_W, ROBE_R = (226, 218, 196), (240, 236, 226), (176, 34, 40)
+
+def candle_stand(d, x, ground, s, t, i=0):
+    d.rectangle([x - 10 * s, ground - 300 * s, x + 10 * s, ground], fill=shade(GOLD, 0.6))
+    d.ellipse([x - 50 * s, ground - 16 * s, x + 50 * s, ground + 8 * s], fill=shade(GOLD, 0.6))
+    d.rectangle([x - 18 * s, ground - 380 * s, x + 18 * s, ground - 300 * s], fill=CREAM)
+    fk = 1 + 0.22 * math.sin(t * 13 + i * 2) * math.sin(t * 5 + i)
+    for k, (r, col) in enumerate(((70, mix(BG1, GOLD, 0.35)), (40, (255, 200, 90)), (16, (255, 244, 200)))):
+        d.ellipse([x - r * 0.6 * s, ground - 400 * s - r * fk * s, x + r * 0.6 * s, ground - 380 * s + r * 0.3 * s], fill=col)
+
+def throne(d, cx, ground, s):
+    gold, dk = GOLD, shade(GOLD, 0.62)
+    d.rounded_rectangle([cx - 190 * s, ground - 640 * s, cx + 190 * s, ground - 200 * s], 30 * s, fill=dk)
+    d.pieslice([cx - 190 * s, ground - 760 * s, cx + 190 * s, ground - 520 * s], 180, 360, fill=dk)
+    d.rounded_rectangle([cx - 150 * s, ground - 600 * s, cx + 150 * s, ground - 220 * s], 24 * s, fill=(130, 26, 34))
+    d.rectangle([cx - 240 * s, ground - 240 * s, cx + 240 * s, ground - 170 * s], fill=gold)
+    for sx in (-1, 1):
+        d.rectangle([cx + sx * 240 * s - 30 * s, ground - 360 * s, cx + sx * 240 * s + 30 * s, ground], fill=gold)
+        d.ellipse([cx + sx * 240 * s - 40 * s, ground - 400 * s, cx + sx * 240 * s + 40 * s, ground - 330 * s], fill=gold)
+    d.rectangle([cx - 210 * s, ground - 170 * s, cx + 210 * s, ground], fill=dk)
+
+def skull(d, x, y, s, jaw=0.0):
+    d.ellipse([x - 62 * s, y - 70 * s, x + 62 * s, y + 50 * s], fill=BONE)
+    d.rounded_rectangle([x - 40 * s, y + 20 * s, x + 40 * s, y + 70 * s + jaw * 14 * s], 14 * s, fill=BONE)
+    for ex in (-26, 26): d.ellipse([x + ex * s - 20 * s, y - 22 * s, x + ex * s + 20 * s, y + 16 * s], fill=INK)
+    d.polygon([(x, y + 14 * s), (x - 10 * s, y + 34 * s), (x + 10 * s, y + 34 * s)], fill=INK)
+    for i in range(5): d.line([(x - 28 * s + i * 14 * s, y + 46 * s + jaw * 8 * s), (x - 28 * s + i * 14 * s, y + 64 * s + jaw * 14 * s)], fill=shade(BONE, 0.6), width=max(2, int(4 * s)))
+
+def corpse_pope(d, cx, ground, s, t, robed=True, mitre=True):
+    hy = ground - 470 * s + math.sin(t * 1.2) * 3 * s                      # slumped on the throne
+    if robed:
+        d.pieslice([cx - 200 * s, hy + 40 * s, cx + 200 * s, hy + 520 * s], 180, 360, fill=ROBE_R)
+        d.polygon([(cx - 170 * s, hy + 280 * s), (cx + 170 * s, hy + 280 * s), (cx + 200 * s, ground - 170 * s), (cx - 200 * s, ground - 170 * s)], fill=ROBE_W)
+        d.rectangle([cx - 24 * s, hy + 120 * s, cx + 24 * s, ground - 170 * s], fill=GOLD)
+    else:
+        d.rounded_rectangle([cx - 110 * s, hy + 80 * s, cx + 110 * s, ground - 170 * s], 40 * s, fill=(110, 96, 80))
+    for sx in (-1, 1):                                                       # bony hands on the armrests
+        hx = cx + sx * 210 * s; d.line([(hx, ground - 250 * s), (hx + sx * 10 * s, ground - 210 * s)], fill=BONE, width=max(2, int(10 * s)))
+        for k in range(3): d.line([(hx + sx * 10 * s, ground - 210 * s), (hx + sx * (4 + k * 8) * s, ground - 186 * s)], fill=BONE, width=max(2, int(5 * s)))
+    skull(d, cx + 8 * s, hy, s, jaw=0.5 + 0.5 * math.sin(t * 0.8))
+    if mitre:
+        d.polygon([(cx - 60 * s, hy - 50 * s), (cx - 50 * s, hy - 180 * s), (cx + 8 * s, hy - 240 * s), (cx + 66 * s, hy - 180 * s), (cx + 76 * s, hy - 50 * s)], fill=ROBE_W)
+        d.rectangle([cx - 4 * s, hy - 230 * s, cx + 20 * s, hy - 50 * s], fill=GOLD); d.rectangle([cx - 60 * s, hy - 90 * s, cx + 76 * s, hy - 66 * s], fill=GOLD)
+
+def deacon(d, x, ground, s, t):
+    col = mix(INK, BG1, 0.3)
+    d.polygon([(x - 90 * s, ground), (x - 50 * s, ground - 300 * s), (x + 50 * s, ground - 300 * s), (x + 90 * s, ground)], fill=col)
+    d.ellipse([x - 44 * s, ground - 390 * s, x + 44 * s, ground - 300 * s], fill=(200, 160, 120))
+    d.pieslice([x - 50 * s, ground - 400 * s, x + 50 * s, ground - 330 * s], 180, 360, fill=col)
+    if (t % 1.6) < 1.0:
+        bx, by = x - 150 * s, ground - 470 * s
+        d.rounded_rectangle([bx - 90 * s, by - 50 * s, bx + 90 * s, by + 50 * s], 30 * s, fill=CREAM); d.polygon([(bx + 40 * s, by + 46 * s), (bx + 90 * s, by + 90 * s), (bx + 70 * s, by + 40 * s)], fill=CREAM)
+        for k in range(3): d.ellipse([bx - 50 * s + k * 40 * s, by - 10 * s, bx - 30 * s + k * 40 * s, by + 10 * s], fill=INK)
+
+def gavel(d, cx, cy, s, ang):
+    c_, s_ = math.cos(ang), math.sin(ang)
+    R = lambda dx, dy: (cx + dx * c_ - dy * s_, cy + dx * s_ + dy * c_)
+    d.polygon([R(-14 * s, 0), R(14 * s, 0), R(14 * s, 300 * s), R(-14 * s, 300 * s)], fill=(120, 76, 40))
+    d.polygon([R(-110 * s, -60 * s), R(110 * s, -60 * s), R(110 * s, 40 * s), R(-110 * s, 40 * s)], fill=(150, 96, 52))
+    d.polygon([R(-110 * s, -30 * s), R(110 * s, -30 * s), R(110 * s, 10 * s), R(-110 * s, 10 * s)], fill=GOLD)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -2337,6 +2402,65 @@ def visual(d, kind, t, dur, img, sc=None):
         sparkles(d, t, 18)
         d.rectangle([60, ground - 30, W - 60, ground + 10], fill=(70, 110, 70))
         gravestone(d, cx, ground - 30, 1.15, ['GLYNDWR MICHAEL', 'SERVED AS', 'MAJOR WILLIAM MARTIN', 'ROYAL MARINES'])
+    elif kind == 'synod_throne':
+        for i, x in enumerate((140, W - 140)): candle_stand(d, x, ground, 1.0, t, i)
+        throne(d, cx, ground, 1.0)
+        corpse_pope(d, cx, ground, 1.0, t, robed=(sc or {}).get('robed', True))
+        if (sc or {}).get('deacon'): deacon(d, cx + 330, ground, 1.0, t)
+        if (sc or {}).get('banner'):
+            p = back((t - 0.6) / 0.4)
+            if p > 0.02:
+                d.rounded_rectangle([cx - 380 * p, ground - 110, cx + 380 * p, ground - 10], 30, fill=RED)
+                if p > 0.8: text_c(d, (cx, ground - 60), (sc or {}).get('banner'), font('anton', 62), CREAM)
+    elif kind == 'grave_dig':
+        moon(d, 860, VY0 + 40, 60)
+        d.polygon([(0, ground - 140), (W, ground - 180), (W, ground + 60), (0, ground + 60)], fill=(70, 46, 26))
+        d.polygon([(220, ground - 150), (420, ground - 320), (620, ground - 160)], fill=(96, 64, 36))           # dug-up earth
+        k = ease((t - 0.3) / 1.2)
+        d.polygon([(380, ground - 60), (840, ground - 60), (800, ground + 30), (420, ground + 30)], fill=(90, 56, 30))      # coffin
+        lid_y = ground - 60 - 240 * k
+        d.polygon([(380, lid_y - 20 * k), (840, lid_y), (840, lid_y + 26), (380, lid_y + 26 - 20 * k)], fill=(120, 76, 40))
+        if k > 0.5: skull(d, 470, ground - 70, 0.7)
+        d.line([(160, ground - 520), (250, ground - 150)], fill=(150, 120, 90), width=12); d.polygon([(230, ground - 180), (290, ground - 160), (270, ground - 80), (210, ground - 100)], fill=STEEL)   # shovel
+        for i in range(3):
+            d.rectangle([60 + i * 80, ground - 380 - i * 30, 110 + i * 80, ground - 150], fill=(150, 140, 126)); d.pieslice([60 + i * 80, ground - 410 - i * 30, 110 + i * 80, ground - 350 - i * 30], 180, 360, fill=(150, 140, 126))
+    elif kind == 'verdict':
+        d.rounded_rectangle([cx - 300, ground - 160, cx + 300, ground - 60], 20, fill=(110, 70, 36))
+        hit = (t % 1.1) < 0.12 and t > 0.3
+        ang = -0.9 + 0.9 * ease(((t - 0.3) % 1.1) / 0.25) if t > 0.3 else -0.9
+        gavel(d, cx + 40, ground - 330 + (10 if hit else 0), 1.4, ang)
+        if hit:
+            for i in range(8):
+                a = i * math.pi / 4; d.line([(cx + math.cos(a) * 60, ground - 170 + math.sin(a) * 30), (cx + math.cos(a) * 160, ground - 170 + math.sin(a) * 80)], fill=GOLD, width=8)
+        p = back((t - 0.5) / 0.35)
+        if p > 0.02: img.alpha_composite(stamp('GUILTY', p), (int((cx - 330 + LAYOUT['vox']) * S), int((VY0 + 80 + LAYOUT['voy']) * S)))
+    elif kind == 'tiber':
+        wl = ground - 240
+        for i, x in enumerate((-40, 360, 760)):                                  # an old stone bridge
+            d.rectangle([x, wl - 230, x + 360, wl - 170], fill=(150, 126, 96)); d.pieslice([x + 60, wl - 190, x + 300, wl + 60], 180, 360, fill=mix(BG1, BG0, 0.5))
+        water(d, wl, t)
+        k = ease((t - 0.4) / 1.0)
+        if k < 1:
+            y = VY0 + 40 + (wl - VY0 - 40) * k; d.ellipse([cx - 70, y - 30, cx + 70, y + 30], fill=(110, 96, 80))
+        else:
+            r = 60 + ((t - 1.4) * 160) % 260
+            d.ellipse([cx - r * 1.8, wl + 30 - r * 0.25, cx + r * 1.8, wl + 30 + r * 0.25], outline=mix(LIQ, CREAM, 0.7), width=6)
+            d.polygon([(cx - 120, wl + 40), (cx - 20, wl + 20), (cx + 80, wl + 50), (cx - 10, wl + 70)], fill=ROBE_R)          # robes left floating
+    elif kind == 'revolt':
+        for i in range(8):
+            x = 90 + i * 128; b = abs(math.sin(t * 4 + i)) * 14
+            person(d, x, ground - 40 - b, 1.7, INK)
+            if i % 2 == 0:
+                d.line([(x + 30, ground - 90 - b), (x + 46, ground - 300 - b)], fill=(120, 76, 40), width=9)
+                fk = 1 + 0.25 * math.sin(t * 14 + i)
+                d.ellipse([x + 26, ground - 360 * (0.95 + 0.05 * fk) - b, x + 66, ground - 290 - b], fill=(255, 170, 60))
+        if t > 1.4:
+            p = ease((t - 1.4) / 0.4); x0, x1, y0 = cx - 220, cx + 220, VY0 + 40
+            d.rectangle([x0, y0, x1, y0 + 360 * p], fill=mix(BG0, INK, 0.5))
+            if p > 0.9:                                                          # Pope Stephen, alive, behind bars
+                person(d, cx, y0 + 330, 2.6, ROBE_W)
+                d.polygon([(cx - 40, y0 + 160), (cx - 30, y0 + 70), (cx, y0 + 40), (cx + 30, y0 + 70), (cx + 40, y0 + 160)], fill=GOLD)
+            for i in range(7): d.rectangle([x0 + 20 + i * 64, y0, x0 + 34 + i * 64, y0 + 360 * p], fill=STEEL)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p
@@ -2387,11 +2511,13 @@ def caption(d, words, times, t):
     """Show the current line of words, current word highlighted."""
     cur = max([i for i, (a, _) in enumerate(times) if a <= t] or [0])
     chunk = next(c for c in chunks(d, words) if cur in c)
-    f = font('anton', LAYOUT['cap'])
+    size = LAYOUT['cap']
+    if LAYOUT.get('fast'): size = int(size * (1.28 - 0.28 * ease((t - times[chunk[0]][0]) / 0.14)))   # each new chunk pops in
+    f = font('anton', size)
     widths = [d.textlength(words[i].upper() + ' ', font=f) for i in chunk]
     x = LAYOUT['cx'] - (sum(widths) - d.textlength(' ', font=f)) / 2; y = LAYOUT['cy']
     for i, w in zip(chunk, widths):
-        d.text((x, y), words[i].upper(), font=f, fill=GOLD if i == cur else CREAM, anchor='lm', stroke_width=7, stroke_fill=INK)
+        d.text((x, y), words[i].upper(), font=f, fill=GOLD if i == cur else CREAM, anchor='lm', stroke_width=9 if LAYOUT.get('fast') else 7, stroke_fill=INK)
         x += w
 
 # ---------- main ----------
@@ -2418,19 +2544,30 @@ def compose(base, sc, lt, frac, tt=None):
     if BOKEH: bokeh(img, tt if tt is not None else frac * 100)
     raw = ImageDraw.Draw(img); d = SD(raw)
     L = LAYOUT; tx = L['tx']
-    visual(SD(raw, L['vox'], L['voy']), sc['visual'], lt, sc['dur'], img, sc)
-    # kicker pill
-    if sc['kicker']:
-        f = font('inter', 40); tw = d.textlength(sc['kicker'], font=f)
-        a = ease(lt / 0.3)
-        d.rounded_rectangle([tx - tw / 2 - 30, L['ky'] - 36, tx + tw / 2 + 30, L['ky'] + 36], 36, fill=RED + (int(255 * a),))
-        text_c(d, (tx, L['ky']), sc['kicker'], f, CREAM + (int(255 * a),))
-    # big headline: pops in, numbers count up
-    p = back(lt / 0.45)
-    big = count_text(sc['big'], lt / 0.9) if sc.get('count', True) else sc['big']
-    size = 230 if len(sc['big']) <= 6 else (175 if len(sc['big']) <= 9 else 140)
-    text_c(d, (tx, L['by']), big, font('anton', size * max(p, 0.05)), GOLD, stroke=8)
-    text_c(d, (tx, L['sy']), sc['sub'], font('inter', 50 if len(sc['sub']) <= 30 else 40), CREAM + (int(255 * ease((lt - 0.2) / 0.4)),))
+    if L.get('fast'):
+        layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
+        visual(SD(ImageDraw.Draw(layer), L['vox'], L['voy']), sc['visual'], lt, sc['dur'], layer, sc)
+        z = 1.12 + 0.08 * ease(lt / max(sc['dur'], 1.0)) + 0.07 * (1 - ease(lt / 0.25))     # bigger, slow push-in, punch on each cut
+        y0, y1 = int((VY0 - 120 + L['voy']) * S), int((VY1 + 90 + L['voy']) * S); w, h = FW * S, y1 - y0
+        band = layer.crop((0, y0, w, y1)); cw_, ch_ = w / z, h / z
+        band = band.crop((int((w - cw_) / 2), int((h - ch_) / 2), int((w + cw_) / 2), int((h + ch_) / 2))).resize((w, h), Image.BICUBIC)
+        layer2 = Image.new('RGBA', img.size, (0, 0, 0, 0)); layer2.paste(band, (0, y0))
+        img.alpha_composite(layer2); raw = ImageDraw.Draw(img); d = SD(raw)
+    else:
+        visual(SD(raw, L['vox'], L['voy']), sc['visual'], lt, sc['dur'], img, sc)
+    if not L.get('fast'):
+        # kicker pill
+        if sc['kicker']:
+            f = font('inter', 40); tw = d.textlength(sc['kicker'], font=f)
+            a = ease(lt / 0.3)
+            d.rounded_rectangle([tx - tw / 2 - 30, L['ky'] - 36, tx + tw / 2 + 30, L['ky'] + 36], 36, fill=RED + (int(255 * a),))
+            text_c(d, (tx, L['ky']), sc['kicker'], f, CREAM + (int(255 * a),))
+        # big headline: pops in, numbers count up
+        p = back(lt / 0.45)
+        big = count_text(sc['big'], lt / 0.9) if sc.get('count', True) else sc['big']
+        size = 230 if len(sc['big']) <= 6 else (175 if len(sc['big']) <= 9 else 140)
+        text_c(d, (tx, L['by']), big, font('anton', size * max(p, 0.05)), GOLD, stroke=8)
+        text_c(d, (tx, L['sy']), sc['sub'], font('inter', 50 if len(sc['sub']) <= 30 else 40), CREAM + (int(255 * ease((lt - 0.2) / 0.4)),))
     if lt < sc['dur'] - GAP + 0.1:
         caption(d, sc['words'], sc['times'], lt)
     # progress bar
@@ -2439,7 +2576,9 @@ def compose(base, sc, lt, frac, tt=None):
 
 
 def main(script_path, out_path):
+    global GAP
     spec = json.load(open(script_path))
+    GAP = spec.get('gap', 0.35)
     set_palette(spec.get('palette', {}))
     set_layout(spec.get('layout', 'tall'), spec)
     tmp = tempfile.mkdtemp()
@@ -2461,6 +2600,9 @@ def main(script_path, out_path):
         k = int(t0 * SR); voice_track[k:k + len(a)] += a[:n - k]
         j = max(k - len(wh) // 2, 0); sfx[j:j + len(wh)] += wh[:n - j]
         s['t0'] = t0; t0 += s['dur']
+    if spec.get('style') == 'fast':                 # a deep boom under the opening line
+        bt = np.arange(int(0.9 * SR)) / SR; boom = (np.sin(2 * math.pi * (60 - 25 * bt) * bt) * np.exp(-bt * 4.5) * 0.55).astype(np.float32)
+        sfx[:len(boom)] += boom[:n]
     voice_track /= max(np.abs(voice_track).max(), 1e-6) / 0.9
     # clean up the voice on its own: cut rumble, lift the consonants, even out the level
     vin, vout = os.path.join(tmp, 'voice.f32'), os.path.join(tmp, 'voice_fx.f32')
@@ -2500,7 +2642,7 @@ def main(script_path, out_path):
             dr.rectangle([x0, 0, FW * S, FH * S], fill=GOLD); dr.rectangle([x0, 0, x0 + 18 * S, FH * S], fill=RED)
         # fade in/out of the whole video
         frame = img.convert('RGB')
-        fade = min(1.0, t / 0.4, (total - t) / 0.5)
+        fade = min(1.0, (total - t) / 0.3) if LAYOUT.get('fast') else min(1.0, t / 0.4, (total - t) / 0.5)
         if fade < 1: frame = Image.fromarray((np.asarray(frame, np.float32) * max(fade, 0)).astype(np.uint8))
         enc.stdin.write(frame.tobytes())
         if fi % (FPS * 5) == 0: print(f'  {t:5.1f}s / {total:.1f}s', flush=True)

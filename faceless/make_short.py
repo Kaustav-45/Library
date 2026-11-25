@@ -100,12 +100,14 @@ def back(t):
     return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2
 
 # ---------- audio ----------
-def load_wav(path):
+def load_wav(path, with_start=False):
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'],
                          capture_output=True, check=True).stdout
     a = np.frombuffer(raw, np.float32).copy()
     nz = np.where(np.abs(a) > 0.01)[0]          # trim silence at both ends
-    return a[max(nz[0] - 800, 0): nz[-1] + 1600] if len(nz) else a
+    st = max(nz[0] - 800, 0) if len(nz) else 0
+    out = a[st: nz[-1] + 1600] if len(nz) else a
+    return (out, st / SR) if with_start else out
 
 _kokoro = None
 def tts(text, voice, speed, path):
@@ -118,9 +120,22 @@ def tts(text, voice, speed, path):
             d = os.environ.get('KOKORO_DIR', '/root/tts')
             _kokoro = Kokoro(os.path.join(d, 'kokoro-v1.0.onnx'), os.path.join(d, 'voices-v1.0.bin'))
         import soundfile as sf
-        a, sr = _kokoro.create(text, voice=voice.split(':', 1)[1], speed=float(speed), lang='en-us')
-        sf.write(path, a, sr)
-        return
+        v = voice.split(':', 1)[1]
+        say = lambda txt: _kokoro.create(txt, voice=v, speed=float(speed), lang='en-us')[0]
+        # Speak clause by clause so every pause is known, and time each word inside a clause by
+        # how long that word takes on its own. This keeps the captions in step with the voice.
+        clauses = [c for c in re.split(r'(?<=[,.;:?!])\s+', text.strip()) if c]
+        parts, times, pos, sr = [], [], 0, 24000
+        for ci, c in enumerate(clauses):
+            a = say(c); parts.append(a)
+            ws = c.split(); wl = np.array([len(say(w)) for w in ws], float); wl = wl / wl.sum() * len(a)
+            edges = pos + np.concatenate([[0], np.cumsum(wl)])
+            times += [(edges[j] / sr, edges[j + 1] / sr) for j in range(len(ws))]
+            pos += len(a)
+            if ci < len(clauses) - 1:
+                pause = int(sr * (0.28 if c[-1] in '.?!' else 0.12)); parts.append(np.zeros(pause, np.float32)); pos += pause
+        sf.write(path, np.concatenate(parts), sr)
+        return times
     # -g adds a short gap between words, which makes the synthetic voice easier to follow
     try:
         subprocess.run(['espeak-ng', '-v', voice, '-s', str(speed), '-g', '3', '-w', path, text], check=True, capture_output=True)
@@ -2697,13 +2712,16 @@ def main(script_path, out_path):
     voice, speed = spec.get('voice', 'mb-us2'), spec.get('speed', 150)
     scenes, clips = [], []
     for i, sc in enumerate(spec['scenes']):
-        p = os.path.join(tmp, f's{i}.wav'); tts(sc['say'], voice, speed, p)
-        a = load_wav(p); clips.append(a)
+        p = os.path.join(tmp, f's{i}.wav'); wt = tts(sc['say'], voice, speed, p)
+        a, st = load_wav(p, with_start=True); clips.append(a)
         dur = len(a) / SR
         words = sc['say'].split()
-        w = np.array([len(re.sub(r'\W', '', x)) + 2 for x in words], float)
-        edges = np.concatenate([[0], np.cumsum(w) / w.sum() * dur])
-        scenes.append(dict(sc, dur=dur + GAP, words=words, times=list(zip(edges[:-1], edges[1:]))))
+        if wt and len(wt) == len(words):                  # real word timings from the voice
+            times = [(max(0.0, x - st), max(0.0, y - st)) for x, y in wt]
+        else:                                              # fall back to spreading words by length
+            w = np.array([len(re.sub(r'\W', '', x)) + 2 for x in words], float)
+            edges = np.concatenate([[0], np.cumsum(w) / w.sum() * dur]); times = list(zip(edges[:-1], edges[1:]))
+        scenes.append(dict(sc, dur=dur + GAP, words=words, times=times))
     total = sum(s['dur'] for s in scenes) + 0.6
     n = int(total * SR)
     voice_track = np.zeros(n, np.float32); sfx = np.zeros(n, np.float32)

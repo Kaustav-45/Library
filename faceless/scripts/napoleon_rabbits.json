@@ -1,9 +1,9 @@
 {
  "title": "Napoleon vs the Rabbits",
  "style": "fast",
- "gap": 0.3,
+ "gap": 0.1,
  "voice": "kokoro:am_michael",
- "speed": 0.95,
+ "speed": 1.0,
  "grain": 4.0,
  "maxrate": "24M",
  "transitions": true,

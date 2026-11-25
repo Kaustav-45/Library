@@ -2521,6 +2521,67 @@ def caption(d, words, times, t):
         x += w
 
 # ---------- main ----------
+# ----- cinematic full-screen images (documentary style) -----
+_graded, _cine_fx = {}, {}
+def graded(path, colour):
+    """Load an image and give it the palette's film grade: dark shadows, warm highlights (cached)."""
+    key = (path, colour, BG0, GOLD)
+    if key not in _graded:
+        im = np.asarray(Image.open(os.path.join(HERE, path)).convert('RGB'), np.float32) / 255
+        g = (im @ np.array([0.299, 0.587, 0.114], np.float32))[..., None]
+        g = np.clip((g - 0.04) / 0.92, 0, 1) ** 1.1                              # a little more contrast
+        lo, hi = np.array(BG0, np.float32) * 0.6, np.array(mix(CREAM, GOLD, 0.25), np.float32)
+        duo = lo + (hi - lo) * g
+        out = duo * (1 - colour) + im * 255 * colour
+        _graded[key] = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
+    return _graded[key]
+
+def cine_overlays():
+    """Vignette and caption shade (one layer) plus a few grain layers, at full output size."""
+    if 'vig' not in _cine_fx:
+        RW, RH = FW * S, FH * S
+        yy, xx = np.mgrid[0:RH // 4, 0:RW // 4].astype(np.float32)
+        u, v = xx / (RW / 4) - 0.5, yy / (RH / 4) - 0.5
+        r = np.sqrt((u / 0.62) ** 2 + (v / 0.7) ** 2)
+        a = np.clip((r - 0.55) / 0.55, 0, 1) ** 1.4 * 215
+        top = np.clip(1 - (yy / (RH / 4)) / 0.36, 0, 1) ** 1.3 * 170                # darker behind the captions
+        bot = np.clip(((yy / (RH / 4)) - 0.78) / 0.22, 0, 1) ** 1.5 * 150
+        alpha = np.clip(a + top + bot, 0, 235).astype(np.uint8)
+        vig = np.zeros((RH // 4, RW // 4, 4), np.uint8); vig[..., :3] = np.array(BG0) // 3; vig[..., 3] = alpha
+        _cine_fx['vig'] = Image.fromarray(vig, 'RGBA').resize((RW, RH), Image.BILINEAR)
+        rng = np.random.default_rng(7); grains = []
+        for _ in range(4):
+            n = rng.integers(0, 255, (RH // 2, RW // 2), dtype=np.uint8)
+            g = np.zeros((RH // 2, RW // 2, 4), np.uint8); g[..., 0] = g[..., 1] = g[..., 2] = n; g[..., 3] = 22
+            grains.append(Image.fromarray(g, 'RGBA').resize((RW, RH), Image.NEAREST))
+        _cine_fx['grain'] = grains
+    return _cine_fx['vig'], _cine_fx['grain']
+
+def cinema(img, sc, lt, tt):
+    """Fill the frame with a graded image, moving the camera from focus f0 to f1 while zooming."""
+    src = graded(sc['image'], sc.get('colour', 0.0)); sw, sh = src.size
+    RW, RH = FW * S, FH * S; ar = RW / RH
+    k = ease(lt / max(sc['dur'], 1.0))
+    z0, z1 = sc.get('zoom', (1.0, 1.15)); z = (z0 + (z1 - z0) * k) * (1 + 0.06 * (1 - ease(lt / 0.25)))
+    (fx0, fy0), (fx1, fy1) = sc.get('f0', (0.5, 0.5)), sc.get('f1', sc.get('f0', (0.5, 0.5)))
+    fx, fy = fx0 + (fx1 - fx0) * k, fy0 + (fy1 - fy0) * k
+    cw = min(sw, sh * ar) / z; ch = cw / ar
+    cx_ = min(max(fx * sw, cw / 2), sw - cw / 2); cy_ = min(max(fy * sh, ch / 2), sh - ch / 2)
+    frame = src.crop((int(cx_ - cw / 2), int(cy_ - ch / 2), int(cx_ + cw / 2), int(cy_ + ch / 2))).resize((RW, RH), Image.BICUBIC)
+    img.paste(frame, (0, 0))
+    if BOKEH: bokeh(img, tt)
+    vig, grains = cine_overlays()
+    img.alpha_composite(vig); img.alpha_composite(grains[int(tt * 24) % len(grains)])
+    if sc.get('stamp'):
+        p = back((lt - 0.35) / 0.35)
+        if p > 0.02: img.alpha_composite(stamp(sc['stamp'], p), (int((W / 2 - 330) * S), int(1050 * S)))
+    if sc.get('banner'):
+        p = back((lt - 0.5) / 0.4)
+        if p > 0.02:
+            d = SD(ImageDraw.Draw(img)); cxm = W / 2
+            d.rounded_rectangle([cxm - 400 * p, 1420, cxm + 400 * p, 1530], 34, fill=RED)
+            if p > 0.8: text_c(d, (cxm, 1475), sc['banner'], font('anton', 70), CREAM)
+
 _glow_sprites = {}
 def glow_sprite(col, r):
     """A soft round light of colour col and radius r (real pixels), fading to transparent."""
@@ -2544,7 +2605,9 @@ def compose(base, sc, lt, frac, tt=None):
     if BOKEH: bokeh(img, tt if tt is not None else frac * 100)
     raw = ImageDraw.Draw(img); d = SD(raw)
     L = LAYOUT; tx = L['tx']
-    if L.get('fast'):
+    if sc['visual'] == 'cinema':
+        cinema(img, sc, lt, tt if tt is not None else frac * 100); raw = ImageDraw.Draw(img); d = SD(raw)
+    elif L.get('fast'):
         layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
         visual(SD(ImageDraw.Draw(layer), L['vox'], L['voy']), sc['visual'], lt, sc['dur'], layer, sc)
         z = 1.12 + 0.08 * ease(lt / max(sc['dur'], 1.0)) + 0.07 * (1 - ease(lt / 0.25))     # bigger, slow push-in, punch on each cut

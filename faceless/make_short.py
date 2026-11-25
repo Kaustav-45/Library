@@ -2557,6 +2557,52 @@ def cine_overlays():
         _cine_fx['grain'] = grains
     return _cine_fx['vig'], _cine_fx['grain']
 
+_cutouts = {}
+def cutout(path, colour=0.35):
+    """Cut a subject off pale paper (e.g. Duerer's hare) using brightness, graded like the scenes."""
+    key = (path, colour, BG0, GOLD)
+    if key not in _cutouts:
+        raw = np.asarray(Image.open(os.path.join(HERE, path)).convert('RGB'), np.float32)
+        edge = np.concatenate([raw[:60].reshape(-1, 3), raw[-60:].reshape(-1, 3), raw[:, :60].reshape(-1, 3), raw[:, -60:].reshape(-1, 3)])
+        dist = np.sqrt(((raw - np.median(edge, axis=0)) ** 2).sum(-1))           # colour distance from the paper
+        m_ = dist > 45; mh, mw = m_.shape; e = int(min(mh, mw) * 0.05)
+        m_[:e] = m_[-e:] = False; m_[:, :e] = m_[:, -e:] = False                # ignore the scan's border
+        mask = Image.fromarray((m_ * 255).astype(np.uint8))
+        mask = mask.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(21)).filter(ImageFilter.MinFilter(17))   # drop specks, fill holes
+        alpha = mask.filter(ImageFilter.GaussianBlur(2.5))
+        rgb = graded(path, colour).convert('RGBA'); rgb.putalpha(alpha)
+        sig = np.asarray(alpha) > 90
+        rows, cols = np.where(sig.any(1))[0], np.where(sig.any(0))[0]
+        h_ = rows[-1] - rows[0]
+        box = (cols[0], rows[0], cols[-1], rows[0] + int(h_ * 0.9))       # trim the artist's monogram below
+        spr = rgb.crop(box); spr.thumbnail((700, 700), Image.LANCZOS)
+        _cutouts[key] = (spr, spr.transpose(Image.FLIP_LEFT_RIGHT))
+    return _cutouts[key]
+
+def swarm(img, sc, lt):
+    """Animate many copies of a cut-out subject: 'gather' fills rows, 'charge' runs at the camera."""
+    spr, spr_f = cutout(sc['sprite'], sc.get('colour', 0.35))
+    n, mode = sc.get('swarm', 30), sc.get('mode', 'charge')
+    RW, RH = FW * S, FH * S; rng = random.Random(11); items = []
+    for i in range(n):
+        st = i * sc.get('stagger', 0.06); u = rng.random(); flip = rng.random() < 0.5
+        if lt < st: continue
+        if mode == 'gather':
+            depth = rng.uniform(0.25, 1.0); x = rng.uniform(0.05, 0.95) * RW
+            y = (0.48 + 0.42 * depth) * RH; sz = (0.07 + 0.16 * depth) * RW * min(1, (lt - st) / 0.25)
+            hop = abs(math.sin((lt - st) * 6 + i)) * 0.012 * RH * depth
+        else:
+            k = min(1.0, (lt - st) / sc.get('run', 1.6)); depth = 0.15 + 0.85 * k ** 1.6
+            x = (0.5 + (u - 0.5) * (0.4 + 1.3 * depth)) * RW
+            y = (0.5 + 0.42 * depth) * RH; sz = (0.05 + 0.32 * depth) * RW
+            hop = abs(math.sin((lt - st) * 9 + i)) * 0.03 * RH * depth
+        items.append((y, x, sz, hop, flip))
+    for y, x, sz, hop, flip in sorted(items):                                  # far ones first
+        if sz < 4: continue
+        src = spr_f if flip else spr; w_ = int(sz); h_ = int(sz * src.height / src.width)
+        im = src.resize((w_, h_), Image.BILINEAR)
+        img.alpha_composite(im, (int(x - w_ / 2), int(y - h_ - hop)))
+
 def cinema(img, sc, lt, tt):
     """Fill the frame with a graded image, moving the camera from focus f0 to f1 while zooming."""
     src = graded(sc['image'], sc.get('colour', 0.0)); sw, sh = src.size
@@ -2568,7 +2614,10 @@ def cinema(img, sc, lt, tt):
     cw = min(sw, sh * ar) / z; ch = cw / ar
     cx_ = min(max(fx * sw, cw / 2), sw - cw / 2); cy_ = min(max(fy * sh, ch / 2), sh - ch / 2)
     frame = src.crop((int(cx_ - cw / 2), int(cy_ - ch / 2), int(cx_ + cw / 2), int(cy_ + ch / 2))).resize((RW, RH), Image.BICUBIC)
+    if sc.get('shake'):
+        sh = int(math.sin(lt * 47) * 10 * S * sc['shake']); frame = frame.transform(frame.size, Image.AFFINE, (1, 0, sh, 0, 1, int(math.cos(lt * 39) * 8 * S * sc['shake'])))
     img.paste(frame, (0, 0))
+    if sc.get('sprite'): swarm(img, sc, lt)
     if BOKEH: bokeh(img, tt)
     vig, grains = cine_overlays()
     img.alpha_composite(vig); img.alpha_composite(grains[int(tt * 24) % len(grains)])

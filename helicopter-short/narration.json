@@ -1,0 +1,13 @@
+[
+ ["hook","If this tiny tail rotor stops, the whole helicopter spins out of control. Why? And how does a helicopter even fly?"],
+ ["blade","The main rotor blades are actually wings. They're curved and tilted, so as they spin, they push air downward."],
+ ["lift","Push air down, and the air pushes the helicopter up. That's lift. Tilt the blades more, and it climbs."],
+ ["torque","But here's the problem. When the engine spins the rotor one way, Newton's third law spins the body the other way."],
+ ["tail","That's the tail rotor's job. It pushes air sideways, creating a force that cancels the spin and keeps the nose pointing straight."],
+ ["yaw","Change how hard the tail rotor pushes, and the pilot can turn left or right, right on the spot."],
+ ["tilt","To fly forward, the whole spinning rotor tilts. Now some of the lift pulls forward, and off it goes."],
+ ["swash","This is done by a clever part called the swashplate. It changes each blade's angle as it spins around."],
+ ["hover","And when the lift exactly matches the weight, the helicopter hovers perfectly still in the air."],
+ ["twin","Some helicopters skip the tail rotor completely. They use two rotors spinning in opposite directions, so the spins cancel out!"],
+ ["outro","Spinning wings and a balancing tail. That's how a helicopter flies! Follow for more science made simple."]
+]

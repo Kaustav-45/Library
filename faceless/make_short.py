@@ -72,7 +72,7 @@ class SD:
     def line(self, xy, fill=None, width=1, joint=None): self.d.line(self.p(xy), fill=fill, width=self.w(width), joint=joint)
     def ellipse(self, xy, fill=None, outline=None, width=1): self.d.ellipse(self.p(xy), fill=fill, outline=outline, width=self.w(width))
     def rectangle(self, xy, fill=None, outline=None, width=1): self.d.rectangle(self.p(xy), fill=fill, outline=outline, width=self.w(width))
-    def polygon(self, xy, fill=None): self.d.polygon(self.p(xy), fill=fill)
+    def polygon(self, xy, fill=None, outline=None, width=1): self.d.polygon(self.p(xy), fill=fill, outline=outline, width=self.w(width))
     def pieslice(self, xy, a, b, fill=None): self.d.pieslice(self.p(xy), a, b, fill=fill)
     def arc(self, xy, a, b, fill=None, width=1): self.d.arc(self.p(xy), a, b, fill=fill, width=self.w(width))
     def rounded_rectangle(self, xy, radius=0, fill=None, outline=None, width=1):
@@ -1280,6 +1280,107 @@ def gavel(d, cx, cy, s, ang):
     d.polygon([R(-110 * s, -60 * s), R(110 * s, -60 * s), R(110 * s, 40 * s), R(-110 * s, 40 * s)], fill=(150, 96, 52))
     d.polygon([R(-110 * s, -30 * s), R(110 * s, -30 * s), R(110 * s, 10 * s), R(-110 * s, 10 * s)], fill=GOLD)
 
+# ----- explainer animations: map of Japan, blast, certificate, lifeline -----
+JP = {  # simplified coastlines as (longitude, latitude)
+    'honshu': [(130.9, 34.0), (132.0, 34.3), (133.5, 34.4), (135.0, 34.6), (135.3, 33.6), (136.8, 34.3), (137.0, 34.7), (138.8, 34.7), (139.8, 35.0),
+               (140.9, 35.7), (140.8, 37.0), (141.0, 38.3), (141.6, 39.5), (141.5, 40.5), (140.9, 41.5), (140.0, 40.6), (139.9, 39.9), (139.7, 38.8),
+               (138.5, 37.8), (137.3, 37.0), (136.8, 37.3), (136.0, 36.0), (135.4, 35.6), (133.0, 35.5), (131.5, 34.7), (130.9, 34.3)],
+    'kyushu': [(129.6, 33.3), (130.3, 33.9), (131.0, 33.9), (131.9, 33.2), (131.4, 31.4), (130.7, 31.0), (130.2, 31.4), (130.0, 32.2), (129.8, 32.8)],
+    'shikoku': [(132.5, 33.0), (133.3, 33.4), (134.3, 34.2), (134.7, 33.8), (134.2, 33.3), (133.0, 32.8)],
+}
+CITIES = {'HIROSHIMA': (132.46, 34.39), 'NAGASAKI': (129.87, 32.75)}
+
+def jp_xy(lon, lat):
+    return 70 + (lon - 127.6) / (138.6 - 127.6) * 940, VY0 + 60 + (37.0 - lat) / (37.0 - 30.8) * 600
+
+def route_pts(a, b, n=40, bend=-70):
+    (x0, y0), (x1, y1) = jp_xy(*CITIES[a]), jp_xy(*CITIES[b])
+    return [(x0 + (x1 - x0) * u - math.sin(u * math.pi) * bend * (y1 - y0) / max(abs(x1 - x0), 1) * 0.0,
+             y0 + (y1 - y0) * u + math.sin(u * math.pi) * bend) for u in [i / n for i in range(n + 1)]]
+
+def jp_map(d, t, sc):
+    sea = mix(BG0, LIQ, 0.25)
+    d.rectangle([0, VY0 - 40, W, VY1 + 30], fill=sea)
+    for name, pts in JP.items():
+        d.polygon([jp_xy(*q) for q in pts], fill=mix(BG1, CREAM, 0.28), outline=mix(GOLD, BG1, 0.4))
+    mode = sc.get('mode', 'home')
+    if mode in ('trip', 'return'):
+        a, b = ('NAGASAKI', 'HIROSHIMA') if mode == 'trip' else ('HIROSHIMA', 'NAGASAKI')
+        pts = route_pts(a, b); k = ease((t - 0.3) / 1.6); m = int(k * (len(pts) - 1))
+        for j in range(0, m, 2): d.line([pts[j], pts[j + 1]], fill=GOLD, width=9)
+        if m > 0:
+            x, y = pts[m]
+            if mode == 'trip': briefcase(d, x, y - 10, 0.16, t, chain=False)
+            else:                                                                  # a little train
+                d.rounded_rectangle([x - 46, y - 34, x + 46, y + 12], 10, fill=RED); d.rectangle([x - 34, y - 26, x - 8, y - 8], fill=CREAM); d.rectangle([x + 6, y - 26, x + 32, y - 8], fill=CREAM)
+                for wx in (-26, 26): d.ellipse([wx + x - 11, y + 4, wx + x + 11, y + 26], fill=INK)
+    for name, (lon, lat) in CITIES.items():
+        x, y = jp_xy(lon, lat); hot = name in sc.get('hot', [])
+        r = 16 + (8 * (0.5 + 0.5 * math.sin(t * 6)) if hot else 0)
+        if hot: d.ellipse([x - r * 2.2, y - r * 2.2, x + r * 2.2, y + r * 2.2], fill=mix(sea, RED, 0.35))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=RED if hot else GOLD)
+        d.text((x, y - 62), name, font=font('anton', 50), fill=CREAM, anchor='mm', stroke_width=5, stroke_fill=INK)
+    if sc.get('tag'):
+        p = back((t - 0.5) / 0.4)
+        if p > 0.02:
+            (lon, lat) = CITIES[sc.get('tag_city', 'NAGASAKI')]; x, y = jp_xy(lon, lat)
+            d.rounded_rectangle([x - 110 * p, y + 50, x + 110 * p, y + 120], 24, fill=RED)
+            if p > 0.8: text_c(d, (x, y + 85), sc['tag'], font('anton', 44), CREAM)
+    if sc.get('date'):
+        d.rounded_rectangle([W - 470, VY0 + 40, W - 80, VY0 + 130], 24, fill=INK); text_c(d, (W - 275, VY0 + 85), sc['date'], font('anton', 52), GOLD)
+
+def blast(d, t, sc, img):
+    """A city skyline, then a flash, a shockwave and a mushroom cloud climbing over it."""
+    ground = VY1 - 60; cx = W / 2; t0 = 0.5
+    k = max(0.0, t - t0)
+    sky = mix(BG0, (255, 190, 120), max(0.0, 0.85 - k * 0.6)) if t >= t0 else BG0
+    d.rectangle([40, VY0 + 20, W - 40, ground + 30], fill=sky)
+    if t >= t0:
+        for i in range(3):                                                       # expanding shockwave rings
+            r = (k * 700 - i * 160)
+            if 0 < r < 1200: d.ellipse([cx - r * 1.4, ground - 160 - r * 0.45, cx + r * 1.4, ground - 160 + r * 0.45], outline=mix(CREAM, sky, min(1, r / 1200)), width=10)
+        h = min(1.0, k / 2.0); top = ground - 120 - 380 * h
+        for j in range(14):                                                      # the stem
+            u = j / 13; y = ground - 60 - (ground - 60 - top) * u; r = 48 + 34 * u
+            d.ellipse([cx - r, y - r, cx + r, y + r], fill=mix((255, 150, 60), (120, 110, 104), min(1, k * 0.6 + u * 0.3)))
+        rng = random.Random(3)
+        for j in range(22):                                                      # the cap
+            a = rng.uniform(0, 2 * math.pi); rr = rng.uniform(0, 1) * 230 * h + 30
+            x = cx + math.cos(a) * rr * 1.35; y = top + math.sin(a) * rr * 0.5; r = (90 + rng.uniform(0, 60)) * (0.4 + 0.6 * h)
+            d.ellipse([x - r, y - r, x + r, y + r], fill=mix((255, 214, 150), (196, 186, 176), min(1, k * 0.35 + rng.random() * 0.25)))
+    buildings(d, 60, ground, n=8, seed=5, scale=1.0, tilt=min(1.0, k * 1.5) * 0.25 if t >= t0 else 0)
+    d.rectangle([40, ground, W - 40, ground + 30], fill=INK)
+    if t0 <= t < t0 + 0.18: d.rectangle([40, VY0 + 20, W - 40, ground + 30], fill=(255, 250, 235))      # the flash
+    if sc.get('date'):
+        d.rounded_rectangle([80, VY0 + 40, 560, VY0 + 130], 24, fill=INK); text_c(d, (320, VY0 + 85), sc['date'], font('anton', 52), GOLD)
+    if sc.get('city'):
+        d.rounded_rectangle([W - 460, VY0 + 40, W - 80, VY0 + 130], 24, fill=RED); text_c(d, (W - 270, VY0 + 85), sc['city'], font('anton', 52), CREAM)
+
+def certificate(d, t, sc, img):
+    p = back(t / 0.5)
+    if p <= 0.02: return
+    w, h = 400 * p, 300 * p; cx, cy = W / 2, VY0 + 340
+    d.rectangle([cx - w, cy - h, cx + w, cy + h], fill=(240, 232, 212)); d.rectangle([cx - w + 20, cy - h + 20, cx + w - 20, cy + h - 20], outline=GOLD, width=6)
+    if p > 0.85:
+        for i, ln in enumerate(sc.get('lines', ['OFFICIAL', 'RECOGNITION'])): text_c(d, (cx, cy - 170 + i * 80), ln, font('anton', 58 if i == 0 else 46), INK)
+        for i in range(4): d.line([(cx - 260, cy + 20 + i * 38), (cx + 260 - (i % 2) * 90, cy + 20 + i * 38)], fill=shade(INK, 4.0), width=7)
+    q = back((t - 0.9) / 0.35)
+    if q > 0.02:
+        r = 90 * q; sx, sy = cx + 230, cy + 170
+        d.ellipse([sx - r, sy - r, sx + r, sy + r], fill=RED); d.ellipse([sx - r * 0.7, sy - r * 0.7, sx + r * 0.7, sy + r * 0.7], outline=(250, 200, 190), width=5)
+        if q > 0.8: text_c(d, (sx, sy), sc.get('seal', '2009'), font('anton', 44), CREAM)
+
+def lifeline(d, t, sc, img):
+    y = VY0 + 360; x0, x1 = 200, W - 200; y0_, y1_ = sc.get('born', 1916), sc.get('died', 2010)
+    X = lambda yr: x0 + (x1 - x0) * (yr - y0_) / (y1_ - y0_)
+    k = ease(t / 2.2); d.line([(x0, y), (x0 + (x1 - x0) * k, y)], fill=CREAM, width=12)
+    for yr, lab, col in ((y0_, 'BORN ' + str(y0_), CREAM), (1945, '1945', RED), (y1_, str(y1_), CREAM)):
+        if X(yr) <= x0 + (x1 - x0) * k + 1:
+            d.ellipse([X(yr) - 22, y - 22, X(yr) + 22, y + 22], fill=col); text_c(d, (X(yr), y + 70), lab, font('anton', 46), col, stroke=4)
+    if X(1945) <= x0 + (x1 - x0) * k + 1:
+        for dx in (-30, 30): d.ellipse([X(1945) + dx - 14, y - 110, X(1945) + dx + 14, y - 82], fill=(255, 170, 80))
+    age = int(round(sc.get('age', y1_ - y0_) * k)); text_c(d, (W / 2, y - 200), f'AGE {age}', font('anton', 140), GOLD, stroke=7)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -2476,6 +2577,14 @@ def visual(d, kind, t, dur, img, sc=None):
                 person(d, cx, y0 + 330, 2.6, ROBE_W)
                 d.polygon([(cx - 40, y0 + 160), (cx - 30, y0 + 70), (cx, y0 + 40), (cx + 30, y0 + 70), (cx + 40, y0 + 160)], fill=GOLD)
             for i in range(7): d.rectangle([x0 + 20 + i * 64, y0, x0 + 34 + i * 64, y0 + 360 * p], fill=STEEL)
+    elif kind == 'jp_map':
+        jp_map(d, t, sc or {})
+    elif kind == 'blast':
+        blast(d, t, sc or {}, img)
+    elif kind == 'certificate':
+        certificate(d, t, sc or {}, img)
+    elif kind == 'lifeline':
+        lifeline(d, t, sc or {}, img)
     elif kind == 'follow':
         p = 1 + 0.06 * math.sin(t * 6)
         bw, bh = 560 * p, 150 * p

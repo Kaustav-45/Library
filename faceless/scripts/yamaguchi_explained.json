@@ -1,0 +1,305 @@
+{
+ "title": "The Man Who Survived Both Atomic Bombs (explained)",
+ "style": "fast",
+ "gap": 0.1,
+ "voice": "kokoro:am_michael",
+ "speed": 1.0,
+ "grain": 4.0,
+ "maxrate": "24M",
+ "transitions": true,
+ "palette": {
+  "bg0": [
+   18,
+   12,
+   8
+  ],
+  "bg1": [
+   80,
+   52,
+   24
+  ],
+  "bg2": [
+   120,
+   84,
+   34
+  ],
+  "text": [
+   255,
+   246,
+   224
+  ],
+  "headline": [
+   255,
+   212,
+   60
+  ],
+  "accent": [
+   180,
+   50,
+   34
+  ],
+  "ink": [
+   20,
+   12,
+   6
+  ],
+  "line": [
+   150,
+   110,
+   60
+  ],
+  "liquid": [
+   52,
+   80,
+   104
+  ],
+  "steel": [
+   176,
+   160,
+   136
+  ],
+  "glow": [
+   255,
+   170,
+   60
+  ],
+  "pop": [
+   [
+    255,
+    212,
+    60
+   ],
+   [
+    255,
+    170,
+    90
+   ],
+   [
+    255,
+    246,
+    224
+   ],
+   [
+    230,
+    120,
+    60
+   ],
+   [
+    250,
+    220,
+    150
+   ]
+  ],
+  "bokeh": [
+   [
+    255,
+    196,
+    110
+   ]
+  ]
+ },
+ "scenes": [
+  {
+   "say": "One man survived both atomic bombs.",
+   "visual": "cinema",
+   "image": "assets/yamaguchi/clouds.jpg",
+   "f0": [
+    0.24,
+    0.42
+   ],
+   "f1": [
+    0.24,
+    0.34
+   ],
+   "zoom": [
+    1.1,
+    1.3
+   ],
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "His name was Tsutomu Yamaguchi. He lived in Nagasaki, in southern Japan.",
+   "visual": "jp_map",
+   "mode": "home",
+   "hot": [
+    "NAGASAKI"
+   ],
+   "tag": "HOME",
+   "tag_city": "NAGASAKI",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "In August 1945, his company sent him to Hiroshima for work.",
+   "visual": "jp_map",
+   "mode": "trip",
+   "hot": [
+    "HIROSHIMA"
+   ],
+   "date": "AUGUST 1945",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "On the morning of August sixth, the first atomic bomb exploded over Hiroshima.",
+   "visual": "blast",
+   "date": "AUG 6 · 8:15 AM",
+   "city": "HIROSHIMA",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "He was badly burned, but he survived.",
+   "visual": "cinema",
+   "image": "assets/yamaguchi/ruins.jpg",
+   "f0": [
+    0.35,
+    0.5
+   ],
+   "f1": [
+    0.55,
+    0.5
+   ],
+   "zoom": [
+    1.0,
+    1.15
+   ],
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "The next day, injured, he made his way home to Nagasaki.",
+   "visual": "jp_map",
+   "mode": "return",
+   "hot": [
+    "NAGASAKI"
+   ],
+   "date": "AUG 7",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "Three days after the first bomb...",
+   "visual": "calendar_flip",
+   "seq": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "month": "AUGUST",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "on August ninth, a second atomic bomb hit Nagasaki.",
+   "visual": "blast",
+   "date": "AUG 9 · 11:02 AM",
+   "city": "NAGASAKI",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "And somehow, he survived again.",
+   "visual": "cinema",
+   "image": "assets/yamaguchi/clouds.jpg",
+   "f0": [
+    0.72,
+    0.5
+   ],
+   "f1": [
+    0.72,
+    0.36
+   ],
+   "zoom": [
+    1.25,
+    1.45
+   ],
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "In 2009, Japan officially recognised him as the only known survivor of both bombings.",
+   "visual": "certificate",
+   "lines": [
+    "OFFICIALLY RECOGNISED",
+    "SURVIVOR OF",
+    "HIROSHIMA AND NAGASAKI"
+   ],
+   "seal": "2009",
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "He lived to the age of ninety three.",
+   "visual": "lifeline",
+   "born": 1916,
+   "died": 2010,
+   "colour": 0.3,
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "age": 93
+  },
+  {
+   "say": "And he spent his later years speaking out against nuclear weapons.",
+   "visual": "cinema",
+   "image": "assets/yamaguchi/cranes.jpg",
+   "colour": 0.85,
+   "f0": [
+    0.3,
+    0.5
+   ],
+   "f1": [
+    0.7,
+    0.5
+   ],
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  },
+  {
+   "say": "One man. Two atomic bombs. And he never stopped telling his story.",
+   "visual": "cinema",
+   "image": "assets/yamaguchi/cranes.jpg",
+   "colour": 0.85,
+   "f0": [
+    0.5,
+    0.5
+   ],
+   "zoom": [
+    1.15,
+    1.3
+   ],
+   "banner": "TSUTOMU YAMAGUCHI",
+   "kicker": "",
+   "big": "",
+   "sub": ""
+  }
+ ]
+}

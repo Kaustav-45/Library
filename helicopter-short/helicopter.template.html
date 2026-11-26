@@ -67,11 +67,21 @@ let seed=91; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483
 
 const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
 document.getElementById('stage').appendChild(renderer.domElement);
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0x8ec5f0); scene.fog=new THREE.Fog(0x8ec5f0,80,260);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0xcfe3f2); scene.fog=new THREE.Fog(0xcfe3f2,90,300);
 const camera=new THREE.PerspectiveCamera(62,1,0.05,600);
-scene.add(new THREE.HemisphereLight(0xeaf4ff,0x4a6040,0.48));
-const sun=new THREE.DirectionalLight(0xfff2dd,1.35); sun.position.set(-12,20,14); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xeaf4ff,0x4a6040,0.3));
+const sun=new THREE.DirectionalLight(0xfff2dd,1.6); sun.position.set(-12,20,14); scene.add(sun); scene.add(sun.target);
+sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:1,far:80}); sun.shadow.bias=-0.0005; sun.shadow.radius=4;
+// gradient sky dome
+{ const g=new THREE.SphereGeometry(480,32,16), cols=[], top=new THREE.Color(0x2f6fc4), hor=new THREE.Color(0xd6e8f5), c=new THREE.Color();
+  const pos=g.attributes.position; for(let i=0;i<pos.count;i++){ const k=Math.pow(Math.max(0,pos.getY(i)/480),0.55); c.copy(hor).lerp(top,k); cols.push(c.r,c.g,c.b); }
+  g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); const sky=new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false})); scene.add(sky);
+  // environment map for realistic reflections
+  const envScene=new THREE.Scene(); envScene.add(sky.clone()); const eg=new THREE.Mesh(new THREE.CircleGeometry(470,32),new THREE.MeshBasicMaterial({color:0x3e5a33,side:THREE.DoubleSide})); eg.rotation.x=-Math.PI/2; eg.position.y=-2; envScene.add(eg);
+  const sunBall=new THREE.Mesh(new THREE.SphereGeometry(30,16,8),new THREE.MeshBasicMaterial({color:0xfff6e0})); sunBall.position.set(-200,300,240); envScene.add(sunBall);
+  const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(envScene,0.02).texture; }
 
 function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
   const r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.3,'rgba(255,255,255,.5)'); r.addColorStop(1,'rgba(255,255,255,0)');
@@ -92,10 +102,13 @@ function curvedArrow(radius,color,tube=0.07,span=Math.PI*1.3){ const m=new THREE
   g.userData.m=m; scene.add(g); return g; }
 
 // ---------- world ----------
-const ground=new THREE.Mesh(new THREE.CircleGeometry(420,64),new THREE.MeshStandardMaterial({color:0x4a7a38,roughness:1})); ground.rotation.x=-Math.PI/2; scene.add(ground);
+function grassTex(){ const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d'); g.fillStyle='#4f7f3a'; g.fillRect(0,0,256,256);
+  for(let i=0;i<5000;i++){ const v=Math.floor(rnd()*60); g.fillStyle=`rgba(${40+v},${90+v},${30+v*0.5},0.55)`; g.fillRect(rnd()*256,rnd()*256,1+rnd()*2,2+rnd()*4); }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(140,140); t.anisotropy=8; return t; }
+const ground=new THREE.Mesh(new THREE.CircleGeometry(420,64),new THREE.MeshStandardMaterial({map:grassTex(),roughness:1})); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
 const padM=new THREE.MeshStandardMaterial({color:0x5b6270,roughness:0.9});
 function helipad(x,z){ const g=new THREE.Group(); g.position.set(x,0.02,z); scene.add(g);
-  const c=new THREE.Mesh(new THREE.CircleGeometry(4.2,48),padM); c.rotation.x=-Math.PI/2; g.add(c);
+  const c=new THREE.Mesh(new THREE.CircleGeometry(4.2,48),padM); c.rotation.x=-Math.PI/2; c.receiveShadow=true; g.add(c);
   const ring=new THREE.Mesh(new THREE.RingGeometry(3.7,3.95,48),new THREE.MeshBasicMaterial({color:0xffd84d})); ring.rotation.x=-Math.PI/2; ring.position.y=0.01; g.add(ring);
   const wm=new THREE.MeshBasicMaterial({color:0xffffff}); [[-0.9,0],[0.9,0]].forEach(([dx])=>{ const b=box(0.35,0.01,2.4,wm); b.position.set(dx,0.02,0); g.add(b); }); const b2=box(1.8,0.01,0.35,wm); b2.position.y=0.02; g.add(b2); }
 helipad(0,0); helipad(34,0);
@@ -110,10 +123,11 @@ const clouds=[]; for(let i=0;i<16;i++){ const s=sprite(0xffffff,22+rnd()*20,0.55
 function makeHeli(color){
   const heli=new THREE.Group(); scene.add(heli);
   const body=new THREE.Group(); heli.add(body);
-  const paint=phys(color), white=phys(0xf3f5f8), dark=phys(0x2a2f3a,{metalness:0.6});
-  const fus=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),paint); fus.scale.set(1.75,1.0,0.98); fus.position.set(0.3,0.6,0); body.add(fus);
-  const stripe=new THREE.Mesh(new THREE.SphereGeometry(1.005,48,32,0,TAU,1.45,0.22),white); stripe.scale.copy(fus.scale); stripe.position.copy(fus.position); body.add(stripe);
-  const glass=new THREE.Mesh(new THREE.SphereGeometry(0.98,40,24,-0.9,1.8,0.25,1.15),phys(0x0d2238,{metalness:0.3,roughness:0.05,clearcoat:1})); glass.scale.set(1.78,1.0,1.0); glass.position.set(0.32,0.62,0); glass.rotation.y=-Math.PI/2; body.add(glass);
+  const paint=phys(color,{metalness:0.55,roughness:0.25,clearcoat:1,clearcoatRoughness:0.05}), white=phys(0xf3f5f8,{metalness:0.2}), dark=phys(0x2a2f3a,{metalness:0.6});
+  const prof=[[0,-1.75],[0.32,-1.68],[0.62,-1.35],[0.86,-0.75],[0.98,0.0],[0.97,0.7],[0.86,1.3],[0.62,1.8],[0.3,2.08],[0,2.16]].map(p=>new THREE.Vector2(p[0],p[1]));
+  const fus=new THREE.Mesh(new THREE.LatheGeometry(prof,56),paint); fus.rotation.z=-Math.PI/2; fus.scale.set(1.0,1.0,0.95); fus.position.set(0.2,0.6,0); body.add(fus);
+  const belly=new THREE.Mesh(new THREE.LatheGeometry(prof,56,Math.PI*0.75,Math.PI*0.5),white); belly.rotation.z=-Math.PI/2; belly.scale.set(1.01,1.01,0.96); belly.position.copy(fus.position); body.add(belly);
+  const glass=new THREE.Mesh(new THREE.SphereGeometry(1,40,28),phys(0x0d2238,{metalness:0.4,roughness:0.04,clearcoat:1,clearcoatRoughness:0.02})); glass.scale.set(1.05,0.72,0.86); glass.position.set(1.15,0.92,0); body.add(glass);
   const boom=cyl(0.24,4.1,paint,20,0.12); boom.rotation.z=Math.PI/2; boom.position.set(-2.55,0.9,0); body.add(boom);
   const fin=box(0.75,1.1,0.07,paint); fin.position.set(-4.4,1.35,0); fin.rotation.z=-0.35; body.add(fin);
   const stab=box(0.5,0.06,1.2,paint); stab.position.set(-4.0,0.95,0); body.add(stab);
@@ -129,20 +143,24 @@ function makeHeli(color){
   const rotor=new THREE.Group(); rotor.position.set(0.2,2.28,0); body.add(rotor);
   const hub=cyl(0.22,0.22,dark,16); rotor.add(hub);
   const bladeM=phys(0x30343e,{metalness:0.5}), tipM=new THREE.MeshBasicMaterial({color:0xffd84d});
-  const blades=[], links=[];
+  const blades=[], links=[], ghosts=[];
   for(let i=0;i<4;i++){ const arm=new THREE.Group(); arm.rotation.y=i*TAU/4; rotor.add(arm);
-    const pitch=new THREE.Group(); arm.add(pitch);
+    const cone=new THREE.Group(); cone.rotation.z=0.045; arm.add(cone); const pitch=new THREE.Group(); cone.add(pitch);
+    [[0.11,0.32],[0.22,0.16],[0.33,0.07]].forEach(([da,op])=>{ const gm=new THREE.MeshBasicMaterial({color:0x30343e,transparent:true,opacity:op,depthWrite:false}); const gb=box(4.3,0.03,0.34,gm); gb.position.x=2.35; const gh=new THREE.Group(); gh.rotation.y=da; gh.add(gb); cone.add(gh); ghosts.push(gm); });
     const bl=box(4.3,0.045,0.34,bladeM); bl.position.x=2.35; pitch.add(bl); const tip=box(0.3,0.05,0.35,tipM); tip.position.x=4.35; pitch.add(tip);
     const link=cyl(0.025,0.34,phys(0xc0c8d4,{metalness:0.9}),8); link.position.set(0.3,-0.17,0.16); arm.add(link);
     blades.push(pitch); links.push(link); }
-  const disc=new THREE.Mesh(new THREE.CircleGeometry(4.5,64),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.08,side:THREE.DoubleSide,depthWrite:false})); disc.rotation.x=-Math.PI/2; rotor.add(disc);
+  const dc=document.createElement('canvas'); dc.width=dc.height=256; { const g=dc.getContext('2d'); const gr=g.createRadialGradient(128,128,10,128,128,128);
+    gr.addColorStop(0,'rgba(40,44,54,0)'); gr.addColorStop(0.15,'rgba(40,44,54,.25)'); gr.addColorStop(0.85,'rgba(40,44,54,.32)'); gr.addColorStop(0.93,'rgba(255,216,77,.35)'); gr.addColorStop(1,'rgba(40,44,54,0)'); g.fillStyle=gr; g.fillRect(0,0,256,256); }
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(4.6,64),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(dc),transparent:true,opacity:0.9,side:THREE.DoubleSide,depthWrite:false})); disc.rotation.x=-Math.PI/2; disc.position.y=0.06; rotor.add(disc);
   // tail rotor
   const tail=new THREE.Group(); tail.position.set(-4.55,1.35,0.12); body.add(tail);
   const tbM=phys(0x30343e); for(let i=0;i<2;i++){ const b=box(0.08,1.2,0.025,tbM); b.rotation.z=i*Math.PI/2; tail.add(b); }
   const tdisc=new THREE.Mesh(new THREE.CircleGeometry(0.6,32),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.1,side:THREE.DoubleSide,depthWrite:false})); tail.add(tdisc);
   const navR=sprite(0xff3030,0.5,0.9,true,body); navR.position.set(0.3,0.6,1.0); const navG=sprite(0x30ff60,0.5,0.9,true,body); navG.position.set(0.3,0.6,-1.0);
   const beacon=sprite(0xff3030,0.7,0.9,true,body); beacon.position.set(-4.5,1.95,0);
-  return {heli,body,rotor,blades,links,tail,tdisc,swash,swUp,swUpM,beacon,disc};
+  body.traverse(o=>{ if(o.isMesh && !(o.material&&o.material.transparent)) o.castShadow=true; });
+  return {heli,body,rotor,blades,links,tail,tdisc,swash,swUp,swUpM,beacon,disc,ghosts};
 }
 const H1=makeHeli(0xd22f1c);
 
@@ -259,14 +277,17 @@ const tmp=V(0,0,0); let lastLine=-2;
 function renderAt(t){
   t=clamp(t,0,DURATION);
   // helicopter state
-  hp.set(integ(0,t,vx),heliY(t),0);
-  H1.heli.position.copy(hp); H1.body.rotation.set(0,yawAt(t),pitchAt(t),'YXZ');
+  hp.set(integ(0,t,vx)+0.18*Math.sin(t*0.53)+0.07*Math.sin(t*1.7),heliY(t)+0.05*Math.sin(t*1.13),0.16*Math.sin(t*0.41)+0.06*Math.sin(t*1.3));
+  const yawRate=clamp((yawAt(t+0.04)-yawAt(t))/0.04,-1.5,1.5), accel=(vx(t+0.1)-vx(t))/0.1;
+  const roll=0.035*Math.sin(t*0.9)+0.02*Math.sin(t*2.1)-0.09*yawRate*(t>L(1).start?1:0.15);
+  H1.heli.position.copy(hp); H1.body.rotation.set(roll,yawAt(t),pitchAt(t)-0.02*accel+0.02*Math.sin(t*0.7),'YXZ');
+  sun.position.copy(hp).add(V(-9,16,11)); sun.target.position.copy(hp);
   const rAng=integ(0,t,x=>7.2); H1.rotor.rotation.y=rAng;
   const coll=collective(t), cyc=cyclic(t);
   H1.blades.forEach((b,i)=>{ const psi=rAng+i*TAU/4; b.rotation.x=coll+cyc*Math.cos(psi); });
   H1.swash.rotation.z=-cyc*0.6; H1.swUp.rotation.z=rAng; H1.swUpM.emissiveIntensity=0.6*win(L(7).start+0.8,L(7).end,t);
   const tOn=tailOff(t)?0:1; const tAng=integ(0,t,x=>tailOff(x)?0:24); H1.tail.rotation.z=tAng; H1.tdisc.material.opacity=0.12*tOn;
-  H1.disc.material.opacity=0.07+0.04*Math.sin(t*3);
+  H1.disc.material.opacity=0.85+0.1*Math.sin(t*3);
   H1.beacon.material.opacity=(Math.sin(t*6)>0.6)?0.95:0.1;
   camAt(t);
 

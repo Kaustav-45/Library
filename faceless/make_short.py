@@ -1381,6 +1381,218 @@ def lifeline(d, t, sc, img):
         for dx in (-30, 30): d.ellipse([X(1945) + dx - 14, y - 110, X(1945) + dx + 14, y - 82], fill=(255, 170, 80))
     age = int(round(sc.get('age', y1_ - y0_) * k)); text_c(d, (W / 2, y - 200), f'AGE {age}', font('anton', 140), GOLD, stroke=7)
 
+# ----- the Pig War (1859): cartoon pig, flags, island map -----
+PINK, PINK_D = (240, 164, 156), (206, 120, 116)
+def pig(d, x, ground, s, t=0.0, f=1, walk=0.0, dead=0.0, eat=0.0, halo=0.0):
+    """A cartoon pig, feet at (x, ground). f = 1 faces right. dead in 0..1 rolls it on its back."""
+    X = lambda v: x + f * v * s; Y = lambda v: ground - v * s
+    if dead > 0.5:
+        d.ellipse([X(-120), Y(150), X(120), Y(20)], fill=PINK)
+        for lx in (-70, -25, 25, 70): d.line([(X(lx), Y(130)), (X(lx + 8), Y(200))], fill=PINK_D, width=int(18 * s))
+        hx, hy = X(130), Y(80); d.ellipse([hx - 62 * s, hy - 56 * s, hx + 62 * s, hy + 56 * s], fill=PINK)
+        for ex in (-14, 22):
+            e = X(130 + ex) if f > 0 else X(130 + ex)
+            d.line([(e - 11 * s, hy - 22 * s), (e + 11 * s, hy - 2 * s)], fill=INK, width=int(6 * s)); d.line([(e - 11 * s, hy - 2 * s), (e + 11 * s, hy - 22 * s)], fill=INK, width=int(6 * s))
+        d.ellipse([X(170) - 22 * s, hy + 6 * s, X(170) + 22 * s, hy + 34 * s], fill=PINK_D)
+        return
+    bob = abs(math.sin(walk * 9)) * 10 * s
+    if halo > 0:
+        hy = Y(270) - bob - 10 * math.sin(t * 3) * s
+        d.ellipse([X(0) - 90 * s, hy - 22 * s, X(0) + 90 * s, hy + 22 * s], outline=GOLD, width=int(12 * s))
+        for sg in (-1, 1):
+            flap = math.sin(t * 7) * 30
+            d.polygon([(X(-20), Y(170) - bob), (X(-20) + sg * 190 * s * halo, Y(260 + flap) - bob), (X(-20) + sg * 150 * s * halo, Y(150 + flap * 0.3) - bob)], fill=CREAM)
+    for i, lx in enumerate((-80, -40, 45, 85)):                               # legs
+        sw = math.sin(walk * 9 + i * math.pi) * 14 * s if walk else 0
+        d.rounded_rectangle([X(lx) - 13 * s + sw, Y(70) - bob, X(lx) + 13 * s + sw, ground], 8 * s, fill=PINK_D)
+    d.ellipse([X(-130), Y(200) - bob, X(130), Y(55) - bob], fill=PINK)          # body
+    tx, ty = X(-128), Y(150) - bob                                             # curly tail
+    d.arc([tx - 30 * s, ty - 30 * s, tx + 10 * s, ty + 10 * s], 0, 300, fill=PINK_D, width=int(9 * s))
+    dip = eat * (16 + 12 * math.sin(t * 14)) * s
+    hx, hy = X(140), Y(150) - bob + dip
+    d.ellipse([hx - 70 * s, hy - 62 * s, hx + 70 * s, hy + 62 * s], fill=PINK)
+    for ex in (-30, 25):                                                       # ears
+        e = hx + f * ex * s
+        d.polygon([(e - 24 * s, hy - 46 * s), (e + 24 * s, hy - 50 * s), (e + f * 6 * s, hy - 98 * s)], fill=PINK_D)
+    sx = hx + f * 58 * s; d.ellipse([sx - 30 * s, hy - 10 * s, sx + 30 * s, hy + 34 * s], fill=PINK_D)
+    for nx in (-10, 10): d.ellipse([sx + nx * s - 5 * s, hy + 6 * s, sx + nx * s + 5 * s, hy + 18 * s], fill=INK)
+    ex_ = hx + f * 22 * s; d.ellipse([ex_ - 9 * s, hy - 26 * s, ex_ + 9 * s, hy - 8 * s], fill=INK)
+
+def flag(d, x, top, s, nation, t=0.0):
+    """A small waving flag on a pole: 'us' (stars and stripes) or 'uk' (red cross on blue)."""
+    d.line([(x, top), (x, top + 330 * s)], fill=CREAM, width=int(8 * s))
+    w, h = 170 * s, 110 * s
+    wave = lambda u: math.sin(t * 5 + u * 4) * 8 * s * u
+    if nation == 'us':
+        for i in range(7):
+            y0 = top + i * h / 7
+            d.polygon([(x, y0), (x + w, y0 + wave(1)), (x + w, y0 + h / 7 + wave(1)), (x, y0 + h / 7)], fill=(190, 40, 40) if i % 2 == 0 else (245, 236, 220))
+        d.rectangle([x, top, x + w * 0.42, top + h * 4 / 7], fill=(40, 60, 120))
+        for i in range(6): d.ellipse([x + 10 * s + (i % 3) * 22 * s, top + 10 * s + (i // 3) * 24 * s, x + 18 * s + (i % 3) * 22 * s, top + 18 * s + (i // 3) * 24 * s], fill=CREAM)
+    else:
+        d.polygon([(x, top), (x + w, top + wave(1)), (x + w, top + h + wave(1)), (x, top + h)], fill=(40, 60, 120))
+        d.line([(x, top + h / 2), (x + w, top + h / 2 + wave(1))], fill=CREAM, width=int(30 * s)); d.line([(x + w / 2, top), (x + w / 2, top + h)], fill=CREAM, width=int(30 * s))
+        d.line([(x, top + h / 2), (x + w, top + h / 2 + wave(1))], fill=(190, 40, 40), width=int(16 * s)); d.line([(x + w / 2, top), (x + w / 2, top + h)], fill=(190, 40, 40), width=int(16 * s))
+
+def sj_map(d, t, sc):
+    """Vancouver Island (British), the US mainland and San Juan Island between two claimed borders."""
+    sea = mix(BG0, LIQ, 0.3); land = mix(BG1, CREAM, 0.28)
+    d.rounded_rectangle([50, VY0 + 20, W - 50, VY1 - 10], 30, fill=sea)
+    d.polygon([(50, VY0 + 60), (420, VY0 + 40), (470, VY0 + 260), (380, VY0 + 470), (230, VY0 + 600), (50, VY0 + 640)], fill=land)       # Vancouver Is.
+    d.polygon([(W - 50, VY0 + 20), (W - 50, VY1 - 10), (560, VY1 - 10), (650, VY0 + 520), (760, VY0 + 300), (700, VY0 + 120), (760, VY0 + 20)], fill=land)   # mainland
+    isl = [(470, VY0 + 330), (540, VY0 + 300), (610, VY0 + 340), (600, VY0 + 430), (520, VY0 + 450), (480, VY0 + 400)]
+    hot = 0.5 + 0.5 * math.sin(t * 6)
+    d.polygon([(x - 18, y) if i < 0 else (x, y) for i, (x, y) in enumerate(isl)], fill=mix(GOLD, RED, hot * 0.5))
+    text_c(d, (230, VY0 + 300), 'BRITISH', font('anton', 52), INK); text_c(d, (880, VY0 + 650), 'AMERICAN', font('anton', 52), INK)
+    k = ease((t - 0.4) / 1.2)
+    for col, xo, lab, ly in (((40, 60, 140), -60, 'US CLAIM', VY0 + 140), ((190, 40, 40), 90, 'UK CLAIM', VY0 + 560)):
+        pts = [(540 + xo + math.sin(u * 5) * 30, VY0 + 30 + u * 640) for u in [j / 30 for j in range(31)]]
+        m = int(k * 30)
+        for j in range(0, m, 2): d.line([pts[j], pts[j + 1]], fill=col, width=10)
+        if k > 0.9: text_c(d, (540 + xo * 2.1, ly), lab, font('anton', 40), CREAM, stroke=4, sfill=col)
+    p = back((t - 1.2) / 0.4)
+    if p > 0.02:
+        d.rounded_rectangle([540 - 230 * p, VY0 + 470, 540 + 230 * p, VY0 + 540], 22, fill=INK)
+        if p > 0.8: text_c(d, (540, VY0 + 505), 'SAN JUAN ISLAND', font('anton', 44), GOLD)
+
+def potato_rows(d, ground, t, gone=0.0):
+    for r in range(3):
+        y = ground - 40 - r * 70; d.rounded_rectangle([90 + r * 40, y - 14, W - 90 - r * 40, y + 14], 12, fill=(110, 74, 40))
+        for i in range(9):
+            x = 130 + r * 40 + i * 100
+            if (i + r) % 3 == 0 and gone > (i / 9): continue
+            sway = math.sin(t * 2 + i + r) * 6
+            for a in (-0.6, 0, 0.6): d.ellipse([x + sway + a * 40 - 18, y - 60 - abs(a) * -10, x + sway + a * 40 + 18, y - 24], fill=(96, 140, 60))
+
+def pig_war_visual(d, kind, t, dur, sc):
+    cx, ground = W / 2, VY1 - 40
+    if kind == 'pig_hook':
+        flag(d, 110, VY0 + 40, 1.0, 'us', t); flag(d, W - 290, VY0 + 40, 1.0, 'uk', t)
+        soldier(d, 250, ground, 0.85, f=1, col=(40, 52, 96)); soldier(d, W - 250, ground, 0.85, f=-1, col=(150, 36, 32))
+        pig(d, cx - 60, ground, 1.15 + 0.03 * math.sin(t * 3), t, walk=0)
+        p = back((t - 0.4) / 0.4)
+        if p > 0.02: text_c(d, (cx, VY0 + 200), '1859', font('anton', 170 * p), GOLD, stroke=7)
+    elif kind == 'pig_map':
+        sj_map(d, t, sc)
+    elif kind == 'pig_garden':
+        potato_rows(d, ground, t, gone=ease((t - 0.8) / 2.0))
+        k = ease(t / 1.2); px = -200 + (cx + 40 + 200) * k
+        pig(d, px - 160, ground - 120, 0.9, t, walk=t if k < 1 else 0, eat=1.0 if k >= 1 else 0)
+        person(d, W - 170, ground - 40, 3.4, SIL)
+        p = back((t - 0.6) / 0.35)
+        if p > 0.02:
+            bx, by = W - 230, VY0 + 120
+            d.rounded_rectangle([bx - 110 * p, by - 70 * p, bx + 110 * p, by + 70 * p], 30, fill=CREAM)
+            if p > 0.8: text_c(d, (bx, by), 'HEY!', font('anton', 80), RED)
+        d2 = back((t - 1.0) / 0.4)
+        if d2 > 0.02: text_c(d, (330, VY0 + 110), 'MY POTATOES', font('anton', 62 * d2), GOLD, stroke=5)
+    elif kind == 'pig_shot':
+        potato_rows(d, ground, t, gone=1.0)
+        hit = 0.9; dead = 1.0 if t > hit else 0.0
+        pig(d, cx - 150, ground - 120, 0.9, t, dead=dead)
+        x = W - 170; person(d, x, ground - 30, 2.6, SIL)
+        d.line([(x - 30, ground - 150), (x - 210, ground - 190)], fill=SIL, width=16)
+        if hit <= t < hit + 0.5:
+            q = (t - hit) / 0.5; r = 60 + 120 * q
+            pts = [(x - 230 + math.cos(a) * r * (1 if i % 2 else 0.5), ground - 195 + math.sin(a) * r * (1 if i % 2 else 0.5)) for i, a in enumerate([j * math.pi / 8 for j in range(16)])]
+            d.polygon(pts, fill=(255, 220, 120))
+        if t > hit:
+            p = back((t - hit) / 0.3); text_c(d, (cx + 60, VY0 + 160), 'BANG!', font('anton', 190 * p), RED, stroke=8)
+        if t > hit + 0.6:
+            p = back((t - hit - 0.6) / 0.35)
+            d.rounded_rectangle([cx - 150 - 250 * p, VY0 + 300, cx - 150 + 250 * p, VY0 + 380], 24, fill=INK)
+            if p > 0.8: text_c(d, (cx - 150, VY0 + 340), "A BRITISH PIG", font('anton', 52), GOLD)
+    elif kind == 'pig_price':
+        for i, (lab, sub_, col, x) in enumerate((('$10', 'OFFERED', (60, 150, 80), 330), ('$100', 'DEMANDED', RED, 750))):
+            p = back((t - 0.3 - i * 1.0) / 0.4)
+            if p <= 0.02: continue
+            sw = math.sin(t * 2.5 + i) * 0.06
+            w, h = 190 * p, 280 * p; cy = VY0 + 340
+            pts = [(-w, -h + 70 * p), (0, -h), (w, -h + 70 * p), (w, h), (-w, h)]
+            pts = [(x + px * math.cos(sw) - py * math.sin(sw), cy + px * math.sin(sw) + py * math.cos(sw)) for px, py in pts]
+            d.polygon(pts, fill=CREAM); d.ellipse([x - 22, cy - h + 50 * p, x + 22, cy - h + 94 * p], fill=BG0)
+            if p > 0.8:
+                text_c(d, (x, cy + 10), lab, font('anton', 150), col); text_c(d, (x, cy + 180), sub_, font('anton', 50), INK)
+        if t > 1.4: pig(d, cx, ground, 0.45, t, dead=1.0)
+    elif kind == 'pig_troops':
+        n = sc.get('n', 461); k = ease((t - 0.2) / max(dur * 0.8, 1.5))
+        flag(d, 90, VY0 + 40, 0.8, 'us', t)
+        for r in range(3):
+            for i in range(9):
+                j = r * 9 + i
+                if j / 27 > k + 0.02: continue
+                soldier(d, 160 + i * 105 + r * 30, ground - 150 + r * 75, 0.55 - r * 0.06 * -1, f=1, col=mix((40, 52, 96), BG0, r * 0.25))
+        text_c(d, (cx + 160, VY0 + 160), f'{int(round(n * k))}', font('anton', 200), GOLD, stroke=8)
+        text_c(d, (cx + 160, VY0 + 290), 'US SOLDIERS', font('anton', 60), CREAM, stroke=4)
+    elif kind == 'pig_fleet':
+        wl = ground - 120
+        for i in range(5):
+            p = ease((t - i * 0.25) / 0.6)
+            if p <= 0: continue
+            x = -300 + (180 + i * 200 + 300) * p
+            warship(d, x + math.sin(t * 0.7 + i) * 10, wl - (i % 2) * 70, 0.32 + 0.05 * (i % 2))
+        water(d, wl, t)
+        flag(d, W - 260, VY0 + 30, 0.8, 'uk', t)
+        q = back((t - 1.2) / 0.4)
+        if q > 0.02:
+            text_c(d, (cx - 80, VY0 + 120), '5 WARSHIPS', font('anton', 110 * q), GOLD, stroke=7)
+            if q > 0.8: text_c(d, (cx - 80, VY0 + 240), '2,140 MEN · 70 GUNS', font('anton', 60), CREAM, stroke=4)
+    elif kind == 'pig_standoff':
+        for i in range(3):
+            soldier(d, 120 + i * 130, ground, 0.7, pose='aim' if False else 'stand', f=1, col=(40, 52, 96))
+            soldier(d, W - 120 - i * 130, ground, 0.7, f=-1, col=(150, 36, 32))
+        for i in range(3):
+            d.line([(170 + i * 130, ground - 175), (300 + i * 130, ground - 185)], fill=(40, 52, 96), width=10)
+            d.line([(W - 170 - i * 130, ground - 175), (W - 300 - i * 130, ground - 185)], fill=(150, 36, 32), width=10)
+        clock_face(d, cx, VY0 + 250, 150, 11, 50 + 9 * ease(t / max(dur, 1.5)))
+        if int(t * 4) % 2 == 0: text_c(d, (cx, ground - 140), '!', font('anton', 160), RED, stroke=6)
+    elif kind == 'pig_admiral':
+        x = 260; soldier(d, x, ground, 1.1, f=1, rifle=False, pack=False, col=(40, 52, 110))
+        hy = ground - 342 * 1.1
+        d.polygon([(x - 90, hy - 30), (x + 90, hy - 30), (x + 50, hy - 80), (x - 50, hy - 80)], fill=INK)                 # bicorne hat
+        for i in range(3): d.ellipse([x - 20, ground - 300 + i * 40, x - 8, ground - 288 + i * 40], fill=GOLD)
+        p = back((t - 0.3) / 0.4)
+        if p > 0.02:
+            bx, by = 690, VY0 + 260
+            d.rounded_rectangle([bx - 300 * p, by - 170 * p, bx + 300 * p, by + 170 * p], 50, fill=CREAM)
+            d.polygon([(bx - 230 * p, by + 120 * p), (bx - 120 * p, by + 150 * p), (x + 140, by + 300)], fill=CREAM)
+            if p > 0.8:
+                text_c(d, (bx, by - 70), 'NO WAR', font('anton', 100), RED)
+                text_c(d, (bx, by + 60), 'OVER A PIG.', font('anton', 84), INK)
+        pig(d, W - 200, ground, 0.6, t)
+    elif kind == 'pig_camps':
+        d.rectangle([60, ground - 60, W - 60, ground + 20], fill=(110, 130, 70))
+        for x, col, nat in ((230, (40, 52, 110), 'us'), (W - 230, (150, 36, 32), 'uk')):
+            d.polygon([(x - 150, ground - 30), (x + 150, ground - 30), (x, ground - 260)], fill=mix(CREAM, col, 0.15)); d.polygon([(x - 30, ground - 30), (x + 30, ground - 30), (x, ground - 130)], fill=INK)
+            flag(d, x - 6, ground - 520, 0.7, nat, t)
+        yr = 1860 + int(round(12 * ease((t - 0.3) / max(dur * 0.8, 1.5))))
+        text_c(d, (cx, VY0 + 160), str(yr), font('anton', 200), GOLD, stroke=8)
+        text_c(d, (cx, VY0 + 290), '12 YEARS. NO FIGHT.', font('anton', 60), CREAM, stroke=4)
+        pig(d, cx, ground - 30, 0.4, t, walk=t)
+    elif kind == 'pig_kaiser':
+        crown(d, cx, VY0 + 120, 0.7, t)
+        k = ease((t - 0.6) / 1.2); tilt = 0.32 * k
+        px, py = cx, VY0 + 300; L = 330
+        d.line([(px, py), (px, ground - 30)], fill=GOLD, width=16); d.rectangle([px - 120, ground - 40, px + 120, ground - 10], fill=GOLD)
+        ax, ay = px - L * math.cos(tilt), py + L * math.sin(tilt); bx, by = px + L * math.cos(tilt), py - L * math.sin(tilt)
+        d.line([(ax, ay), (bx, by)], fill=GOLD, width=14)
+        for (x, y, nat) in ((ax, ay, 'us'), (bx, by, 'uk')):
+            d.line([(x, y), (x - 80, y + 160)], fill=GOLD, width=5); d.line([(x, y), (x + 80, y + 160)], fill=GOLD, width=5)
+            d.pieslice([x - 110, y + 100, x + 110, y + 220], 0, 180, fill=GOLD)
+            flag(d, x - 50, y - 20, 0.42, nat, t)
+        if k > 0.7:
+            q = back((k - 0.7) / 0.3)
+            d.rounded_rectangle([cx - 230 * q, VY0 + 230, cx + 230 * q, VY0 + 310], 24, fill=RED)
+            if q > 0.8: text_c(d, (cx, VY0 + 270), 'ISLAND: USA', font('anton', 46), CREAM)
+        text_c(d, (W - 200, VY0 + 120), '1872', font('anton', 110), GOLD, stroke=6)
+    elif kind == 'pig_halo':
+        sparkles(d, t, 26)
+        pig(d, cx - 40, ground - 60 - 20 * math.sin(t * 2.4), 1.15, t, halo=ease(t / 0.6))
+        p = back((t - 0.5) / 0.4)
+        if p > 0.02:
+            d.rounded_rectangle([cx - 330 * p, VY0 + 40, cx + 330 * p, VY0 + 150], 34, fill=RED)
+            if p > 0.8: text_c(d, (cx, VY0 + 95), 'CASUALTIES: 1 PIG', font('anton', 66), CREAM)
+
 # ---------- visuals (the area between y=640 and y=1330) ----------
 VY0, VY1 = 640, 1330
 def visual(d, kind, t, dur, img, sc=None):
@@ -2577,6 +2789,8 @@ def visual(d, kind, t, dur, img, sc=None):
                 person(d, cx, y0 + 330, 2.6, ROBE_W)
                 d.polygon([(cx - 40, y0 + 160), (cx - 30, y0 + 70), (cx, y0 + 40), (cx + 30, y0 + 70), (cx + 40, y0 + 160)], fill=GOLD)
             for i in range(7): d.rectangle([x0 + 20 + i * 64, y0, x0 + 34 + i * 64, y0 + 360 * p], fill=STEEL)
+    elif kind.startswith('pig_'):
+        pig_war_visual(d, kind, t, dur, sc or {})
     elif kind == 'jp_map':
         jp_map(d, t, sc or {})
     elif kind == 'blast':

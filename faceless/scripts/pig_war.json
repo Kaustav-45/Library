@@ -1,0 +1,216 @@
+{
+ "title": "The Pig War (1859)",
+ "style": "fast",
+ "gap": 0.1,
+ "voice": "kokoro:am_michael",
+ "speed": 1.0,
+ "grain": 4.0,
+ "maxrate": "24M",
+ "transitions": true,
+ "palette": {
+  "bg0": [
+   18,
+   12,
+   8
+  ],
+  "bg1": [
+   80,
+   52,
+   24
+  ],
+  "bg2": [
+   120,
+   84,
+   34
+  ],
+  "text": [
+   255,
+   246,
+   224
+  ],
+  "headline": [
+   255,
+   212,
+   60
+  ],
+  "accent": [
+   180,
+   50,
+   34
+  ],
+  "ink": [
+   20,
+   12,
+   6
+  ],
+  "line": [
+   150,
+   110,
+   60
+  ],
+  "liquid": [
+   52,
+   80,
+   104
+  ],
+  "steel": [
+   176,
+   160,
+   136
+  ],
+  "glow": [
+   255,
+   170,
+   60
+  ],
+  "pop": [
+   [
+    255,
+    212,
+    60
+   ],
+   [
+    255,
+    170,
+    90
+   ],
+   [
+    255,
+    246,
+    224
+   ],
+   [
+    230,
+    120,
+    60
+   ],
+   [
+    250,
+    220,
+    150
+   ]
+  ],
+  "bokeh": [
+   [
+    255,
+    196,
+    110
+   ]
+  ]
+ },
+ "scenes": [
+  {
+   "say": "In 1859, America and Britain almost went to war... over a pig.",
+   "visual": "pig_hook",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "Both countries claimed San Juan Island, between Canada and the United States.",
+   "visual": "pig_map",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "One morning, an American farmer found a pig eating his potatoes.",
+   "visual": "pig_garden",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "It was a British pig. So he shot it.",
+   "visual": "pig_shot",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "He offered ten dollars. The British demanded one hundred.",
+   "visual": "pig_price",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "When they threatened to arrest him, America sent in soldiers.",
+   "visual": "pig_troops",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "n": 461
+  },
+  {
+   "say": "Britain answered with five warships, and over two thousand men.",
+   "visual": "pig_fleet",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "Guns were loaded. Both sides waited for one order.",
+   "visual": "pig_standoff",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "But the British admiral refused. He would not start a war over a pig.",
+   "visual": "pig_admiral",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "So both armies just camped on the island, peacefully, for twelve years.",
+   "visual": "pig_camps",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "In 1872, the German Kaiser settled it, and gave the island to America.",
+   "visual": "pig_kaiser",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "The only casualty of the Pig War? The pig.",
+   "visual": "pig_halo",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false
+  },
+  {
+   "say": "Follow Odd Archive for more strange history.",
+   "visual": "subscribe_odd",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "icons": [
+    "emu",
+    "wave",
+    "dancer",
+    "volcano",
+    "palm",
+    "pyramid"
+   ]
+  }
+ ]
+}

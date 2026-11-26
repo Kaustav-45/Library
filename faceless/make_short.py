@@ -2527,7 +2527,10 @@ def caption(d, words, times, t):
     cur = max([i for i, (a, _) in enumerate(times) if a <= t] or [0])
     chunk = next(c for c in chunks(d, words) if cur in c)
     size = LAYOUT['cap']
-    if LAYOUT.get('fast'): size = int(size * (1.28 - 0.28 * ease((t - times[chunk[0]][0]) / 0.14)))   # each new chunk pops in
+    if LAYOUT.get('fast'):
+        size = int(size * (1.28 - 0.28 * ease((t - times[chunk[0]][0]) / 0.14)))   # each new chunk pops in
+        fb = font('anton', LAYOUT['cap']); wb = d.textlength(' '.join(words[i].upper() for i in chunk), font=fb)
+        size = min(size, int(LAYOUT['cap'] * 1020 / max(wb, 1)))                    # but never wider than the screen
     f = font('anton', size)
     widths = [d.textlength(words[i].upper() + ' ', font=f) for i in chunk]
     x = LAYOUT['cx'] - (sum(widths) - d.textlength(' ', font=f)) / 2; y = LAYOUT['cy']

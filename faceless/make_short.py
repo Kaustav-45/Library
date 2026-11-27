@@ -85,7 +85,7 @@ _fonts = {}
 def font(name, size):
     key = (name, int(size), S)
     if key not in _fonts:
-        path = {'anton': 'fonts/Anton-Regular.ttf', 'inter': 'fonts/Inter.ttf'}[name]
+        path = {'anton': 'fonts/Anton-Regular.ttf', 'inter': 'fonts/Inter.ttf', 'serif': 'fonts/LiberationSerif-BoldItalic.ttf'}[name]
         f = ImageFont.truetype(os.path.join(HERE, path), max(1, int(size * S)))
         if name == 'inter':
             try: f.set_variation_by_axes([700])
@@ -1464,7 +1464,232 @@ def potato_rows(d, ground, t, gone=0.0):
             sway = math.sin(t * 2 + i + r) * 6
             for a in (-0.6, 0, 0.6): d.ellipse([x + sway + a * 40 - 18, y - 60 - abs(a) * -10, x + sway + a * 40 + 18, y - 24], fill=(96, 140, 60))
 
-def pig_war_visual(d, kind, t, dur, sc):
+# ----- Pig War, remastered: real coastline map, engraved pig sprite -----
+PW_BOX = (-123.75, -122.2, 47.8, 49.2)                  # lon0, lon1, lat0, lat1 of the coastline data
+PW_K = 31.0                                             # base-map pixels per km
+_pw = {}
+def pw_px(lon, lat):
+    """Longitude/latitude to base-map pixels (equirectangular at 48.5 N)."""
+    return (lon - PW_BOX[0]) * 73.6 * PW_K, (PW_BOX[3] - lat) * 111.0 * PW_K
+
+def pw_coast():
+    if 'coast' not in _pw: _pw['coast'] = json.load(open(os.path.join(HERE, 'assets/pigwar/coast.json')))
+    return _pw['coast']
+
+def pw_base():
+    """An antique-style map: parchment land, dark sea with ripple lines along every coast (cached)."""
+    key = ('base', BG0, GOLD)
+    if key not in _pw:
+        Wb, Hb = int(pw_px(PW_BOX[1], 0)[0]), int(pw_px(0, PW_BOX[2])[1])
+        q = 4                                                               # work at 1/4 size for the ripples
+        mask = Image.new('L', (Wb // q, Hb // q), 0); md = ImageDraw.Draw(mask)
+        for o in pw_coast():
+            md.polygon([(x / q, y / q) for x, y in (pw_px(*pt) for pt in o['pts'])], fill=255 if o['level'] == 1 else 0)
+        from scipy import ndimage
+        dist = ndimage.distance_transform_edt(np.asarray(mask) == 0)
+        sea = np.array(mix(BG0, (40, 58, 64), 0.7), np.float32); lit = np.array(mix(CREAM, GOLD, 0.3), np.float32)
+        rip = ((dist % 9 < 1.3) & (dist < 40)).astype(np.float32) * np.clip(1 - dist / 40, 0, 1) * 0.35
+        rgb = sea[None, None] * (1 - rip[..., None]) + lit[None, None] * rip[..., None]
+        small = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).resize((Wb, Hb), Image.BICUBIC)
+        land = Image.new('L', (Wb, Hb), 0); ld = ImageDraw.Draw(land)
+        for o in pw_coast():
+            ld.polygon([pw_px(*pt) for pt in o['pts']], fill=255 if o['level'] == 1 else 0)
+        rng = np.random.default_rng(3)
+        paper = np.array(mix(CREAM, GOLD, 0.35), np.float32)[None, None] * (0.9 + 0.1 * np.asarray(Image.fromarray((rng.random((Hb // 16, Wb // 16)) * 255).astype(np.uint8)).resize((Wb, Hb), Image.BICUBIC), np.float32)[..., None] / 255)
+        paper_im = Image.fromarray(np.clip(paper, 0, 255).astype(np.uint8))
+        small.paste(paper_im, (0, 0), land)
+        edge = land.filter(ImageFilter.FIND_EDGES).filter(ImageFilter.MaxFilter(5))
+        small.paste(Image.new('RGB', (Wb, Hb), mix(INK, (90, 60, 30), 0.4)), (0, 0), edge)
+        _pw[key] = small
+    return _pw[key]
+
+def pw_island(lon, lat):
+    """The coastline polygon containing a point (in base-map pixels)."""
+    k = ('isl', lon, lat)
+    if k not in _pw:
+        px, py = pw_px(lon, lat); best = None
+        for o in pw_coast():
+            if o['level'] != 1: continue
+            pts = [pw_px(*q) for q in o['pts']]
+            xs, ys = [a for a, b in pts], [b for a, b in pts]
+            if not (min(xs) < px < max(xs) and min(ys) < py < max(ys)): continue
+            inside = False
+            for (x1, y1), (x2, y2) in zip(pts, pts[1:] + pts[:1]):
+                if (y1 > py) != (y2 > py) and px < x1 + (py - y1) * (x2 - x1) / (y2 - y1): inside = not inside
+            if inside and (best is None or len(pts) < len(best)): best = pts
+        _pw[k] = best or []
+    return _pw[k]
+
+HARO = [(-123.32, 49.0), (-123.05, 48.83), (-123.02, 48.785), (-123.12, 48.745), (-123.24, 48.69), (-123.27, 48.6), (-123.24, 48.5), (-123.2, 48.4), (-123.25, 48.3), (-123.45, 48.26), (-123.75, 48.24)]
+ROSARIO = [(-123.32, 49.0), (-123.05, 48.83), (-122.86, 48.77), (-122.77, 48.69), (-122.75, 48.6), (-122.74, 48.5), (-122.76, 48.4), (-122.85, 48.3), (-123.05, 48.27), (-123.45, 48.26), (-123.75, 48.24)]
+
+def pw_map(img, sc, lt, tt):
+    """Full-screen animated map of the San Juan dispute on real coastline."""
+    base = pw_base(); bw, bh = base.size; RW, RH = FW * S, FH * S
+    k = ease(lt / max(sc['dur'], 1.0))
+    z0, z1 = sc.get('zoom', (1.0, 1.6)); z = (z0 + (z1 - z0) * k) * (1 + 0.05 * (1 - ease(lt / 0.25)))
+    (ax, ay), (bx_, by_) = sc.get('f0', (-123.05, 48.6)), sc.get('f1', sc.get('f0', (-123.05, 48.6)))
+    cxp, cyp = pw_px(ax + (bx_ - ax) * k, ay + (by_ - ay) * k)
+    ch = bh / z * 0.92; cw = ch * RW / RH
+    cxp = min(max(cxp, cw / 2), bw - cw / 2); cyp = min(max(cyp, ch / 2), bh - ch / 2)
+    x0, y0 = cxp - cw / 2, cyp - ch / 2
+    img.paste(base.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch))).resize((RW, RH), Image.BICUBIC), (0, 0))
+    sx = FW / cw
+    T = lambda lon, lat: ((pw_px(lon, lat)[0] - x0) * sx, (pw_px(lon, lat)[1] - y0) * sx)
+    TP = lambda pts: [((x - x0) * sx, (y - y0) * sx) for x, y in pts]
+    vig, grains = cine_overlays(); img.alpha_composite(vig)
+    lay = Image.new('RGBA', img.size, (0, 0, 0, 0)); d = SD(ImageDraw.Draw(lay))
+    mode = sc.get('mode', 'claims'); USB, UKR = (70, 110, 200), (215, 60, 50)
+    sj = TP(pw_island(-123.08, 48.53))
+    if mode == 'award':
+        a = ease((lt - 0.8) / 0.8)
+        for isl in ((-123.08, 48.53), (-122.9, 48.65), (-122.88, 48.5), (-123.2, 48.71)):
+            pts = TP(pw_island(*isl))
+            if pts: d.polygon(pts, fill=USB + (int(150 * a),))
+    else:
+        pulse = 0.5 + 0.5 * math.sin(lt * 6)
+        if sj: d.polygon(sj, fill=GOLD + (int(90 + 90 * pulse),), outline=GOLD + (255,), width=6)
+    def dashed(pts, col, prog, dash=True, w=10):
+        seg = [(T(*a_), T(*b_)) for a_, b_ in zip(pts, pts[1:])]
+        L = [math.dist(a_, b_) for a_, b_ in seg]; tot = sum(L) * prog; acc = 0
+        for (pa, pb), l in zip(seg, L):
+            if acc >= tot: break
+            u = min(1.0, (tot - acc) / l); acc += l
+            n = max(1, int(l * u / 22))
+            for j in range(n):
+                if dash and j % 2: continue
+                f0_, f1_ = j / n * u, (j + 1) / n * u
+                d.line([(pa[0] + (pb[0] - pa[0]) * f0_, pa[1] + (pb[1] - pa[1]) * f0_), (pa[0] + (pb[0] - pa[0]) * f1_, pa[1] + (pb[1] - pa[1]) * f1_)], fill=col, width=w)
+    if mode == 'claims':
+        dashed(HARO, USB + (255,), ease((lt - 0.6) / 1.4)); dashed(ROSARIO, UKR + (255,), ease((lt - 1.2) / 1.4))
+    else:
+        dashed(ROSARIO, UKR + (int(255 * (1 - ease(lt / 0.8))),), 1.0)
+        dashed(HARO, GOLD + (255,), 1.0, dash=False, w=12)
+    lab = lambda lon, lat, txt, size, col, f='anton': text_c(d, T(lon, lat), txt, font(f, size), col + (255,), stroke=5, sfill=INK)
+    yv = T(-123.4, 48.6)[1]; yu = T(-122.6, 48.48)[1]
+    d.text((40, yv), '< VANCOUVER IS.', font=font('anton', 46), fill=CREAM + (255,), anchor='lm', stroke_width=5, stroke_fill=INK)
+    d.text((40, yv + 50), '   BRITISH', font=font('anton', 38), fill=mix(UKR, CREAM, 0.35) + (255,), anchor='lm', stroke_width=5, stroke_fill=INK)
+    d.text((W - 40, yu), 'U.S.A. >', font=font('anton', 50), fill=CREAM + (255,), anchor='rm', stroke_width=5, stroke_fill=INK)
+    d.text((W - 40, yu + 52), 'AMERICAN   ', font=font('anton', 38), fill=mix(USB, CREAM, 0.5) + (255,), anchor='rm', stroke_width=5, stroke_fill=INK)
+    vx, vy = T(-123.365, 48.428); d.ellipse([vx - 11, vy - 11, vx + 11, vy + 11], fill=INK + (255,), outline=CREAM + (255,), width=3)
+    text_c(d, (vx - 80, vy + 34), 'Victoria', font('serif', 34), CREAM + (255,), stroke=4)
+    if mode == 'claims':
+        if lt > 1.6: lab(-123.33, 48.47, 'US CLAIM', 34, mix(USB, CREAM, 0.55))
+        if lt > 2.2: lab(-122.66, 48.47, 'UK CLAIM', 34, mix(UKR, CREAM, 0.45))
+        text_c(d, T(-123.255, 48.555), 'Haro Str.', font('serif', 30), CREAM + (210,), stroke=3)
+        text_c(d, T(-122.71, 48.555), 'Rosario Str.', font('serif', 30), CREAM + (210,), stroke=3)
+    p = back((lt - 0.4) / 0.4)
+    if p > 0.02 and sj:
+        cx_, cy_ = T(-123.08, 48.45)
+        d.rounded_rectangle([cx_ - 230 * p, cy_ - 38, cx_ + 230 * p, cy_ + 38], 22, fill=(INK if mode == 'claims' else mix(USB, INK, 0.3)) + (235,))
+        if p > 0.8: text_c(d, (cx_, cy_), sc.get('label', 'SAN JUAN ISLAND'), font('anton', 46), GOLD + (255,))
+    img.alpha_composite(lay); img.alpha_composite(grains[int(tt * 24) % len(grains)])
+
+_pw_spr = {}
+def pw_sprite(path, colour=0.5):
+    """An RGBA cut-out, graded to the palette like the cinema scenes."""
+    key = (path, colour, BG0, GOLD)
+    if key not in _pw_spr:
+        im = Image.open(os.path.join(HERE, path)).convert('RGBA'); a = im.getchannel('A').filter(ImageFilter.MinFilter(5))
+        rgb = np.asarray(im.convert('RGB'), np.float32) / 255; g = (rgb @ np.array([0.299, 0.587, 0.114], np.float32))[..., None]
+        lo, hi = np.array(INK, np.float32) * 0.8, np.array(mix(CREAM, GOLD, 0.15), np.float32)
+        out = (lo + (hi - lo) * g) * (1 - colour) + rgb * 255 * colour
+        spr = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).convert('RGBA'); spr.putalpha(a)
+        _pw_spr[key] = spr
+    return _pw_spr[key]
+
+def put_sprite(img, d, spr, x, bottom, w, flip=False, rot=0.0, squash=1.0, shadow=True):
+    """Paste a sprite with its feet at layout point (x, bottom), w layout units wide."""
+    W_ = max(2, int(w * S)); H_ = max(2, int(W_ * spr.height / spr.width * squash))
+    im = spr.resize((W_, H_), Image.BILINEAR)
+    if flip: im = im.transpose(Image.FLIP_LEFT_RIGHT)
+    if rot: im = im.rotate(rot, resample=Image.BICUBIC, expand=True)
+    px, py = d.p((x, bottom))
+    if shadow:
+        sh = Image.new('RGBA', (W_, max(4, W_ // 8)), (0, 0, 0, 0)); ImageDraw.Draw(sh).ellipse([0, 0, W_ - 1, sh.height - 1], fill=(0, 0, 0, 110))
+        sh = sh.filter(ImageFilter.GaussianBlur(max(1, W_ // 40))); img.alpha_composite(sh, (int(px - W_ / 2), int(py - sh.height / 2)))
+    img.alpha_composite(im, (int(px - im.width / 2), int(py - im.height)))
+
+def potato_patch(d, ground, t, eaten=0.0):
+    """Rows of leafy potato plants on tilled soil, with depth."""
+    rng = random.Random(8)
+    d.polygon([(40, ground - 300), (W - 40, ground - 300), (W + 60, ground + 40), (-60, ground + 40)], fill=mix(BG1, (92, 62, 34), 0.6))
+    for r in range(5):
+        y = ground - 270 + r * 70; sc_ = 0.55 + r * 0.14
+        d.line([(60 - r * 20, y + 18 * sc_), (W - 60 + r * 20, y + 18 * sc_)], fill=mix((70, 46, 24), BG0, 0.3), width=int(14 * sc_))
+        for i in range(10 - r // 2):
+            x = 90 + i * (W - 180) / (9 - r // 2) + rng.uniform(-12, 12)
+            if eaten > 0 and r >= 3 and abs(x - W / 2 - 60) < 260 * eaten: continue
+            sw = math.sin(t * 2.2 + i * 0.7 + r) * 5 * sc_
+            for j, a in enumerate((-0.9, -0.4, 0.1, 0.6, 1.0)):
+                lx = x + math.sin(a) * 40 * sc_ + sw; ly = y - math.cos(a) * 34 * sc_ - 10 * sc_
+                col = mix((70, 120, 50), (150, 170, 80), (j % 3) / 3)
+                d.ellipse([lx - 20 * sc_, ly - 13 * sc_, lx + 20 * sc_, ly + 13 * sc_], fill=col)
+
+def farmer(d, x, ground, s, t, rifle=0.0):
+    """A silhouette farmer in a wide-brim hat; rifle in 0..1 raises the gun."""
+    c = SIL
+    for sg in (-1, 1): d.line([(x, ground - 150 * s), (x + sg * 26 * s, ground)], fill=c, width=int(28 * s))
+    d.rounded_rectangle([x - 40 * s, ground - 300 * s, x + 40 * s, ground - 140 * s], 18 * s, fill=c)
+    hy = ground - 340 * s; d.ellipse([x - 30 * s, hy - 32 * s, x + 30 * s, hy + 32 * s], fill=c)
+    d.ellipse([x - 70 * s, hy - 34 * s, x + 70 * s, hy - 16 * s], fill=c); d.rounded_rectangle([x - 34 * s, hy - 70 * s, x + 34 * s, hy - 24 * s], 10 * s, fill=c)
+    a = -0.15 - 1.25 * (1 - rifle)
+    gx, gy = x - 20 * s, ground - 250 * s
+    d.line([(gx, gy), (gx - math.cos(a) * 230 * s, gy + math.sin(a) * 230 * s)], fill=c, width=int(14 * s))
+    d.line([(x, ground - 270 * s), (gx - math.cos(a) * 90 * s, gy + math.sin(a) * 90 * s)], fill=c, width=int(20 * s))
+    return gx - math.cos(a) * 230 * s, gy + math.sin(a) * 230 * s
+
+def pig_war_visual(d, kind, t, dur, sc, img=None):
+    cx, ground = W / 2, VY1 - 40
+    if kind == 'pig_pw_garden':
+        potato_patch(d, ground, t, eaten=ease((t - 1.6) / 1.5))
+        k = ease(t / 1.6); px = -280 + (cx - 60 + 280) * k
+        bob = abs(math.sin(t * 9)) * 8 if k < 1 else 0
+        eat = (k >= 1) * (4 + 6 * math.sin(t * 12))
+        put_sprite(img, d, pw_sprite('assets/pigwar/pig_sprite.png', 0.35), px, ground - 10 - bob + eat, 560, rot=-eat * 0.4)
+        farmer(d, W - 120, ground - 60, 1.0, t)
+        p = back((t - 1.2) / 0.35)
+        if p > 0.02:
+            bx, by = W - 270, VY0 - 10
+            d.rounded_rectangle([bx - 120 * p, by - 64 * p, bx + 120 * p, by + 64 * p], 30, fill=CREAM)
+            d.polygon([(bx + 40 * p, by + 50 * p), (bx + 90 * p, by + 50 * p), (bx + 120 * p, by + 130 * p)], fill=CREAM)
+            if p > 0.8: text_c(d, (bx, by), 'HEY!', font('anton', 84), RED)
+    elif kind == 'pig_pw_price':
+        for i, (lab, sub_, col, x) in enumerate((('$10', 'OFFERED', (60, 150, 80), 300), ('$100', 'DEMANDED', RED, 780))):
+            p = back((t - 0.3 - i * 1.0) / 0.4)
+            if p <= 0.02: continue
+            sw = math.sin(t * 2.5 + i) * 0.06; w, h = 190 * p, 270 * p; cy = VY0 + 260
+            R = lambda pts, ox=0, oy=0: [(x + ox + px_ * math.cos(sw) - py_ * math.sin(sw), cy + oy + px_ * math.sin(sw) + py_ * math.cos(sw)) for px_, py_ in pts]
+            shape = [(-w, -h + 70 * p), (0, -h), (w, -h + 70 * p), (w, h), (-w, h)]
+            d.polygon(R(shape, 14, 18), fill=mix(BG0, INK, 0.5))
+            d.polygon(R(shape), fill=(238, 226, 196)); d.polygon(R([(-w + 12, -h + 76 * p), (0, -h + 12), (w - 12, -h + 76 * p), (w - 12, h - 12), (-w + 12, h - 12)]), outline=col, width=5)
+            d.ellipse([x - 22, cy - h + 50 * p, x + 22, cy - h + 94 * p], fill=BG0)
+            d.line([(x, cy - h + 72 * p), (x - 40, VY0 - 140)], fill=CREAM, width=4)
+            if p > 0.8:
+                text_c(d, (x, cy + 10), lab, font('anton', 150), col); text_c(d, (x, cy + 180), sub_, font('anton', 50), INK)
+        if t > 1.5:
+            q = back((t - 1.5) / 0.4)
+            if q > 0.02: text_c(d, (cx, ground - 20), 'FOR ONE PIG', font('anton', 90 * q), GOLD, stroke=6)
+    elif kind == 'pig_pw_halo':
+        sparkles(d, t, 30)
+        for r_ in range(4):
+            rr = 260 + r_ * 90 + (t * 60) % 90
+            d.ellipse([cx - rr, VY0 + 330 - rr * 0.6, cx + rr, VY0 + 330 + rr * 0.6], outline=mix(BG1, GOLD, 0.35 - r_ * 0.07), width=4)
+        fy = VY0 + 560 - 20 * math.sin(t * 2.4) - 60 * ease(t / 1.2)
+        hy = fy - 330
+        for sg in (-1, 1):
+            flap = math.sin(t * 7) * 30
+            d.polygon([(cx - 60, fy - 200), (cx - 60 + sg * 330, fy - 330 + flap), (cx - 60 + sg * 290, fy - 230 + flap * 0.4), (cx - 60 + sg * 240, fy - 170)], fill=mix(CREAM, GOLD, 0.15))
+        put_sprite(img, d, pw_sprite('assets/pigwar/pig_sprite.png', 0.35), cx, fy, 600, shadow=False)
+        d.ellipse([cx + 90, hy - 22, cx + 290, hy + 22], outline=GOLD, width=12)
+        p = back((t - 0.5) / 0.4)
+        if p > 0.02:
+            d.rounded_rectangle([cx - 340 * p, VY0 + 10, cx + 340 * p, VY0 + 120], 34, fill=RED)
+            if p > 0.8: text_c(d, (cx, VY0 + 65), 'CASUALTIES: 1 PIG', font('anton', 66), CREAM)
+    else:
+        pig_war_visual_v1(d, kind, t, dur, sc)
+
+def pig_war_visual_v1(d, kind, t, dur, sc):
     cx, ground = W / 2, VY1 - 40
     if kind == 'pig_hook':
         flag(d, 110, VY0 + 40, 1.0, 'us', t); flag(d, W - 290, VY0 + 40, 1.0, 'uk', t)
@@ -2790,7 +3015,7 @@ def visual(d, kind, t, dur, img, sc=None):
                 d.polygon([(cx - 40, y0 + 160), (cx - 30, y0 + 70), (cx, y0 + 40), (cx + 30, y0 + 70), (cx + 40, y0 + 160)], fill=GOLD)
             for i in range(7): d.rectangle([x0 + 20 + i * 64, y0, x0 + 34 + i * 64, y0 + 360 * p], fill=STEEL)
     elif kind.startswith('pig_'):
-        pig_war_visual(d, kind, t, dur, sc or {})
+        pig_war_visual(d, kind, t, dur, sc or {}, img)
     elif kind == 'jp_map':
         jp_map(d, t, sc or {})
     elif kind == 'blast':
@@ -2959,6 +3184,8 @@ def cinema(img, sc, lt, tt):
         sh = int(math.sin(lt * 47) * 10 * S * sc['shake']); frame = frame.transform(frame.size, Image.AFFINE, (1, 0, sh, 0, 1, int(math.cos(lt * 39) * 8 * S * sc['shake'])))
     img.paste(frame, (0, 0))
     if sc.get('sprite'): swarm(img, sc, lt)
+    if sc.get('flash') is not None and 0 <= lt - sc['flash'] < 0.16:
+        img.alpha_composite(Image.new('RGBA', img.size, (255, 246, 220, int(230 * (1 - (lt - sc['flash']) / 0.16)))))
     if BOKEH: bokeh(img, tt)
     vig, grains = cine_overlays()
     img.alpha_composite(vig); img.alpha_composite(grains[int(tt * 24) % len(grains)])
@@ -2997,6 +3224,8 @@ def compose(base, sc, lt, frac, tt=None):
     L = LAYOUT; tx = L['tx']
     if sc['visual'] == 'cinema':
         cinema(img, sc, lt, tt if tt is not None else frac * 100); raw = ImageDraw.Draw(img); d = SD(raw)
+    elif sc['visual'] == 'pw_map':
+        pw_map(img, sc, lt, tt if tt is not None else frac * 100); raw = ImageDraw.Draw(img); d = SD(raw)
     elif L.get('fast'):
         layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
         visual(SD(ImageDraw.Draw(layer), L['vox'], L['voy']), sc['visual'], lt, sc['dur'], layer, sc)

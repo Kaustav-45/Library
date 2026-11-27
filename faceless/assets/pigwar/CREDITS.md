@@ -1,0 +1,11 @@
+# Pig War images (all public domain / no known restrictions, via Wikimedia Commons)
+- pig_berk.jpg — Berkshire pig, Brett's Colonist's Guide (1883)
+- pig_ls1/2/3.jpg — "Live stock: a cyclopedia for the farmer…" (Internet Archive Book Images)
+- pickett.jpg — Gen. George E. Pickett (Library of Congress / public domain)
+- baynes.png — Admiral Robert Lambert Baynes (PD-Canada)
+- kaiser.jpg — Kaiser Wilhelm I (PD-old)
+- fleet.jpg — "Fleet Forming Line Abreast", Illustrated London News, 1853
+- marines_camp.jpg — Royal Marines camp on San Juan Island, ca. 1866 (DPLA)
+- american_camp.jpg — American Camp, San Juan Island, July 4, 1867 (PD-USGov)
+- english_camp.jpg, evacuate.jpg — English Camp ca. 1865; British troops leave, 1872 (PD-US)
+- coast.json — GSHHG full-resolution shoreline (LGPL), via basemap-data-hires

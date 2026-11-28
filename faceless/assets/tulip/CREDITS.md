@@ -1,0 +1,11 @@
+# Tulip Mania images (public domain, via Wikimedia Commons)
+- semper.jpg — Semper Augustus tulip, anonymous 17th-century watercolour
+- semper_six.jpg — Semper Augustus, Six Collection tulip book
+- tulip_study.jpg — Anthony Claesz I, tulip study
+- satire.jpg — Jan Brueghel the Younger, Satire on Tulip Mania (c. 1640)
+- wagon.jpg — Hendrik Gerritsz Pot, Flora's Wagon of Fools (c. 1637)
+- herengracht.jpg — Gerrit Berckheyde, The Bend in the Herengracht, Amsterdam
+- haarlem.jpg — Gerrit Berckheyde, The Grote Markt in Haarlem
+- pamphlet.jpg — Tooneel van Flora pamphlet (1637)
+- fools_cap.jpg — Cornelis Danckerts after Pieter Nolpe, Floraes Gecks-kap (1637)
+- coast.json — GSHHG full-resolution shoreline (LGPL); 1637 water (Haarlemmermeer, IJ) added by hand

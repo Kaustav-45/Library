@@ -1,0 +1,364 @@
+{
+ "title": "Tulip Mania (1637)",
+ "style": "fast",
+ "gap": 0.1,
+ "voice": "kokoro:am_michael",
+ "speed": 1.0,
+ "grain": 4.0,
+ "maxrate": "24M",
+ "transitions": true,
+ "palette": {
+  "bg0": [
+   18,
+   12,
+   8
+  ],
+  "bg1": [
+   80,
+   52,
+   24
+  ],
+  "bg2": [
+   120,
+   84,
+   34
+  ],
+  "text": [
+   255,
+   246,
+   224
+  ],
+  "headline": [
+   255,
+   212,
+   60
+  ],
+  "accent": [
+   180,
+   50,
+   34
+  ],
+  "ink": [
+   20,
+   12,
+   6
+  ],
+  "line": [
+   150,
+   110,
+   60
+  ],
+  "liquid": [
+   52,
+   80,
+   104
+  ],
+  "steel": [
+   176,
+   160,
+   136
+  ],
+  "glow": [
+   255,
+   170,
+   60
+  ],
+  "pop": [
+   [
+    255,
+    212,
+    60
+   ],
+   [
+    255,
+    170,
+    90
+   ],
+   [
+    255,
+    246,
+    224
+   ],
+   [
+    230,
+    120,
+    60
+   ],
+   [
+    250,
+    220,
+    150
+   ]
+  ],
+  "bokeh": [
+   [
+    255,
+    196,
+    110
+   ]
+  ]
+ },
+ "scenes": [
+  {
+   "say": "In 1637, one flower bulb cost as much as a house.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.85,
+   "visual": "cinema",
+   "image": "assets/tulip/semper.jpg",
+   "f0": [
+    0.45,
+    0.2
+   ],
+   "f1": [
+    0.45,
+    0.26
+   ],
+   "zoom": [
+    1.6,
+    1.25
+   ],
+   "stamp": "1637"
+  },
+  {
+   "say": "This is the Semper Augustus, the most wanted tulip in the Dutch Republic.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.85,
+   "visual": "cinema",
+   "image": "assets/tulip/semper_six.jpg",
+   "f0": [
+    0.5,
+    0.3
+   ],
+   "f1": [
+    0.5,
+    0.4
+   ],
+   "zoom": [
+    1.3,
+    1.0
+   ],
+   "banner": "SEMPER AUGUSTUS"
+  },
+  {
+   "say": "The strange part? Its famous stripes were caused by a virus.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "tl_virus"
+  },
+  {
+   "say": "Rich Dutch merchants bought rare bulbs to show off their wealth.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.6,
+   "visual": "cinema",
+   "image": "assets/tulip/herengracht.jpg",
+   "f0": [
+    0.25,
+    0.5
+   ],
+   "f1": [
+    0.55,
+    0.5
+   ],
+   "zoom": [
+    1.05,
+    1.15
+   ]
+  },
+  {
+   "say": "Soon, people in Haarlem and Amsterdam were trading bulbs still buried in the ground.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "geo_map",
+   "region": "holland",
+   "f0": [
+    4.74,
+    52.38
+   ],
+   "f1": [
+    4.76,
+    52.37
+   ],
+   "zoom": [
+    1.35,
+    1.7
+   ],
+   "hot": [
+    "HAARLEM",
+    "AMSTERDAM"
+   ],
+   "routes": [
+    [
+     "HAARLEM",
+     "AMSTERDAM"
+    ],
+    [
+     "AMSTERDAM",
+     "HAARLEM"
+    ]
+   ],
+   "label": "1637 \u00b7 THE DUTCH REPUBLIC"
+  },
+  {
+   "say": "From November 1636, prices shot up, week after week.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "tl_chart",
+   "mode": "rise"
+  },
+  {
+   "say": "At the peak, a single bulb sold for more than ten years of a craftsman's wages.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "tl_coins"
+  },
+  {
+   "say": "The best Semper Augustus was priced at ten thousand guilders, as much as a canal house in Amsterdam.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "tl_scale"
+  },
+  {
+   "say": "Then, on February third, at a bulb auction in Haarlem, the buyers simply didn't show up.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.6,
+   "visual": "cinema",
+   "image": "assets/tulip/haarlem.jpg",
+   "f0": [
+    0.35,
+    0.6
+   ],
+   "f1": [
+    0.5,
+    0.55
+   ],
+   "zoom": [
+    1.1,
+    1.25
+   ],
+   "banner": "FEB 3, 1637 \u00b7 HAARLEM"
+  },
+  {
+   "say": "Panic spread. Within days, prices crashed.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "tl_chart",
+   "mode": "crash"
+  },
+  {
+   "say": "Painters mocked the traders as monkeys and fools.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.65,
+   "visual": "cinema",
+   "image": "assets/tulip/satire.jpg",
+   "f0": [
+    0.72,
+    0.6
+   ],
+   "f1": [
+    0.82,
+    0.62
+   ],
+   "zoom": [
+    1.15,
+    1.35
+   ],
+   "banner": "SATIRE ON TULIP MANIA"
+  },
+  {
+   "say": "Historians still argue how wild it really was. But the lesson stayed.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.6,
+   "visual": "cinema",
+   "image": "assets/tulip/wagon.jpg",
+   "f0": [
+    0.35,
+    0.45
+   ],
+   "f1": [
+    0.55,
+    0.45
+   ],
+   "zoom": [
+    1.0,
+    1.15
+   ],
+   "banner": "FLORA'S WAGON OF FOOLS"
+  },
+  {
+   "say": "When a price rises only because everyone is buying, be careful.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.4,
+   "visual": "cinema",
+   "image": "assets/tulip/fools_cap.jpg",
+   "f0": [
+    0.45,
+    0.4
+   ],
+   "f1": [
+    0.45,
+    0.45
+   ],
+   "zoom": [
+    1.0,
+    1.2
+   ],
+   "stamp": "BE CAREFUL"
+  },
+  {
+   "say": "Follow Odd Archive for more strange history.",
+   "kicker": "",
+   "big": "",
+   "sub": "",
+   "count": false,
+   "colour": 0.3,
+   "visual": "subscribe_odd",
+   "icons": [
+    "emu",
+    "wave",
+    "dancer",
+    "volcano",
+    "palm",
+    "pyramid"
+   ]
+  }
+ ]
+}

@@ -1639,6 +1639,201 @@ def farmer(d, x, ground, s, t, rifle=0.0):
     d.line([(x, ground - 270 * s), (gx - math.cos(a) * 90 * s, gy + math.sin(a) * 90 * s)], fill=c, width=int(20 * s))
     return gx - math.cos(a) * 230 * s, gy + math.sin(a) * 230 * s
 
+# ----- generic antique map on real coastline (region configs) -----
+REGIONS = {
+    'holland': dict(box=(4.15, 5.2, 51.9, 52.85), coast='assets/tulip/coast.json', lat0=52.4, k=40.0,
+                    # water that existed in 1637 but is land today: the Haarlemmermeer and the wide IJ
+                    water=[[(4.62, 52.372), (4.70, 52.356), (4.77, 52.332), (4.795, 52.30), (4.765, 52.262), (4.70, 52.232), (4.62, 52.222), (4.56, 52.243), (4.548, 52.29), (4.58, 52.342)],
+                           [(4.97, 52.412), (4.92, 52.403), (4.86, 52.398), (4.79, 52.405), (4.72, 52.414), (4.685, 52.42), (4.70, 52.432), (4.78, 52.428), (4.86, 52.421), (4.93, 52.42), (4.98, 52.425)]],
+                    cities={'AMSTERDAM': (4.895, 52.372), 'HAARLEM': (4.637, 52.381), 'LEIDEN': (4.497, 52.160), 'ALKMAAR': (4.748, 52.632)},
+                    seas=[('North Sea', 4.3, 52.55), ('Zuiderzee', 5.12, 52.5), ('Haarlemmermeer', 4.675, 52.29)]),
+}
+_geo = {}
+def geo_px(R, lon, lat):
+    b = R['box']; return (lon - b[0]) * 111.32 * math.cos(math.radians(R['lat0'])) * R['k'], (b[3] - lat) * 111.0 * R['k']
+
+def geo_base(name):
+    R = REGIONS[name]; key = (name, BG0, GOLD)
+    if key not in _geo:
+        coast = json.load(open(os.path.join(HERE, R['coast'])))
+        Wb, Hb = int(geo_px(R, R['box'][1], 0)[0]), int(geo_px(R, 0, R['box'][2])[1])
+        def land_mask(q):
+            m = Image.new('L', (Wb // q, Hb // q), 0); md = ImageDraw.Draw(m)
+            for o in coast: md.polygon([(x / q, y / q) for x, y in (geo_px(R, *pt) for pt in o['pts'])], fill=255 if o['level'] == 1 else 0)
+            for w in R.get('water', []): md.polygon([(x / q, y / q) for x, y in (geo_px(R, *pt) for pt in w)], fill=0)
+            return m
+        from scipy import ndimage
+        q = 4; dist = ndimage.distance_transform_edt(np.asarray(land_mask(q)) == 0)
+        sea = np.array(mix(BG0, (40, 58, 64), 0.7), np.float32); lit = np.array(mix(CREAM, GOLD, 0.3), np.float32)
+        rip = ((dist % 9 < 1.3) & (dist < 40)).astype(np.float32) * np.clip(1 - dist / 40, 0, 1) * 0.35
+        small = Image.fromarray(np.clip(sea[None, None] * (1 - rip[..., None]) + lit[None, None] * rip[..., None], 0, 255).astype(np.uint8)).resize((Wb, Hb), Image.BICUBIC)
+        land = land_mask(1); rng = np.random.default_rng(5)
+        noise = np.asarray(Image.fromarray((rng.random((Hb // 16, Wb // 16)) * 255).astype(np.uint8)).resize((Wb, Hb), Image.BICUBIC), np.float32)[..., None] / 255
+        paper = np.array(mix(CREAM, GOLD, 0.35), np.float32)[None, None] * (0.9 + 0.1 * noise)
+        small.paste(Image.fromarray(np.clip(paper, 0, 255).astype(np.uint8)), (0, 0), land)
+        small.paste(Image.new('RGB', (Wb, Hb), mix(INK, (90, 60, 30), 0.4)), (0, 0), land.filter(ImageFilter.FIND_EDGES).filter(ImageFilter.MaxFilter(5)))
+        _geo[key] = small
+    return _geo[key]
+
+def geo_map(img, sc, lt, tt):
+    """Full-screen antique map with a slow camera, pulsing cities and contracts flying between them."""
+    R = REGIONS[sc.get('region', 'holland')]; base = geo_base(sc.get('region', 'holland')); bw, bh = base.size; RW, RH = FW * S, FH * S
+    k = ease(lt / max(sc['dur'], 1.0)); z0, z1 = sc.get('zoom', (1.0, 1.3)); z = (z0 + (z1 - z0) * k) * (1 + 0.05 * (1 - ease(lt / 0.25)))
+    (ax, ay), (bx_, by_) = sc.get('f0', (4.7, 52.4)), sc.get('f1', sc.get('f0', (4.7, 52.4)))
+    cxp, cyp = geo_px(R, ax + (bx_ - ax) * k, ay + (by_ - ay) * k)
+    ch = min(bh, bw * RH / RW) / z; cw = ch * RW / RH
+    cxp = min(max(cxp, cw / 2), bw - cw / 2); cyp = min(max(cyp, ch / 2), bh - ch / 2); x0, y0 = cxp - cw / 2, cyp - ch / 2
+    img.paste(base.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch))).resize((RW, RH), Image.BICUBIC), (0, 0))
+    sx = FW / cw; T = lambda lon, lat: ((geo_px(R, lon, lat)[0] - x0) * sx, (geo_px(R, lon, lat)[1] - y0) * sx)
+    vig, grains = cine_overlays(); img.alpha_composite(vig)
+    lay = Image.new('RGBA', img.size, (0, 0, 0, 0)); d = SD(ImageDraw.Draw(lay))
+    for nm, lon, lat in R.get('seas', []):
+        text_c(d, T(lon, lat), nm, font('serif', 40), CREAM + (215,), stroke=3)
+    routes = sc.get('routes', [])
+    for i, (a, b) in enumerate(routes * 3):                                   # contracts flying between towns
+        st = 0.6 + i * 0.32; u = (lt - st) / 1.1
+        if not 0 < u < 1: continue
+        (xa, ya), (xb, yb) = T(*R['cities'][a]), T(*R['cities'][b]); u2 = ease(u)
+        x = xa + (xb - xa) * u2; y = ya + (yb - ya) * u2 - math.sin(u2 * math.pi) * 120
+        rot = math.sin(lt * 5 + i) * 10; w_, h_ = 54, 40
+        pts = [(-w_, -h_), (w_, -h_), (w_, h_), (-w_, h_)]; c, sn = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        d.polygon([(x + px * c - py * sn, y + px * sn + py * c) for px, py in pts], fill=(242, 232, 206, 255), outline=INK + (255,), width=3)
+        for j in range(3): d.line([(x - 34, y - 18 + j * 16), (x + 34 - (j == 2) * 26, y - 18 + j * 16)], fill=mix(INK, CREAM, 0.4) + (255,), width=4)
+    hot = sc.get('hot', [])
+    for i, (nm, (lon, lat)) in enumerate(R['cities'].items()):
+        x, y = T(lon, lat); p = back((lt - 0.2 - i * 0.12) / 0.35)
+        if p <= 0.02: continue
+        if nm in hot:
+            r = 34 + 14 * (0.5 + 0.5 * math.sin(lt * 6)); d.ellipse([x - r, y - r, x + r, y + r], fill=RED + (90,))
+        r = 15 * p; d.ellipse([x - r, y - r, x + r, y + r], fill=(RED if nm in hot else INK) + (255,), outline=CREAM + (255,), width=4)
+        text_c(d, (x, y - 50), nm, font('anton', 50 * p), CREAM + (255,), stroke=6, sfill=INK)
+    p = back((lt - 0.4) / 0.4)
+    if p > 0.02 and sc.get('label'):
+        d.rounded_rectangle([FW / 2 - 330 * p, 1500, FW / 2 + 330 * p, 1590], 26, fill=RED + (240,))
+        if p > 0.8: text_c(d, (FW / 2, 1545), sc['label'], font('anton', 54), CREAM + (255,))
+    img.alpha_composite(lay); img.alpha_composite(grains[int(tt * 24) % len(grains)])
+
+# ----- Tulip mania: the Semper Augustus sprite, a price chart, coins and a balance -----
+def tulip_plain(spr):
+    """The same tulip without its virus stripes: petals filled in solid red, shading kept."""
+    key = ('plain', id(spr))
+    if key not in _pw_spr:
+        a = np.asarray(spr, np.float32); h = a.shape[0]; out = a.copy()
+        lum = (a[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32))[..., None] / 255
+        red = np.array([176, 30, 34], np.float32)
+        flower = np.zeros((h, 1, 1), np.float32); flower[:int(h * 0.42)] = 1
+        out[..., :3] = a[..., :3] * (1 - flower) + red * (0.55 + 0.45 * lum) * flower
+        _pw_spr[key] = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
+    return _pw_spr[key]
+
+PRICE = [(0, 1.0), (2, 1.3), (3, 2.0), (4.5, 3.2), (6, 5.0), (7, 7.0), (9, 10.0), (10, 14.0), (11.4, 18.0), (11.7, 20.0), (12.6, 4.0), (13.6, 2.2), (16, 1.3)]
+def tl_chart(d, t, dur, sc, img):
+    x0, x1, yb, yt = 180, W - 160, VY1 - 60, VY0 + 40
+    X = lambda wk: x0 + (x1 - x0) * wk / 16; Y = lambda v: yb - (yb - yt) * (v - 1) / 19.5
+    d.rounded_rectangle([130, yt - 40, W - 120, yb + 80], 26, fill=mix(BG0, INK, 0.4))
+    for j in range(1, 5): d.line([(x0, yb - j * (yb - yt) / 5), (x1, yb - j * (yb - yt) / 5)], fill=mix(BG1, BG0, 0.5), width=2)
+    d.line([(x0, yt), (x0, yb), (x1, yb)], fill=CREAM, width=4)
+    for wk, lab in ((0, 'NOV 1636'), (6, 'DEC'), (9.5, 'JAN 1637'), (12.6, 'FEB'), (16, '')):
+        text_c(d, (X(wk) + 40, yb + 40), lab, font('anton', 34), CREAM)
+    d.text((x0 + 16, yt + 10), 'BULB PRICES', font=font('anton', 40), fill=GOLD)
+    crash = sc.get('mode') == 'crash'
+    upto = 11.7 * ease(t / max(dur * 0.85, 1.5)) if not crash else 11.7 + 4.3 * ease((t - 0.5) / 1.8)
+    pts = []
+    for (a, va), (b, vb) in zip(PRICE, PRICE[1:]):
+        for j in range(12):
+            wk = a + (b - a) * j / 12
+            if wk > upto: break
+            u = j / 12; pts.append((X(wk), Y(va + (vb - va) * (u * u * (3 - 2 * u)))))
+    if len(pts) > 1:
+        peak = next(i for i, (x, y) in enumerate(pts) if x >= X(11.7) - 0.5) if upto >= 11.7 else len(pts)
+        up, down = pts[:peak + 1], pts[peak:]
+        d.polygon(up + [(up[-1][0], yb), (x0, yb)], fill=mix(BG0, GOLD, 0.18))
+        d.line(up, fill=GOLD, width=10, joint='curve')
+        if len(down) > 1: d.line(down, fill=RED, width=12, joint='curve')
+        tx, ty = pts[-1]
+        if not crash or upto < 12.0:
+            put_sprite(img, d, pw_sprite('assets/tulip/tulip_sprite.png', 1.0), tx, ty + 10, 70, shadow=False)
+            d.ellipse([tx - 14, ty - 14, tx + 14, ty + 14], fill=CREAM)
+        else:
+            put_sprite(img, d, pw_sprite('assets/tulip/tulip_sprite.png', 1.0), tx + 30, ty + 30, 70, rot=-70 * ease((t - 1.2) / 0.8), shadow=False)
+    if crash and t > 0.9:
+        p = back((t - 0.9) / 0.3); text_c(d, (W / 2 + 140, VY0 + 160), 'CRASH', font('anton', 170 * p), RED, stroke=8)
+    if not crash and upto > 11.0:
+        p = back((t - dur * 0.85) / 0.3)
+        if p > 0.02: text_c(d, (X(11.7) - 80, Y(20) + 30), 'PEAK', font('anton', 70 * p), CREAM, stroke=5)
+
+def coin_stack(d, x, base_y, n, t0, t):
+    for j in range(n):
+        if t < t0 + j * 0.03: break
+        y = base_y - j * 13
+        d.ellipse([x - 52, y - 15, x + 52, y + 15], fill=shade(GOLD, 0.75)); d.ellipse([x - 52, y - 21, x + 52, y + 9], fill=GOLD)
+        d.ellipse([x - 34, y - 16, x + 34, y + 4], outline=shade(GOLD, 0.8), width=3)
+
+def tl_coins(d, t, dur, sc, img):
+    gy = VY1 - 60
+    for i in range(10):
+        col, row = i % 5, i // 5; x = 190 + col * 118; y = gy - row * 230
+        p = back((t - 0.2 - i * 0.14) / 0.3)
+        if p > 0.02: coin_stack(d, x, y, int(12 * min(p, 1)), 0, 99)
+    p = back((t - 0.2) / 0.4)
+    if p > 0.02: text_c(d, (430, VY0 + 40), "10 YEARS OF WAGES", font('anton', 58 * p), CREAM, stroke=5)
+    k = min(10, max(0, int((t - 0.2) / 0.14) + 1)); text_c(d, (430, gy + 50), f'x{k}', font('anton', 60), GOLD, stroke=5)
+    q = back((t - 1.8) / 0.4)
+    if q > 0.02:
+        text_c(d, (W - 300, VY0 + 330), '=', font('anton', 140 * q), GOLD, stroke=6)
+        sw = math.sin(t * 2) * 3
+        put_sprite(img, d, pw_sprite('assets/tulip/tulip_sprite.png', 1.0), W - 220, gy, 200 * q, rot=sw)
+        text_c(d, (W - 220, gy + 50), '1 BULB', font('anton', 60), CREAM, stroke=5)
+
+def canal_house(d, x, base, s):
+    """A narrow Amsterdam canal house with a stepped gable."""
+    w, h = 170 * s, 380 * s; brick = (150, 70, 48)
+    steps = [(-1, 0), (-1, -0.62), (-0.7, -0.62), (-0.7, -0.75), (-0.42, -0.75), (-0.42, -0.88), (-0.18, -0.88), (-0.18, -1), (0.18, -1), (0.18, -0.88), (0.42, -0.88), (0.42, -0.75), (0.7, -0.75), (0.7, -0.62), (1, -0.62), (1, 0)]
+    d.polygon([(x + a * w / 2, base + b * h) for a, b in steps], fill=brick, outline=(238, 228, 206), width=int(5 * s))
+    for r in range(4):
+        for c in range(3):
+            wx, wy = x - w * 0.32 + c * w * 0.32, base - h * 0.12 - r * h * 0.13
+            d.rectangle([wx - 16 * s, wy - 22 * s, wx + 16 * s, wy + 22 * s], fill=(238, 228, 206)); d.rectangle([wx - 11 * s, wy - 17 * s, wx + 11 * s, wy + 17 * s], fill=(60, 70, 80))
+    d.rectangle([x - 22 * s, base - 70 * s, x + 22 * s, base], fill=(70, 44, 26))
+
+def tl_scale(d, t, dur, sc, img):
+    px, py, L = W / 2, VY0 + 200, 290
+    tilt = 0.28 * math.cos(t * 2.4) * math.exp(-t * 0.9)
+    d.polygon([(px - 130, VY1 - 30), (px + 130, VY1 - 30), (px + 30, VY1 - 70), (px - 30, VY1 - 70)], fill=GOLD)
+    d.line([(px, py), (px, VY1 - 60)], fill=GOLD, width=18); d.ellipse([px - 22, py - 22, px + 22, py + 22], fill=GOLD)
+    ax, ay = px - L * math.cos(tilt), py + L * math.sin(tilt); bx, by = px + L * math.cos(tilt), py - L * math.sin(tilt)
+    d.line([(ax, ay), (bx, by)], fill=GOLD, width=16)
+    for i, (x, y) in enumerate(((ax, ay), (bx, by))):
+        d.line([(x, y), (x - 95, y + 230)], fill=GOLD, width=5); d.line([(x, y), (x + 95, y + 230)], fill=GOLD, width=5)
+        d.pieslice([x - 125, y + 170, x + 125, y + 290], 0, 180, fill=GOLD)
+        if i == 0: canal_house(d, x, y + 232, 0.62)
+        else: put_sprite(img, d, pw_sprite('assets/tulip/tulip_sprite.png', 1.0), x, y + 232, 120, shadow=False)
+    p = back((t - 1.0) / 0.4)
+    if p > 0.02:
+        d.rounded_rectangle([W / 2 - 330 * p, VY0 + 10, W / 2 + 330 * p, VY0 + 100], 26, fill=RED)
+        if p > 0.8: text_c(d, (W / 2, VY0 + 55), '~10,000 GUILDERS EACH', font('anton', 52), CREAM)
+
+def tl_virus(d, t, dur, sc, img):
+    spr = pw_sprite('assets/tulip/tulip_sprite.png', 1.0); plain = tulip_plain(spr)
+    k = ease((t - 0.9) / 1.4); sway = math.sin(t * 1.6) * 2.5
+    cx, gy = W / 2, VY1 + 40
+    put_sprite(img, d, plain, cx, gy, 330, rot=sway, shadow=False)
+    if k > 0:
+        tmp = Image.new('RGBA', img.size, (0, 0, 0, 0)); put_sprite(tmp, d, spr, cx, gy, 330, rot=sway, shadow=False)
+        a = tmp.getchannel('A').point(lambda v: int(v * k)); tmp.putalpha(a); img.alpha_composite(tmp)
+    rng = random.Random(4)
+    for i in range(16):                                                      # flexuous rod-shaped virus particles
+        a0 = rng.uniform(0, 2 * math.pi); r0 = rng.uniform(380, 560); st = rng.uniform(0, 0.9)
+        u = ease((t - st) / 1.3); r = r0 * (1 - 0.78 * u)
+        x = cx + math.cos(a0 + t * 0.4) * r; y = VY0 + 170 + math.sin(a0 + t * 0.4) * r * 0.75
+        if u >= 1: continue
+        pts = [(x + j * 9 * math.cos(a0 * 3) , y + j * 9 * math.sin(a0 * 3) + math.sin(j * 0.9 + t * 6) * 8) for j in range(9)]
+        d.line(pts, fill=(130, 220, 140), width=9, joint='curve')
+    p = back((t - 1.6) / 0.4)
+    if p > 0.02:
+        d.rounded_rectangle([cx - 330 * p, VY0 - 70, cx + 330 * p, VY0 + 20], 26, fill=(60, 150, 80))
+        if p > 0.8: text_c(d, (cx, VY0 - 25), 'TULIP BREAKING VIRUS', font('anton', 52), CREAM)
+
 def pig_war_visual(d, kind, t, dur, sc, img=None):
     cx, ground = W / 2, VY1 - 40
     if kind == 'pig_pw_garden':
@@ -3014,6 +3209,8 @@ def visual(d, kind, t, dur, img, sc=None):
                 person(d, cx, y0 + 330, 2.6, ROBE_W)
                 d.polygon([(cx - 40, y0 + 160), (cx - 30, y0 + 70), (cx, y0 + 40), (cx + 30, y0 + 70), (cx + 40, y0 + 160)], fill=GOLD)
             for i in range(7): d.rectangle([x0 + 20 + i * 64, y0, x0 + 34 + i * 64, y0 + 360 * p], fill=STEEL)
+    elif kind.startswith('tl_'):
+        {'tl_chart': tl_chart, 'tl_coins': tl_coins, 'tl_scale': tl_scale, 'tl_virus': tl_virus}[kind](d, t, dur, sc or {}, img)
     elif kind.startswith('pig_'):
         pig_war_visual(d, kind, t, dur, sc or {}, img)
     elif kind == 'jp_map':
@@ -3224,6 +3421,8 @@ def compose(base, sc, lt, frac, tt=None):
     L = LAYOUT; tx = L['tx']
     if sc['visual'] == 'cinema':
         cinema(img, sc, lt, tt if tt is not None else frac * 100); raw = ImageDraw.Draw(img); d = SD(raw)
+    elif sc['visual'] == 'geo_map':
+        geo_map(img, sc, lt, tt if tt is not None else frac * 100); raw = ImageDraw.Draw(img); d = SD(raw)
     elif sc['visual'] == 'pw_map':
         pw_map(img, sc, lt, tt if tt is not None else frac * 100); raw = ImageDraw.Draw(img); d = SD(raw)
     elif L.get('fast'):
